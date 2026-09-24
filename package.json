@@ -1,0 +1,18 @@
+{
+  "name": "formula-rush-interlagos",
+  "version": "1.0.0",
+  "description": "Formula Rush — Interlagos: corrida arcade 3D (three.js) em Interlagos, reconstruída em módulos legíveis a partir do bundle publicado original.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
