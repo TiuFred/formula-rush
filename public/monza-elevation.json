@@ -1,0 +1,5 @@
+{
+  "_readme": "Placeholder documentado (ver docs/AUDITORIA.md). Monza e uma pista praticamente plana; com 'samples' vazio, o jogo usa automaticamente o perfil de reserva definido em src/circuits.js (leve, ~2-4m de variacao), que e uma simplificacao razoavel para um circuito conhecido por sua baixa variacao de altitude.",
+  "source": "Autodromo Nazionale Monza (bacinger/f1-circuits, MIT)",
+  "samples": []
+}

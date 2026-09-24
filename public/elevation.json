@@ -1,0 +1,5 @@
+{
+  "_readme": "Placeholder documentado. Ver docs/AUDITORIA.md, secao 7. O jogo so usa 'samples' quando esse array tem MAIS de 5 pontos [distancia_m, elevacao_m]; com 5 ou menos (como aqui), ele usa automaticamente o perfil de elevacao interno (mesmo hardcoded no bundle original) baseado nos dados de altitude referenciados no repositorio bacinger/f1-circuits. Isso reproduz EXATAMENTE o comportamento atual do jogo.",
+  "source": "Autodromo Jose Carlos Pace - Interlagos (bacinger/f1-circuits, MIT) + relevo aproximado citado no rodape do site (SRTM 30m)",
+  "samples": []
+}

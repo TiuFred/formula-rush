@@ -1,0 +1,5 @@
+{
+  "_readme": "Placeholder documentado (ver docs/AUDITORIA.md). O oval de Indianapolis eh real e muito plano (fato conhecido). Com 'samples' vazio, o jogo usa o perfil de reserva definido em src/circuits.js (zero - sem desnivel).",
+  "source": "Indianapolis Motor Speedway - oval de 2.5 milhas (geometria gerada a partir das especificacoes oficiais reais, ver docs/AUDITORIA.md)",
+  "samples": []
+}
