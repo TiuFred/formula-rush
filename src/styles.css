@@ -734,14 +734,6 @@ kbd {
   color: var(--lime)
 }
 
-body.racing aside {
-  opacity: .65
-}
-
-body.racing .colors {
-  pointer-events: none
-}
-
 @media(min-width:1600px) {
   main {
     grid-template-columns: minmax(0, 1fr) 370px
@@ -830,16 +822,26 @@ body.racing .colors {
   }
 
   .start {
-    top: 26%;
+    top: 20%;
     left: 7%
   }
 
   h1 {
-    font-size: 57px
+    font-size: 57px;
+    margin: 10px 0
   }
 
   .start p {
-    font-size: 15px
+    font-size: 15px;
+    margin: 10px 0 16px
+  }
+
+  .landing-secondary {
+    margin-top: 0
+  }
+
+  .startmeta {
+    margin-top: 10px
   }
 
   .tracklabel {
@@ -926,34 +928,9 @@ body.racing .colors {
   .startmeta {
     font-size: 9px
   }
-
-  body.racing .game {
-    height: calc(100dvh - 85px);
-    min-height: 460px;
-    max-height: none
-  }
-
-  body.racing aside,
-  body.racing footer {
-    display: none
-  }
 }
 
 @media(max-height:570px)and (orientation:landscape) {
-  body.racing header {
-    display: none
-  }
-
-  body.racing main {
-    padding: 0
-  }
-
-  body.racing .game {
-    height: 100dvh;
-    min-height: 0;
-    border-radius: 0
-  }
-
   .hud {
     top: 40px
   }
@@ -1834,84 +1811,71 @@ body.racing #lapCount {
   }
 }
 
-/* Tela de título (main menu) — mostrada antes da configuração de corrida. */
-.title-screen {
-  position: fixed;
-  z-index: 6;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px;
-  background:
-    radial-gradient(circle at 20% 20%, #223a2a80, transparent 55%),
-    radial-gradient(circle at 85% 80%, #2a3a2280, transparent 55%),
-    linear-gradient(160deg, #0c1211, #141e19 55%, #0c1211);
+/* Fluxo de 3 passos antes/durante a corrida — ver docs/AUDITORIA.md § 16.
+   Passo 1 (#startLanding) e passo 2 (#startConfig) vivem dentro do mesmo
+   #start (sempre sobre a cena 3D rodando ao fundo, como já era); só o
+   conteúdo troca, então a órbita da câmera/carro nunca desaparece atrás de
+   uma tela sólida. Passo 3 (a corrida) é tratado mais abaixo, em
+   "Corrida em tela cheia". */
+#startConfig {
+  position: relative;
 }
 
-.title-inner {
-  max-width: 560px;
-}
-
-.title-brandmark {
-  display: inline-block;
-  font-family: Barlow Condensed, Impact, sans-serif;
-  font-size: 68px;
-  font-weight: 900;
-  letter-spacing: -8px;
-  transform: skew(-14deg);
-  border-bottom: 6px solid var(--lime);
-  padding: 0 10px 4px 0;
-  margin-bottom: 18px;
-}
-
-.title-brandmark span {
-  color: var(--lime);
-}
-
-.title-heading {
-  margin: 0 0 18px;
-  font-size: clamp(40px, 7vw, 74px);
-}
-
-.title-tagline {
-  font-size: 16px;
-  color: #d6ded5;
-  line-height: 1.6;
-  margin: 0 0 32px;
-}
-
-.title-inner .primary {
-  margin: 0 auto 14px;
-}
-
-.title-secondary {
-  margin: 0 auto;
+/* Botão secundário (RANKING ONLINE) no passo 1 — abaixo do CTA principal. */
+.landing-secondary {
+  margin: 4px 0 0;
   color: #c5d0c5;
   font-size: 13px;
   letter-spacing: .5px;
-  padding: 10px 16px;
+  padding: 10px 4px;
+  text-align: left;
 }
 
-.title-meta {
-  margin-top: 34px;
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: #8e9994;
+/* Botão "← VOLTAR" no topo do passo 2, para retornar ao passo 1. Posição
+   absoluta (não ocupa espaço no fluxo normal) para não empurrar o resto do
+   conteúdo para baixo em telas baixas/mobile. */
+.back-btn {
+  position: absolute;
+  top: -38px;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: #c5d0c5;
+  font: 700 12px "Barlow Condensed", Impact, sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 8px 0;
 }
 
-.title-meta span {
+.back-btn:hover {
   color: var(--lime);
-  margin: 0 8px;
 }
 
-@media (max-width: 760px) {
-  .title-brandmark {
-    font-size: 48px;
-  }
+/* =======================================================================
+   Corrida em tela cheia (passo 3): esconde TODO o resto da página (header,
+   barra lateral, footer) — não só em mobile/paisagem estreita como antes —
+   e faz o canvas ocupar 100% da viewport, sem bordas/padding.
+   ======================================================================= */
+body.racing header,
+body.racing aside,
+body.racing footer,
+body.racing .stage-bottom {
+  display: none;
+}
 
-  .title-tagline {
-    font-size: 14px;
-  }
+body.racing main {
+  padding: 0;
+  max-width: none;
+  display: block;
+}
+
+body.racing .game {
+  height: 100dvh;
+  min-height: 0;
+  max-height: none;
+  border-radius: 0;
+  border: 0;
 }

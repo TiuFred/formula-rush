@@ -691,3 +691,57 @@ Validado com um script de smoke-test (Node, apagado depois — ver seção
 "Como testar mudanças" no `CLAUDE.md`) que força repetidamente os dois
 tipos de colisão por 30s simulados: ambos os cooldowns dispararam, sem
 `NaN` nem exceções.
+
+## 16. Fluxo de 3 passos (abertura → configuração → corrida em tela cheia)
+
+A tela de título full-page da seção 15.2 foi refeita a pedido do usuário
+("não ficou legal"): o problema era um `<div>` cobrindo a página inteira
+com um gradiente sólido, escondendo a cena 3D (carro girando na pista) que
+a tela de configuração original já mostrava como pano de fundo — ficava
+genérica e desconectada do resto do jogo.
+
+Solução: os dois passos pré-corrida agora vivem **dentro do mesmo** `#start`
+(a área sobre o canvas, dentro de `.game`), como dois sub-painéis
+(`#startLanding`/`#startConfig`) que se alternam via `setVisible` — a cena
+3D nunca é coberta, só o conteúdo por cima dela troca. Fluxo:
+
+1. **`#startLanding`** (`state.gameState === "landing"`, valor inicial):
+   marca/tagline + botão "CONFIGURAR CORRIDA" + "RANKING ONLINE". A
+   `<aside>` (barra lateral de configuração) fica com `class="hidden"` por
+   padrão em `index.html`.
+2. **`#startConfig`** (`state.gameState === "menu"`): ao clicar em
+   "CONFIGURAR CORRIDA" (`goToConfigStep` em `main.js`), a `<aside>` é
+   revelada e `#startConfig` substitui `#startLanding` — aqui fica o botão
+   "← VOLTAR" (`backToLandingStep`, volta ao passo 1) e o "ENTRAR NA PISTA"
+   original.
+3. **Corrida em tela cheia** (`"countdown"`/`"race"`/`"paused"`/
+   `"finished"`): `body.racing` agora esconde `header`, `<aside>`,
+   `footer` e `.stage-bottom` **incondicionalmente** (antes só escondia em
+   mobile/paisagem estreita — ver regras redundantes removidas em
+   `styles.css`), e `.game` ocupa `100dvh` sem borda/padding. O "botão para
+   retornar" pedido pelo usuário, nesse passo, é o já existente
+   PAUSA → "VOLTAR AO GRID" (volta ao passo 2/`#startConfig`) — não foi
+   adicionado um botão flutuante sobre o HUD de propósito, para não
+   sujar a tela cheia que era justamente o pedido.
+
+Consequência aceita: como o `header` (com o botão de som) some durante a
+corrida, o som não pode mais ser ligado/desligado nesse momento — já era
+assim antes só no caso de paisagem estreita (§ anterior), agora é sempre
+assim durante a corrida. Não foi adicionado um substituto no HUD (fora do
+escopo pedido).
+
+Bug de layout encontrado e corrigido durante o teste manual em mobile
+(375×812): o texto mais alto do passo 2 (eyebrow + "← VOLTAR" + H1 de 2
+linhas) ultrapassava a altura do painel e cortava o botão "ENTRAR NA
+PISTA" por baixo da faixa `.stage-bottom`. Corrigido de duas formas: (1)
+`.back-btn` passou a `position: absolute` (não ocupa espaço no fluxo,
+fica acima do resto do conteúdo) e (2) o H1 do passo 2 foi encurtado para
+uma linha só. O mesmo tipo de aperto apareceu no passo 1 (o novo botão
+"RANKING ONLINE" empurrou o `.startmeta` para fora da área visível) —
+corrigido com margens mais compactas específicas de mobile
+(`@media(max-width:760px)`) para `.landing-secondary`/`.startmeta`/`h1`/
+`.start p`, e reduzindo `.start{top:26% → 20%}` nessa largura.
+
+Validado no navegador (dev server local): os 3 passos e os dois botões de
+"voltar" (passo 2→1 e pausa→passo 2) testados em desktop (1440×900) e
+mobile (375×812), com screenshots confirmando ausência de sobreposição.

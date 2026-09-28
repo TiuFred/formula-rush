@@ -30,7 +30,7 @@ export function togglePause() {
 }
 
 function handleKeyDown(e) {
-  if (state.gameState === "title") return; // nenhum atalho de jogo faz sentido na tela de título
+  if (state.gameState === "landing") return; // nenhum atalho de jogo faz sentido na tela de abertura
   if (e.repeat && ["t", "T", "p", "P", "c", "C", "Escape"].includes(e.key)) return;
 
   if (state.timesPanelOpen) {

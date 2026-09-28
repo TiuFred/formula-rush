@@ -9,11 +9,12 @@ import { DRIVER_COLORS } from "./constants.js";
 
 export const state = {
   // --- Ciclo de vida da corrida --------------------------------------
-  /** "title" | "menu" | "countdown" | "race" | "paused" | "finished".
-   * "title" é a tela inicial (logo + JOGAR/RANKING), mostrada antes de
-   * qualquer coisa; "menu" é a tela de configuração de corrida (circuito,
-   * dificuldade, piloto...) que já existia. */
-  gameState: "title",
+  /** "landing" | "menu" | "countdown" | "race" | "paused" | "finished".
+   * Fluxo em 3 passos: "landing" é a tela de abertura (passo 1, dentro de
+   * #start/#startLanding); "menu" é a configuração de corrida (passo 2,
+   * #start/#startConfig + <aside>); "countdown"/"race"/"paused"/"finished"
+   * são a corrida em si (passo 3, tela cheia — ver body.racing no CSS). */
+  gameState: "landing",
   /** Estado ("race" ou "countdown") de onde a pausa foi acionada. */
   pausedFromState: "race",
   /** Tempo total de corrida decorrido, em segundos. */

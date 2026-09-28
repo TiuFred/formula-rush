@@ -60,20 +60,29 @@ function startRace() {
   resizeRenderer();
 }
 
-/** Sai da tela de título e mostra a configuração de corrida. */
-function showRaceSetup() {
+/**
+ * Passo 2 do fluxo pré-corrida: sai da tela de abertura ("landing") e
+ * mostra a configuração (circuito/dificuldade/piloto), revelando a barra
+ * lateral. A cena 3D (carro girando na pista) continua visível ao fundo em
+ * ambos os passos — só o conteúdo sobre ela troca.
+ */
+function goToConfigStep() {
   state.gameState = "menu";
-  setVisible("titleScreen", false);
+  setVisible("startLanding", false);
+  setVisible("startConfig");
+  setVisible("aside");
 }
 
-/** Volta à tela de título (só faz sentido a partir da tela de configuração). */
-function showTitleScreen() {
+/** Passo 1: volta da configuração para a tela de abertura (só faz sentido a partir do passo 2). */
+function backToLandingStep() {
   if (state.gameState !== "menu") return;
-  state.gameState = "title";
-  setVisible("titleScreen");
+  state.gameState = "landing";
+  setVisible("startConfig", false);
+  setVisible("startLanding");
+  setVisible("aside", false);
 }
 
-/** Volta ao menu principal (encerra a corrida atual sem completá-la). */
+/** Volta à configuração de corrida (encerra a corrida atual sem completá-la, passo 3 -> passo 2). */
 function returnToMenu() {
   state.gameState = "menu";
   state.timesPanelOpen = false;
@@ -82,6 +91,7 @@ function returnToMenu() {
   document.body.classList.remove("racing");
   setVisible("start");
   setVisible("stageBottom");
+  setVisible("aside");
   for (const id of ["finish", "pausePanel", "hud", "instruments", "touch", "miniMap", "countdown", "raceProgress", "attackWarning", "lapTelemetry", "timesPanel", "miniStandings"]) {
     setVisible(id, false);
   }
@@ -114,9 +124,10 @@ function wireLifecycleButtons() {
     loadCircuit(value);
   }, { guardMenu: true });
 
-  byId("titlePlay").onclick = showRaceSetup;
-  byId("titleLeaderboard").onclick = openLeaderboardPanel;
-  byId("brandHome").onclick = showTitleScreen;
+  byId("goToConfig").onclick = goToConfigStep;
+  byId("landingLeaderboard").onclick = openLeaderboardPanel;
+  byId("backToLanding").onclick = backToLandingStep;
+  byId("brandHome").onclick = backToLandingStep;
 }
 
 const FIXED_STEP = 1 / 120;
@@ -164,7 +175,7 @@ function animate(now) {
   }
 
   hudAccumulator += dt;
-  if (hudAccumulator > .09 && state.gameState !== "menu" && state.gameState !== "title") {
+  if (hudAccumulator > .09 && state.gameState !== "menu" && state.gameState !== "landing") {
     updateHud();
     hudAccumulator = 0;
   }
