@@ -13,7 +13,7 @@ import { state } from "./state.js";
 import { TRACK_LENGTH, DIFFICULTIES, DRIFT_BOOST_BY_LEVEL } from "./constants.js";
 import { clamp, wrapAngle, progressDelta } from "./mathUtils.js";
 import { trackHalfWidthAt, cornerWideningAt } from "./track.js";
-import { advanceLapTracking } from "./physics.js";
+import { advanceLapTracking, computeDrsActive } from "./physics.js";
 import { driftLevel } from "./items.js";
 import { engineAudio, beep } from "./audio.js";
 import { showNotice } from "./dom.js";
@@ -73,8 +73,15 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   car.steer += (steerInput - car.steer) * (1 - Math.exp(-dt * (steerInput ? 10 : 14)));
   car.driftCooldown = Math.max(0, car.driftCooldown - dt);
 
+  // Limiares de acionamento reduzidos (curva menos brusca e velocidade menor
+  // já bastam para entrar em drift — antes exigia `steer > .45`/`speed > 17`,
+  // o que na prática só disparava em curvas bem fechadas e rápidas).
   const isDrifting =
-    keys.Shift && Math.abs(car.steer) > .45 && car.speed > 17 && onTrack && car.stun <= 0 && car.driftCooldown === 0;
+    keys.Shift && Math.abs(car.steer) > .3 && car.speed > 12 && onTrack && car.stun <= 0 && car.driftCooldown === 0;
+
+  // --- DRS: pequeno bônus de reta se estiver colado no carro da frente
+  // numa zona marcada do circuito (ver computeDrsActive em physics.js).
+  car.drsActive = computeDrsActive(car);
 
   // --- Longitudinal: aceleração, arrasto, gravidade na ladeira, penalidades. ---
   let accel = throttle ? 27 : -7;
@@ -83,12 +90,15 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   if (brake) accel -= 53;
   if (!onTrack) accel -= car.speed * .62;
   if (car.stun > 0) accel -= 24;
-  if (car.boost > 0) accel += 31;
-  car.speed = clamp(car.speed + accel * dt, 0, car.boost > 0 ? 102 : 84);
+  if (car.boost > 0) accel += 36;
+  if (car.drsActive) accel += 14;
+  const speedCap = car.boost > 0 ? 108 : car.drsActive ? 90 : 84;
+  car.speed = clamp(car.speed + accel * dt, 0, speedCap);
 
-  // --- Lateral: escorregamento (slip) durante o drift. ---
+  // --- Lateral: escorregamento (slip) durante o drift. Entrada mais rápida
+  // (4 -> 6) para o carro "sentir" o drift assim que Shift é pressionado.
   const targetSlip = isDrifting ? car.steer * .23 : 0;
-  car.slip += (targetSlip - car.slip) * (1 - Math.exp(-dt * (isDrifting ? 4 : 9)));
+  car.slip += (targetSlip - car.slip) * (1 - Math.exp(-dt * (isDrifting ? 6 : 9)));
 
   const grip = DIFFICULTIES[state.difficultyKey].grip;
   const turnRate = (.2 + .98 / (1 + car.speed / 48)) * Math.min(car.speed / 11, 1);
@@ -152,7 +162,10 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
       car.lastDriftLevel = 0;
     }
     if (direction === car.driftDirection) {
-      car.driftCharge = Math.min(2.6, car.driftCharge + dt * Math.min(1.15, car.speed / 27));
+      // Carrega mais rápido (cap de taxa maior, atinge o teto em velocidade
+      // mais baixa) — os níveis (ver driftLevel em items.js) chegam bem
+      // mais rápido do que antes.
+      car.driftCharge = Math.min(2.6, car.driftCharge + dt * Math.min(1.4, car.speed / 22));
       const level = driftLevel(car.driftCharge);
       if (level > car.lastDriftLevel) {
         car.lastDriftLevel = level;
@@ -167,9 +180,13 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   }
 
   // Soltou o drift: concede o miniturbo correspondente ao nível carregado.
+  // O limiar de `slip` para conceder o boost foi relaxado (.4 -> .65): antes,
+  // soltar o Shift um instante antes do carro "assentar" completamente
+  // zerava o boost inteiro em silêncio, mesmo com o nível certo carregado —
+  // a causa mais provável do miniturbo parecer "pouco recompensador".
   if (car.wasDrifting && !isDrifting) {
     const level = driftLevel(car.driftCharge);
-    if (level && onTrack && car.stun <= 0 && Math.abs(car.slip) < .4) {
+    if (level && onTrack && car.stun <= 0 && Math.abs(car.slip) < .65) {
       car.boost = Math.max(car.boost, DRIFT_BOOST_BY_LEVEL[level]);
       car.boostPower = level / 3;
       if (car === state.player) {

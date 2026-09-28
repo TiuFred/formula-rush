@@ -13,6 +13,9 @@ export function clampLapCount(value) {
   return Number.isFinite(n) ? Math.max(1, Math.min(20, Math.round(n))) : 3;
 }
 
+/** Nº de setores em que cada volta é dividida (terços iguais da pista). */
+export const SECTORS_PER_LAP = 3;
+
 /** Reinicia os dados de volta de um carro (chamado ao montar o grid). */
 export function resetLapState(car) {
   car.laps = [];
@@ -22,6 +25,15 @@ export function resetLapState(car) {
   car.bestLap = null;
   car.currentLapValid = true;
   car.lapValidity = [];
+  // Setores: sequência contínua de fronteiras a cada trackLength/3 (não
+  // reinicia por volta — o fim do 3º setor É o fim da volta). `lastSectors`
+  // é a volta mais recentemente completada (mesmo que não tenha sido a
+  // melhor); `bestSectors` é o melhor tempo já feito em cada setor,
+  // isoladamente (podem vir de voltas diferentes, como no automobilismo real).
+  car.sectorsCompleted = 0;
+  car.sectorStarted = 0;
+  car.lastSectors = [null, null, null];
+  car.bestSectors = [null, null, null];
 }
 
 /**
@@ -42,6 +54,31 @@ export function checkLapCompletion(car, prevProgress, newProgress, raceTimeNow, 
     car.lapStarted = crossTime;
     car.lastLap = lapDuration;
     car.bestLap = car.bestLap === null ? lapDuration : Math.min(car.bestLap, lapDuration);
+  }
+}
+
+/**
+ * Verifica se `car` cruzou uma ou mais fronteiras de SETOR (independente
+ * das fronteiras de volta, mas alinhado com elas: o fim do 3º setor cai
+ * exatamente no fim da volta) entre `prevProgress` e `car.progress`, com a
+ * mesma interpolação sub-frame de `checkLapCompletion`. Atualiza
+ * `lastSectors`/`bestSectors` a cada setor completado.
+ */
+export function checkSectorCompletion(car, prevProgress, newProgress, raceTimeNow, dt, trackLength) {
+  if (newProgress <= prevProgress) return;
+  const sectorLength = trackLength / SECTORS_PER_LAP;
+  for (;;) {
+    const boundary = (car.sectorsCompleted + 1) * sectorLength;
+    if (prevProgress >= boundary || newProgress < boundary) break;
+    const crossTime = raceTimeNow - dt + (dt * (boundary - prevProgress)) / (newProgress - prevProgress);
+    const duration = crossTime - car.sectorStarted;
+    const index = car.sectorsCompleted % SECTORS_PER_LAP;
+    car.lastSectors[index] = duration;
+    if (car.bestSectors[index] === null || duration < car.bestSectors[index]) {
+      car.bestSectors[index] = duration;
+    }
+    car.sectorsCompleted++;
+    car.sectorStarted = crossTime;
   }
 }
 

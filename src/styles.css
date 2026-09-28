@@ -425,6 +425,32 @@ kbd {
   letter-spacing: 2px
 }
 
+/* Indicador de DRS ativo (ver player.js/bots.js, computeDrsActive em physics.js). */
+.drs-indicator {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: #58dfff;
+  color: #0c2027;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  animation: drsPulse .5s infinite alternate;
+}
+
+@keyframes drsPulse {
+  to {
+    opacity: .55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drs-indicator {
+    animation: none;
+  }
+}
+
 .driftbar {
   width: 165px;
   height: 5px;
@@ -882,6 +908,40 @@ kbd {
   letter-spacing: 1px
 }
 
+/* Barra do replay cinematográfico (ver replay.js) — mesmo estilo de
+   "sobreposição" das outras faixas informativas da corrida. */
+.replay-bar {
+  position: absolute;
+  z-index: 5;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 10px 10px 18px;
+  background: #12201ad9;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.replay-bar span {
+  color: #ff6b6b;
+}
+
+.replay-bar button {
+  background: var(--lime);
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 14px;
+  color: #14200f;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: .5px;
+}
+
 .attack-warning {
   position: absolute;
   z-index: 5;
@@ -1156,6 +1216,44 @@ aside {
 
 .pace.behind {
   color: #ff8a6b
+}
+
+/* Setores (S1/S2/S3): mesma lógica de "linha inteira" do RITMO. Cada caixa
+   fica cinza (ainda não cruzado nesta volta), branca (cruzado, mas mais
+   lento que seu melhor setor) ou verde (igualou/bateu seu melhor setor). */
+.lap-telemetry:has(.sectors-row) {
+  grid-template-rows: auto auto auto auto;
+}
+
+.sectors-row {
+  grid-column: 1/-1;
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid #ffffff18;
+  padding-top: 8px;
+}
+
+.sector-box {
+  flex: 1;
+  text-align: center;
+  padding: 5px 4px;
+  border-radius: 4px;
+  background: #ffffff12;
+  color: #8e9994;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .3px;
+}
+
+.sector-box.done {
+  color: #eff3e7;
+  background: #ffffff1e;
+}
+
+.sector-box.best {
+  color: #14200f;
+  background: var(--lime);
 }
 
 /* Gap para o carro da frente, no HUD principal. */

@@ -14,6 +14,7 @@ import {
   TRACK_WIDTH_SAMPLES,
   BANKING_SAMPLES,
   cornerWideningTable,
+  DRS_ZONES,
 } from "./constants.js";
 import { smoothstepLookup } from "./mathUtils.js";
 
@@ -42,6 +43,16 @@ function fallbackElevationAt(s) {
  */
 export function cornerWideningAt(s, side = 1) {
   return smoothstepLookup(cornerWideningTable(s, side), s, TRACK_LENGTH);
+}
+
+/**
+ * `true` se a distância `s` cai dentro de alguma zona de DRS do circuito
+ * ATIVO (`DRS_ZONES` em constants.js). Zonas com `inicio > fim` "atravessam"
+ * a linha de largada (ex.: reta dos boxes).
+ */
+export function drsZoneAt(s) {
+  s = ((s % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH;
+  return DRS_ZONES.some(([start, end]) => (start <= end ? s >= start && s <= end : s >= start || s <= end));
 }
 
 /** Nome do setor/curva correspondente à distância `s`. */

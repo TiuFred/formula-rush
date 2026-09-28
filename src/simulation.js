@@ -19,6 +19,9 @@ import { formatLapTime } from "./timing.js";
 import { engineAudio } from "./audio.js";
 import { CIRCUITS } from "./circuits.js";
 
+/** Intervalo (s) entre amostras do replay cinematográfico — ver replay.js. */
+export const REPLAY_SAMPLE_INTERVAL = .1;
+
 /**
  * (Re)cria as caixas de item na pista e limpa óleo/mísseis/partículas de uma
  * corrida anterior. No contra-relógio (`state.timeTrial`), não há caixas de
@@ -34,7 +37,7 @@ export function setupItemBoxes() {
   state.missiles = [];
   state.driftParticles = [];
 
-  if (state.timeTrial) return; // contra-relógio: sem itens
+  if (state.timeTrial || state.qualifying) return; // contra-relógio/classificação: sem itens
 
   for (const s of ITEM_BOX_POSITIONS) {
     for (const lane of [-4, 0, 4]) {
@@ -160,7 +163,23 @@ export function advanceSimulation(dt) {
     return true;
   });
 
-  if (state.player.finish && state.gameState === "race") showResults();
+  // Replay cinematográfico: grava a pose do carro do jogador a cada
+  // REPLAY_SAMPLE_INTERVAL segundos (não a cada tick de física — 120
+  // amostras/s seria muito mais dado do que o replay precisa). Ver replay.js.
+  state.replayTimer += dt;
+  if (state.replayTimer >= REPLAY_SAMPLE_INTERVAL) {
+    state.replayTimer = 0;
+    state.replayFrames.push({
+      t: state.raceTime,
+      pos: state.player.group.position.clone(),
+      quat: state.player.group.quaternion.clone(),
+    });
+  }
+
+  // Na classificação, "todo mundo termina 1 volta" não deve abrir a tela de
+  // resultado normal — main.js (animate) detecta esse fim e monta o grid da
+  // corrida de verdade a partir dos tempos. Ver startQualifying/finishQualifying.
+  if (state.player.finish && state.gameState === "race" && !state.qualifying) showResults();
 }
 
 /**

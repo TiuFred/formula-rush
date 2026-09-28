@@ -10,7 +10,7 @@ import {
   setTrackLength, setSectorNames, setFallbackElevationSamples,
   setTrackWidthSamples, setBankingSamples, setCornerWideningTable,
   setItemBoxPositions, setCornerNameSigns, setDistanceBoardStations,
-  setZebraZones, setApexGrassPatches, setTrackNamePanelText,
+  setZebraZones, setApexGrassPatches, setTrackNamePanelText, setDrsZones,
 } from "./constants.js";
 
 export const CIRCUITS = {
@@ -68,6 +68,8 @@ export const CIRCUITS = {
     zebraZones: [[260, 390, -1], [1270, 1490, 1], [1950, 2110, 1], [3150, 3290, 1]],
     apexGrassPatches: [340, 1380, 2040, 3220],
     trackNamePanelText: "INTERLAGOS",
+    // Reta dos boxes (atravessa a largada) e reta oposta — posições aproximadas.
+    drsZones: [[4000, 260], [800, 1290]],
   },
 
   monza: {
@@ -110,6 +112,8 @@ export const CIRCUITS = {
     zebraZones: [],
     apexGrassPatches: [],
     trackNamePanelText: "MONZA",
+    // Reta principal (atravessa a largada) e a reta após a Curva Grande.
+    drsZones: [[5350, 280], [900, 1550]],
   },
 
   indianapolis: {
@@ -158,6 +162,8 @@ export const CIRCUITS = {
     zebraZones: [],
     apexGrassPatches: [],
     trackNamePanelText: "INDY 500 OVAL",
+    // Num oval, as duas retas praticamente inteiras valem como zona de DRS.
+    drsZones: [[3650, 950], [2050, 2950]],
   },
 };
 
@@ -181,5 +187,6 @@ export function applyCircuitProfile(id) {
   setZebraZones(circuit.zebraZones);
   setApexGrassPatches(circuit.apexGrassPatches);
   setTrackNamePanelText(circuit.trackNamePanelText);
+  setDrsZones(circuit.drsZones);
   return circuit;
 }

@@ -10,9 +10,11 @@ import { engineAudio } from "./audio.js";
 import { showNotice } from "./dom.js";
 import { addMesh, MATERIALS } from "./materials.js";
 
-/** Nível de miniturbo (0-3) correspondente à carga de drift acumulada. */
+/** Nível de miniturbo (0-3) correspondente à carga de drift acumulada.
+ * Limiares reduzidos (eram 2.4/1.45/.65) — os 3 níveis chegam bem mais
+ * rápido, já que a taxa de carga em player.js também aumentou. */
 export function driftLevel(charge) {
-  return charge >= 2.4 ? 3 : charge >= 1.45 ? 2 : charge >= .65 ? 1 : 0;
+  return charge >= 2 ? 3 : charge >= 1.1 ? 2 : charge >= .5 ? 1 : 0;
 }
 
 /**

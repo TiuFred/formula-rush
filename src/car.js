@@ -103,6 +103,7 @@ export function createCar(color, index) {
     invulnerable: 0,
     wallCooldown: 0,
     collisionCooldown: 0,
+    drsActive: false,
     boostPower: 0,
     shieldMesh,
     flame,
@@ -215,34 +216,45 @@ export function setPlayerIdentity(name, number) {
 /**
  * (Re)monta o grid de largada. Em corrida normal: descarta os carros de uma
  * corrida anterior (se houver) e cria os 23 pilotos (você + os 22 pilotos
- * da F1 2026) posicionados em suas respectivas posições de largada
- * escalonadas. No contra-relógio (`state.timeTrial`), cria só o carro do
+ * da F1 2026). No contra-relógio (`state.timeTrial`), cria só o carro do
  * jogador, sozinho na linha de largada.
+ *
+ * @param {number[] | null} gridOrder Ordem de largada opcional: um array
+ *   `gridOrder[posição] = índice de identidade` (0 = jogador, 1-22 = bots,
+ *   na ordem de `F1_DRIVERS_2026`). Usado pela classificação (ver
+ *   `main.js`/`startQualifying`) para largar na ordem dos tempos da volta
+ *   de 1 volta, em vez da ordem padrão (bots pela ordem do grid da F1,
+ *   jogador sempre na última fileira — o padrão quando `gridOrder` é
+ *   omitido). `state.drivers[i]` continua sempre sendo a identidade `i`
+ *   (`car.id === i`) independente da posição de largada — só a POSIÇÃO
+ *   NO GRID (progress/lane inicial) muda.
  */
-export function setupGrid() {
+export function setupGrid(gridOrder = null) {
   for (const car of state.drivers) disposeObject3D(car.group);
-  state.drivers = [];
   state.finishOrder = [];
 
   const count = state.timeTrial ? 1 : DRIVER_COUNT;
+  const order = gridOrder ?? [...Array(count - 1).keys()].map((k) => k + 1).concat([0]);
+
+  const cars = new Array(count);
   for (let i = 0; i < count; i++) {
     const color = i === 0 ? state.selectedColor : F1_DRIVERS_2026[i - 1].color;
-    const car = createCar(color, i);
-    resetLapState(car);
+    cars[i] = createCar(color, i);
+    resetLapState(cars[i]);
+  }
 
+  order.forEach((identityIndex, slot) => {
+    const car = cars[identityIndex];
     if (state.timeTrial) {
       // Sozinho na pista: parte centralizado, logo antes da linha de largada.
       car.progress = -10;
-      car.s = (car.progress + TRACK_LENGTH) % TRACK_LENGTH;
       car.lane = 0;
     } else {
-      // Posição no grid: o jogador larga na última fileira; os bots ocupam
-      // as fileiras à frente. 2 carros por fileira, alternando lado esquerdo/direito.
-      const slot = i === 0 ? count - 1 : i - 1;
+      // 2 carros por fileira, alternando lado esquerdo/direito, na ordem de `order`.
       car.progress = -10 - Math.floor(slot / 2) * 9;
-      car.s = (car.progress + TRACK_LENGTH) % TRACK_LENGTH;
       car.lane = slot % 2 ? -2.8 : 2.8;
     }
+    car.s = (car.progress + TRACK_LENGTH) % TRACK_LENGTH;
 
     const frame = state.track.at(car.s, car.lane);
     car.x = frame.p.x;
@@ -256,7 +268,8 @@ export function setupGrid() {
     car.renderCurrPos.copy(car.group.position);
     car.renderPrevQuat.copy(car.group.quaternion);
     car.renderCurrQuat.copy(car.group.quaternion);
-    state.drivers.push(car);
-  }
+  });
+
+  state.drivers = cars;
   state.player = state.drivers[0];
 }

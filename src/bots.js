@@ -10,7 +10,7 @@ import { state } from "./state.js";
 import { TRACK_LENGTH, DIFFICULTIES } from "./constants.js";
 import { clamp, wrapAngle, progressDelta } from "./mathUtils.js";
 import { trackHalfWidthAt } from "./track.js";
-import { advanceLapTracking } from "./physics.js";
+import { advanceLapTracking, computeDrsActive } from "./physics.js";
 import { useItem } from "./items.js";
 import { syncCarVisual } from "./car.js";
 
@@ -125,6 +125,11 @@ export function updateBot(car, dt) {
   }
 
   if (car.boost > 0) targetSpeed = Math.min(104, targetSpeed + 22);
+  // DRS: mesmo critério do jogador (ver computeDrsActive em physics.js) —
+  // os bots também ganham o bônus, senão o jogador teria uma vantagem
+  // artificial toda vez que colasse em alguém numa reta marcada.
+  car.drsActive = computeDrsActive(car);
+  if (car.drsActive) targetSpeed += 8;
   if (car.stun > 0) targetSpeed = 13;
 
   car.speed += clamp(targetSpeed - car.speed, -48 * dt, difficulty.acceleration * dt);

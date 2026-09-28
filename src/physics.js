@@ -3,10 +3,10 @@
 // cada tick (detectar volta completada, sincronizar visual, checar chegada).
 
 import { state } from "./state.js";
-import { TRACK_LENGTH } from "./constants.js";
-import { trackHalfWidthAt } from "./track.js";
+import { TRACK_LENGTH, DRS_GAP_THRESHOLD } from "./constants.js";
+import { trackHalfWidthAt, drsZoneAt } from "./track.js";
 import { clamp } from "./mathUtils.js";
-import { checkLapCompletion, formatLapTime } from "./timing.js";
+import { checkLapCompletion, checkSectorCompletion, formatLapTime } from "./timing.js";
 import { showNotice } from "./dom.js";
 import { syncCarVisual } from "./car.js";
 import { recordLap } from "./leaderboard.js";
@@ -21,6 +21,22 @@ export function finishRace(car) {
 }
 
 /**
+ * DRS: `true` se `car` está numa zona de DRS do circuito ATIVO E perto
+ * o bastante (< DRS_GAP_THRESHOLD metros de `progress`) do carro
+ * imediatamente à frente — igual ao critério real (detecção de gap),
+ * simplificado para não depender de um "ponto de detecção" fixo. Usado por
+ * player.js e bots.js igualmente, para não dar vantagem exclusiva ao
+ * jogador.
+ */
+export function computeDrsActive(car) {
+  if (car.finish || !drsZoneAt(car.s)) return false;
+  const ahead = state.drivers
+    .filter((other) => other !== car && !other.finish && other.progress > car.progress)
+    .sort((a, b) => a.progress - b.progress)[0];
+  return !!ahead && ahead.progress - car.progress < DRS_GAP_THRESHOLD;
+}
+
+/**
  * Deve ser chamada ao final da atualização de física de cada carro a cada
  * tick: detecta se uma volta foi completada (opcionalmente mostrando um
  * aviso, usado só para o jogador), sincroniza o visual e verifica chegada.
@@ -29,6 +45,16 @@ export function advanceLapTracking(car, prevProgress, dt, notify = false) {
   const lapsBefore = car.completedLaps;
   const bestLapBefore = car.bestLap;
   checkLapCompletion(car, prevProgress, car.progress, state.raceTime, dt, TRACK_LENGTH, state.lapCountRace);
+
+  // Setores: cronometragem independente da de volta (ver timing.js). Só
+  // avisa o jogador (bots não têm HUD) e só quando um setor de fato fecha.
+  const sectorsBefore = car.sectorsCompleted;
+  checkSectorCompletion(car, prevProgress, car.progress, state.raceTime, dt, TRACK_LENGTH);
+  if (car === state.player && car.sectorsCompleted > sectorsBefore) {
+    const idx = (car.sectorsCompleted - 1) % 3;
+    const isBest = car.lastSectors[idx] === car.bestSectors[idx];
+    showNotice("SETOR " + (idx + 1) + " · " + formatLapTime(car.lastSectors[idx]) + (isBest ? " · MELHOR" : ""));
+  }
 
   const lapJustCompleted = car.completedLaps > lapsBefore;
   if (lapJustCompleted) {

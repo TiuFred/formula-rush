@@ -94,6 +94,24 @@ export function setCornerWideningTable(fn) { cornerWideningTable = fn; }
 export let ITEM_BOX_POSITIONS = [680, 1090, 1730, 2120, 2480, 3070, 3690, 4090];
 export function setItemBoxPositions(v) { ITEM_BOX_POSITIONS = v; }
 
+/**
+ * Zonas de DRS do circuito ATIVO — trechos de reta [inicio_m, fim_m] onde,
+ * se você estiver perto o bastante (< DRS_GAP_THRESHOLD) do carro da
+ * frente, ganha um pequeno bônus de aceleração/velocidade máxima (ver
+ * physics.js/computeDrsActive). `inicio > fim` significa que a zona
+ * "atravessa" a linha de largada (ex.: reta dos boxes). Posições
+ * aproximadas (mesma lógica de aproximação das outras tabelas
+ * decorativas) — ver docs/AUDITORIA.md.
+ */
+export let DRS_ZONES = [
+  [4000, 260], // reta dos boxes (atravessa a largada)
+  [800, 1290], // reta oposta
+];
+export function setDrsZones(v) { DRS_ZONES = v; }
+
+/** Distância (m) de gap para o carro da frente dentro da qual o DRS é liberado numa zona. */
+export const DRS_GAP_THRESHOLD = 30;
+
 /** Placas com nome de curva do circuito ATIVO: [distancia_m, "NOME"]. */
 export let CORNER_NAME_SIGNS = [
   [245, "S DO SENNA"],
@@ -150,8 +168,10 @@ export const ITEM_DEFS = {
   shield: { icon: "⬡", name: "ESCUDO", duration: 5 },
 };
 
-/** Multiplicador de boost por nível de miniturbo (0 = sem drift, 3 = ultra). */
-export const DRIFT_BOOST_BY_LEVEL = [0, .7, 1.3, 2];
+/** Duração (s) do boost por nível de miniturbo (0 = sem drift, 3 = ultra).
+ * Valores aumentados (eram .7/1.3/2) para o ganho de velocidade se sentir
+ * mais recompensador, junto com o acionamento mais fácil em player.js. */
+export const DRIFT_BOOST_BY_LEVEL = [0, 1, 1.8, 2.8];
 
 /** Paleta de cores selecionáveis para o monoposto do jogador. */
 export const DRIVER_COLORS = ["#dcff59", "#ff4545", "#ff922e", "#31d9ce", "#6393ff", "#eee9df"];

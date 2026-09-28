@@ -147,14 +147,25 @@ export function setupMenuUI() {
     if (state.racingLineMesh) state.racingLineMesh.visible = on;
   }, true);
 
+  // Contra-relógio e classificação são mutuamente exclusivos (um é sozinho
+  // na pista, sem sentido pra "definir grid"; o outro precisa dos outros
+  // carros pra valer alguma coisa) — ativar um desliga o outro, disparando
+  // o clique nele para manter o estado interno de wireToggle consistente.
   wireToggle("timeTrial", (on) => {
     if (state.gameState !== "menu") return;
     state.timeTrial = on;
+    if (on && byId("qualifying").getAttribute("aria-pressed") === "true") byId("qualifying").click();
     if (state.track) {
       setupGrid();
       resizeRenderer();
     }
   }, state.timeTrial);
+
+  wireToggle("qualifying", (on) => {
+    if (state.gameState !== "menu") return;
+    state.qualifyingEnabled = on;
+    if (on && byId("timeTrial").getAttribute("aria-pressed") === "true") byId("timeTrial").click();
+  }, state.qualifyingEnabled);
 
   byId("playerName").onchange = (e) => {
     const name = e.target.value.trim().slice(0, 16) || "Você";
@@ -236,9 +247,11 @@ export function updateHud() {
   const position = standings.indexOf(player) + 1;
   updateMiniStandings(standings, player);
 
-  byId("position").innerHTML = state.timeTrial
-    ? '<span style="font-size:.55em">CONTRA-RELÓGIO</span>'
-    : position + "<span>/" + state.drivers.length + "</span>";
+  byId("position").innerHTML = state.qualifying
+    ? '<span style="font-size:.55em">CLASSIFICAÇÃO</span>'
+    : state.timeTrial
+      ? '<span style="font-size:.55em">CONTRA-RELÓGIO</span>'
+      : position + "<span>/" + state.drivers.length + "</span>";
   byId("lap").innerHTML = state.timeTrial
     ? (player.completedLaps + 1) + "<span>VOLTA</span>"
     : Math.min(state.lapCountRace, player.completedLaps + 1) + "<span>/" + state.lapCountRace + "</span>";
@@ -248,6 +261,7 @@ export function updateHud() {
   byId("lastLapTime").textContent = formatLapTime(player.lastLap);
   byId("bestLapTime").textContent = formatLapTime(player.bestLap);
   byId("speed").textContent = Math.round(player.speed * 3.6);
+  setVisible("drsIndicator", player.drsActive);
   byId("gear").textContent = player.speed < .5 ? "N" : Math.min(8, Math.floor(player.speed * 3.6 / 43) + 1);
 
   // Gap (em metros) para o carro imediatamente à frente — só faz sentido
@@ -285,6 +299,20 @@ export function updateHud() {
     const paceEl = byId("paceDelta");
     paceEl.textContent = "—";
     paceEl.classList.remove("ahead", "behind");
+  }
+
+  // Setores (S1/S2/S3): mostra o tempo dos setores já cruzados NESTA volta
+  // (verde se igualou o melhor já feito naquele setor) e um placeholder para
+  // os que ainda não chegaram. `sectorsCompleted` é contínuo (não reinicia
+  // por volta — ver timing.js), então "quantos setores já fechei nesta
+  // volta" é sempre o resto da divisão por 3.
+  const doneThisLap = player.sectorsCompleted % 3;
+  for (let i = 0; i < 3; i++) {
+    const box = byId("sectorBox" + i);
+    const done = i < doneThisLap;
+    box.textContent = done ? formatLapTime(player.lastSectors[i]).replace(/^00:/, "") : "S" + (i + 1);
+    box.classList.toggle("done", done);
+    box.classList.toggle("best", done && player.lastSectors[i] === player.bestSectors[i]);
   }
 
   const level = driftLevel(player.driftCharge);

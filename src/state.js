@@ -39,6 +39,17 @@ export const state = {
   circuitId: "interlagos",
   /** Contra-relógio: corrida solo, sem bots e sem itens. */
   timeTrial: false,
+  /** Classificação (1 volta) ativada no menu? Define o grid da PRÓXIMA corrida. */
+  qualifyingEnabled: false,
+  /** `true` durante a sessão de classificação em si (1 volta, sem itens) — ver main.js. */
+  qualifying: false,
+
+  // --- Replay cinematográfico (ver replay.js) --------------------------
+  /** Snapshots `{t, pos, quat}` do carro do jogador durante a corrida atual,
+   * amostrados a cada REPLAY_SAMPLE_INTERVAL segundos (ver simulation.js). */
+  replayFrames: [],
+  /** Acumulador de tempo até a próxima amostra do replay. */
+  replayTimer: 0,
 
   // --- Entidades da simulação ----------------------------------------
   /** Todos os carros (jogador + bots), na ordem de criação do grid. */
