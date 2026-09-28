@@ -98,7 +98,6 @@ export function updateLapCountUI(value) {
   state.lapCountSetting = clampLapCount(value);
   const laps = state.lapCountSetting;
   byId("lapCount").value = laps;
-  byId("startLapCount").textContent = laps + (laps === 1 ? " VOLTA" : " VOLTAS");
   byId("distanceInfo").textContent =
     (TRACK_LENGTH * laps / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) +
     " km · " + laps + (laps === 1 ? " volta" : " voltas");
@@ -106,15 +105,11 @@ export function updateLapCountUI(value) {
   byId("moreLaps").disabled = laps === 20;
 }
 
-/** Atualiza os textos do "cartão" do circuito (barra lateral) para o circuito dado. */
+/** Atualiza os textos informativos do circuito (config em tela cheia + tracklabel durante a corrida). */
 export function updateCircuitInfoUI(circuit) {
-  byId("circuitTitle").textContent = circuit.label.toUpperCase();
-  byId("circuitSubtitle").textContent = circuit.subtitle;
-  byId("circuitFullName").textContent = circuit.fullName;
   byId("circuitKm").textContent = circuit.km;
   byId("circuitTurns").textContent = circuit.turns;
   byId("circuitDirection").textContent = circuit.direction;
-  byId("circuitHeading").textContent = circuit.label;
   byId("circuitName").textContent = circuit.label.toUpperCase();
   updateLapCountUI(state.lapCountSetting); // "km · voltas" depende do comprimento da pista
 }
@@ -165,13 +160,11 @@ export function setupMenuUI() {
     const name = e.target.value.trim().slice(0, 16) || "Você";
     e.target.value = name;
     setPlayerIdentity(name, state.playerNumber);
-    byId("driverNameLabel").textContent = name;
   };
   byId("playerNumber").onchange = (e) => {
     const number = e.target.value.trim().slice(0, 2) || "07";
     e.target.value = number;
     setPlayerIdentity(state.playerName, number);
-    byId("driverNumberLabel").textContent = number;
   };
 
   byId("cameraMode").onclick = () => {
@@ -193,7 +186,6 @@ export function setupMenuUI() {
         el.classList.toggle("selected", el === btn);
         el.setAttribute("aria-pressed", el === btn);
       });
-      byId("driverColor").style.background = color;
       if (state.player) state.player.body.color.set(color);
     };
     byId("colors").append(btn);

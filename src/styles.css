@@ -259,89 +259,6 @@ h1 em {
   color: #c1cfc7
 }
 
-.aside-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 5px 0 20px
-}
-
-.aside-heading .eyebrow {
-  font-size: 11px
-}
-
-.tinyflag {
-  font-size: 23px;
-  color: #b3bdb5
-}
-
-aside h2 {
-  font-family: Barlow Condensed, Impact, sans-serif;
-  font-size: 38px;
-  text-transform: uppercase;
-  line-height: 1.05;
-  margin: 0 0 29px;
-  letter-spacing: .2px
-}
-
-.fieldlabel {
-  font-size: 11px;
-  color: var(--lime);
-  letter-spacing: 1px;
-  margin-bottom: 14px;
-  font-weight: 600
-}
-
-.fieldlabel span {
-  color: #aab4af;
-  margin-left: 10px
-}
-
-.circuit-card {
-  background: #1d2923;
-  border: 1px solid #bad6538a;
-  border-radius: 6px;
-  padding: 17px;
-  margin-bottom: 25px
-}
-
-.circuit-head {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 700;
-  font-size: 18px
-}
-
-.circuit-head span {
-  color: var(--lime);
-  font-size: 13px
-}
-
-.circuit-card small {
-  display: block;
-  color: #a8b4aa;
-  font-size: 12px;
-  margin-top: 5px
-}
-
-.circuit-card canvas {
-  width: 100%;
-  height: 112px;
-  display: block;
-  margin: 12px 0
-}
-
-.stats {
-  display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: #cbd3c9
-}
-
-.stats b {
-  color: #fff
-}
-
 .colors {
   display: flex;
   gap: 12px;
@@ -359,77 +276,6 @@ aside h2 {
 
 .swatch.selected {
   outline-color: var(--c)
-}
-
-.driver {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 12px 0 24px;
-  border-bottom: 1px solid #ffffff18;
-  margin-bottom: 24px
-}
-
-.driver>span {
-  height: 26px;
-  width: 4px;
-  border-radius: 3px;
-  background: var(--lime)
-}
-
-.driver b {
-  display: block;
-  font-size: 14px
-}
-
-.driver small {
-  display: block;
-  color: var(--muted);
-  font-size: 10px;
-  letter-spacing: 1px;
-  margin-top: 4px
-}
-
-.driver strong {
-  margin-left: auto;
-  font-style: italic;
-  font-size: 25px;
-  color: #657068
-}
-
-.rules>div:not(.fieldlabel) {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 14px 0
-}
-
-.ruleicon {
-  width: 37px;
-  height: 37px;
-  flex-shrink: 0;
-  background: #233025;
-  color: var(--lime);
-  font-size: 26px;
-  border-radius: 6px;
-  text-align: center
-}
-
-.rules p {
-  margin: 0
-}
-
-.rules b {
-  font-size: 13px;
-  display: block
-}
-
-.rules small {
-  display: block;
-  font-size: 12px;
-  color: #96a199;
-  line-height: 1.5;
-  margin-top: 5px
 }
 
 .inspired {
@@ -974,7 +820,7 @@ kbd {
   }
 }
 
-.race-options {
+.config-block {
   display: grid;
   gap: 9px;
   margin: -8px 0 24px;
@@ -982,13 +828,13 @@ kbd {
   border-bottom: 1px solid #ffffff18
 }
 
-.race-options>label:first-child {
+.config-block>label:first-child {
   font-size: 12px;
   letter-spacing: 1px;
   color: #aab4af
 }
 
-.race-options select {
+.config-block select {
   width: 100%;
   color: #eff3e7;
   background: #1d2923;
@@ -999,20 +845,20 @@ kbd {
   padding: 10px
 }
 
-.race-options .check {
+.config-block .check {
   display: flex;
   align-items: center;
   font-size: 13px;
   gap: 8px
 }
 
-.race-options input {
+.config-block input {
   accent-color: var(--lime);
   width: 16px;
   height: 16px
 }
 
-.race-options small {
+.config-block small {
   font-size: 12px;
   line-height: 1.4;
   color: #96a199
@@ -1122,7 +968,7 @@ kbd {
   box-shadow: 0 0 15px #c7ef481b
 }
 
-body.racing .race-options {
+body.racing .config-block {
   pointer-events: none
 }
 
@@ -1205,7 +1051,7 @@ aside {
     font-size: 12px
   }
 
-  .race-options select {
+  .config-block select {
     font-size: 16px
   }
 
@@ -1441,22 +1287,22 @@ aside {
   color: var(--lime)
 }
 
-.race-options {
+.config-block {
   padding-bottom: 12px
 }
 
-.race-options>label {
+.config-block>label {
   font-size: 12px;
   color: #aab4af;
   letter-spacing: 1px
 }
 
-.race-options .check {
+.config-block .check {
   letter-spacing: 0;
   color: #f4f5ef
 }
 
-.race-options small {
+.config-block small {
   font-size: 12px
 }
 
@@ -1520,7 +1366,7 @@ body.racing #lapCount {
     padding: 8px
   }
 
-  .race-options {
+  .config-block {
     margin-top: 0
   }
 }
@@ -1812,14 +1658,11 @@ body.racing #lapCount {
 }
 
 /* Fluxo de 3 passos antes/durante a corrida — ver docs/AUDITORIA.md § 16.
-   Passo 1 (#startLanding) e passo 2 (#startConfig) vivem dentro do mesmo
-   #start (sempre sobre a cena 3D rodando ao fundo, como já era); só o
-   conteúdo troca, então a órbita da câmera/carro nunca desaparece atrás de
-   uma tela sólida. Passo 3 (a corrida) é tratado mais abaixo, em
-   "Corrida em tela cheia". */
-#startConfig {
-  position: relative;
-}
+   Passo 1 (#start, dentro de .game) é a única tela com a cena 3D ao fundo.
+   Passo 2 (<aside>, ver "Configuração em tela cheia" abaixo) é uma tela
+   cheia própria, só formulário — a seção .game inteira fica oculta
+   (body.configuring), sem nenhum canvas/preview 3D. Passo 3 (a corrida) é
+   tratado em "Corrida em tela cheia". */
 
 /* Botão secundário (RANKING ONLINE) no passo 1 — abaixo do CTA principal. */
 .landing-secondary {
@@ -1831,20 +1674,20 @@ body.racing #lapCount {
   text-align: left;
 }
 
-/* Botão "← VOLTAR" no topo do passo 2, para retornar ao passo 1. Posição
-   absoluta (não ocupa espaço no fluxo normal) para não empurrar o resto do
-   conteúdo para baixo em telas baixas/mobile. */
+/* Botão "← VOLTAR", fixo no canto superior esquerdo — presente tanto no
+   passo 2 (config → abertura) quanto reaproveitável em qualquer tela cheia. */
 .back-btn {
-  position: absolute;
-  top: -38px;
-  left: 0;
+  position: fixed;
+  z-index: 16;
+  top: 104px;
+  left: 24px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: none;
   border: 0;
   color: #c5d0c5;
-  font: 700 12px "Barlow Condensed", Impact, sans-serif;
+  font: 700 13px "Barlow Condensed", Impact, sans-serif;
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 8px 0;
@@ -1852,6 +1695,88 @@ body.racing #lapCount {
 
 .back-btn:hover {
   color: var(--lime);
+}
+
+/* =======================================================================
+   Configuração em tela cheia (passo 2): <aside> deixa de ser a barra
+   lateral e passa a ser a página inteira — só os controles (circuito,
+   dificuldade, voltas, piloto), fundo neutro, sem cena 3D nem texto de
+   propaganda. body.configuring esconde a seção do jogo por completo.
+   ======================================================================= */
+body.configuring .game {
+  display: none;
+}
+
+body.configuring main {
+  display: block;
+  grid-template-columns: none;
+  max-width: none;
+  padding: 0;
+}
+
+.config-screen {
+  position: relative;
+  max-height: none;
+  overflow: visible;
+  min-height: calc(100dvh - 88px - 87px);
+  padding: 56px 24px 64px;
+  display: flex;
+  justify-content: center;
+}
+
+.config-inner {
+  width: 100%;
+  max-width: 640px;
+}
+
+.config-title {
+  text-align: center;
+  margin: 0 0 40px;
+}
+
+.config-block {
+  margin-bottom: 28px;
+}
+
+.config-block:last-of-type {
+  margin-bottom: 0;
+}
+
+.config-block > label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #aab4af;
+  margin-bottom: 9px;
+}
+
+.config-info {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #cbd3c9;
+}
+
+.config-info b {
+  color: #fff;
+}
+
+.config-cta {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+@media (max-width: 760px) {
+  .config-screen {
+    padding: 84px 18px 48px;
+    min-height: calc(100dvh - 66px);
+  }
+
+  .back-btn {
+    top: 78px;
+    left: 17px;
+  }
 }
 
 /* =======================================================================

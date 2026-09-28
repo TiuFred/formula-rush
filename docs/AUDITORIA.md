@@ -692,56 +692,88 @@ Validado com um script de smoke-test (Node, apagado depois — ver seção
 tipos de colisão por 30s simulados: ambos os cooldowns dispararam, sem
 `NaN` nem exceções.
 
-## 16. Fluxo de 3 passos (abertura → configuração → corrida em tela cheia)
+## 16. Fluxo de 3 passos (abertura → configuração em tela cheia → corrida em tela cheia)
 
-A tela de título full-page da seção 15.2 foi refeita a pedido do usuário
-("não ficou legal"): o problema era um `<div>` cobrindo a página inteira
-com um gradiente sólido, escondendo a cena 3D (carro girando na pista) que
-a tela de configuração original já mostrava como pano de fundo — ficava
-genérica e desconectada do resto do jogo.
+Esta seção passou por duas iterações a pedido do usuário antes de chegar no
+formato atual — registro as duas porque o "porquê" de cada rejeição molda
+o design final.
 
-Solução: os dois passos pré-corrida agora vivem **dentro do mesmo** `#start`
-(a área sobre o canvas, dentro de `.game`), como dois sub-painéis
-(`#startLanding`/`#startConfig`) que se alternam via `setVisible` — a cena
-3D nunca é coberta, só o conteúdo por cima dela troca. Fluxo:
+**Iteração 1** (tela de título full-page cobrindo tudo com um gradiente
+sólido): rejeitada — "não ficou legal", escondia a cena 3D que a tela de
+configuração original mostrava como pano de fundo, ficando genérica.
 
-1. **`#startLanding`** (`state.gameState === "landing"`, valor inicial):
-   marca/tagline + botão "CONFIGURAR CORRIDA" + "RANKING ONLINE". A
-   `<aside>` (barra lateral de configuração) fica com `class="hidden"` por
-   padrão em `index.html`.
-2. **`#startConfig`** (`state.gameState === "menu"`): ao clicar em
-   "CONFIGURAR CORRIDA" (`goToConfigStep` em `main.js`), a `<aside>` é
-   revelada e `#startConfig` substitui `#startLanding` — aqui fica o botão
-   "← VOLTAR" (`backToLandingStep`, volta ao passo 1) e o "ENTRAR NA PISTA"
-   original.
+**Iteração 2** (abertura e configuração como dois sub-painéis dentro do
+mesmo `#start`, ambos sobre a cena 3D rodando no canvas): rejeitada
+também — o pedido explícito foi "faça uma tela cheia de configurações,
+sem essa tela da pista escrito (entrar na pista)": nem cena 3D, nem texto
+de propaganda na tela de configuração, só formulário/controles.
+
+**Design final** (confirmado por `AskUserQuestion` antes de implementar,
+para não errar uma terceira vez):
+
+1. **Abertura** (`state.gameState === "landing"`, valor inicial): `#start`
+   dentro de `.game`, com a cena 3D ao fundo — igual à tela de configuração
+   original de antes de tudo isso. Eyebrow/H1/parágrafo de marca + botão
+   "JOGAR" (`goToConfigStep`) + "RANKING ONLINE".
+2. **Configuração em tela cheia** (`state.gameState === "menu"`): a
+   `<aside>` deixa de ser a barra lateral de 320px e passa a ser **a
+   página inteira** — `body.configuring` (ver `styles.css`) esconde
+   `.game` por completo (`display:none`) e vira `main` de uma coluna só;
+   `<aside class="config-screen">` ganha `padding`/`max-width:640px`
+   centralizado, sem nenhum canvas, sem cena 3D, sem cópia de marketing —
+   só título estático "CONFIGURAR CORRIDA", os controles (circuito,
+   dificuldade, voltas, toggles, piloto) e o botão "COMEÇAR CORRIDA"
+   (texto escolhido pelo usuário nas perguntas de confirmação). Removidos
+   do HTML: o cartão do circuito (`.circuit-card` + `<canvas id="map">` +
+   nome completo do autódromo), a caixa de preview piloto (`.driver`), e o
+   bloco de regras/dicas (`.rules`) — o usuário rejeitou explicitamente
+   até manter um preview pequeno do traçado quando perguntado. O botão
+   "← VOLTAR" (`backToLandingStep`, `position:fixed` no canto superior
+   esquerdo) leva de volta à abertura.
 3. **Corrida em tela cheia** (`"countdown"`/`"race"`/`"paused"`/
-   `"finished"`): `body.racing` agora esconde `header`, `<aside>`,
-   `footer` e `.stage-bottom` **incondicionalmente** (antes só escondia em
-   mobile/paisagem estreita — ver regras redundantes removidas em
-   `styles.css`), e `.game` ocupa `100dvh` sem borda/padding. O "botão para
-   retornar" pedido pelo usuário, nesse passo, é o já existente
-   PAUSA → "VOLTAR AO GRID" (volta ao passo 2/`#startConfig`) — não foi
-   adicionado um botão flutuante sobre o HUD de propósito, para não
-   sujar a tela cheia que era justamente o pedido.
+   `"finished"`): inalterado desde a iteração 1 — `body.racing` esconde
+   `header`/`<aside>`/`footer`/`.stage-bottom` incondicionalmente e
+   `.game` ocupa `100dvh` sem borda/padding. O "botão para retornar" aqui
+   continua sendo PAUSA → "VOLTAR AO GRID" (`returnToMenu`, volta
+   direto para a configuração em tela cheia, não para a abertura).
 
-Consequência aceita: como o `header` (com o botão de som) some durante a
-corrida, o som não pode mais ser ligado/desligado nesse momento — já era
-assim antes só no caso de paisagem estreita (§ anterior), agora é sempre
-assim durante a corrida. Não foi adicionado um substituto no HUD (fora do
-escopo pedido).
+Como a `<canvas id="map">` do preview estático foi removida do HTML, a
+chamada `drawTrackMap(byId("map"), false)` em `scene.js` (que quebraria
+com `byId` retornando `null`) foi removida junto, e o import de
+`drawTrackMap` nesse arquivo ficou órfão — também removido. `ui.js`
+(`updateCircuitInfoUI`, os handlers de `playerName`/`playerNumber`/cores)
+teve as referências aos elementos removidos (`circuitTitle`,
+`circuitSubtitle`, `circuitFullName`, `circuitHeading`, `driverColor`,
+`driverNameLabel`, `driverNumberLabel`) limpas — deixá-las quebraria com
+`byId(...).textContent = ...` sobre `null`.
 
-Bug de layout encontrado e corrigido durante o teste manual em mobile
-(375×812): o texto mais alto do passo 2 (eyebrow + "← VOLTAR" + H1 de 2
-linhas) ultrapassava a altura do painel e cortava o botão "ENTRAR NA
-PISTA" por baixo da faixa `.stage-bottom`. Corrigido de duas formas: (1)
-`.back-btn` passou a `position: absolute` (não ocupa espaço no fluxo,
-fica acima do resto do conteúdo) e (2) o H1 do passo 2 foi encurtado para
-uma linha só. O mesmo tipo de aperto apareceu no passo 1 (o novo botão
-"RANKING ONLINE" empurrou o `.startmeta` para fora da área visível) —
-corrigido com margens mais compactas específicas de mobile
-(`@media(max-width:760px)`) para `.landing-secondary`/`.startmeta`/`h1`/
-`.start p`, e reduzindo `.start{top:26% → 20%}` nessa largura.
+### Bug real encontrado durante o teste manual (não era cache do navegador)
+Depois de trocar o texto do botão de "ENTRAR NA PISTA" para "COMEÇAR
+CORRIDA" no `index.html`, o botão continuava mostrando o texto antigo no
+navegador — inclusive em aba nova, com `fetch()` fresco confirmando que o
+*servidor* já respondia com o texto certo. Causa raiz: `loadCircuit()` em
+`main.js` reescreve `byId("startRace").innerHTML` via JavaScript
+(`'ENTRAR NA PISTA <span>↗</span>'`) depois que o circuito termina de
+carregar — isso sobrescrevia de volta o texto do HTML estático assim que
+a página inicializava, então nenhum "cache" estava envolvido, era o
+próprio app revertendo a mudança em runtime. Corrigido para escrever
+`'COMEÇAR CORRIDA <span>↗</span>'` no mesmo lugar.
 
-Validado no navegador (dev server local): os 3 passos e os dois botões de
-"voltar" (passo 2→1 e pausa→passo 2) testados em desktop (1440×900) e
-mobile (375×812), com screenshots confirmando ausência de sobreposição.
+### Bug de visibilidade encontrado ao testar "← VOLTAR" após uma corrida
+Fluxo: abertura → configuração → corrida → pausa → "VOLTAR AO GRID"
+(volta para a configuração) → "← VOLTAR" (deveria voltar para a
+abertura). Resultado: a abertura aparecia **sem** o texto do hero — só a
+cena 3D e o header/footer. Causa: `startRace()` faz
+`setVisible("start", false)` ao iniciar a corrida, mas `backToLandingStep()`
+nunca revertia isso (só mexia em `.game`/`<aside>`), então `#start`
+continuava com `class="hidden"` para sempre depois da primeira corrida.
+Corrigido adicionando `setVisible("start")` (e `setVisible("stageBottom")`)
+em `backToLandingStep()`.
+
+Validado no navegador (dev server local, aba nova a cada teste para
+descartar qualquer estado residual): os 3 passos, os dois botões de
+"voltar" (config→abertura e pausa→config) e o ciclo completo
+abertura→config→corrida→pausa→config→abertura, em desktop (1440×900) e
+mobile (375×812). Física revalidada com um smoke-test de Node (apagado
+depois) nos 3 circuitos após a remoção da chamada a `drawTrackMap` em
+`scene.js` — sem `NaN` nem exceções.

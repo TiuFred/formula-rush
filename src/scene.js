@@ -16,7 +16,6 @@ import { trackHalfWidthAt, cornerWideningAt } from "./track.js";
 import { wrapAngle } from "./mathUtils.js";
 import { byId } from "./dom.js";
 import { MATERIALS, makeMaterial, addMesh, addBox, makeTextPanel } from "./materials.js";
-import { drawTrackMap } from "./minimap.js";
 
 /** Escala dos elementos "de mundo" (terreno, dispersão de árvores/morros,
  * névoa, órbita da câmera do menu) em relação ao comprimento de referência
@@ -439,9 +438,6 @@ export function buildScene() {
   buildTrackDecorations();
   mergeStaticMeshesByMaterial();
   buildRacingLineMesh();
-
-  // Mapa estático de pré-visualização (barra lateral do menu).
-  drawTrackMap(byId("map"), false);
 
   // Minimapa dinâmico exibido durante a corrida (canvas extra sobreposto).
   // Se já existir um de uma troca de circuito anterior, remove-o primeiro —

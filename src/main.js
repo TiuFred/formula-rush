@@ -39,7 +39,10 @@ function startRace() {
   // (o estado de drift/câmera é zerado automaticamente: setupGrid() acima
   // já cria carros novos com esses campos zerados — ver car.js)
 
+  document.body.classList.remove("configuring");
   document.body.classList.add("racing");
+  setVisible("game");
+  setVisible("aside", false);
   setVisible("start", false);
   setVisible("stageBottom", false);
   setVisible("finish", false);
@@ -61,15 +64,15 @@ function startRace() {
 }
 
 /**
- * Passo 2 do fluxo pré-corrida: sai da tela de abertura ("landing") e
- * mostra a configuração (circuito/dificuldade/piloto), revelando a barra
- * lateral. A cena 3D (carro girando na pista) continua visível ao fundo em
- * ambos os passos — só o conteúdo sobre ela troca.
+ * Passo 2 do fluxo pré-corrida: sai da tela de abertura ("landing", dentro
+ * de `.game`, com a cena 3D ao fundo) e mostra a configuração — uma tela
+ * cheia própria (`<aside>` reestilizada, sem nenhuma cena 3D/preview),
+ * escondendo por completo a seção do jogo.
  */
 function goToConfigStep() {
   state.gameState = "menu";
-  setVisible("startLanding", false);
-  setVisible("startConfig");
+  document.body.classList.add("configuring");
+  setVisible("game", false);
   setVisible("aside");
 }
 
@@ -77,9 +80,11 @@ function goToConfigStep() {
 function backToLandingStep() {
   if (state.gameState !== "menu") return;
   state.gameState = "landing";
-  setVisible("startConfig", false);
-  setVisible("startLanding");
+  document.body.classList.remove("configuring");
   setVisible("aside", false);
+  setVisible("game");
+  setVisible("start"); // pode ter sido escondido por uma corrida anterior (startRace())
+  setVisible("stageBottom");
 }
 
 /** Volta à configuração de corrida (encerra a corrida atual sem completá-la, passo 3 -> passo 2). */
@@ -89,8 +94,8 @@ function returnToMenu() {
   state.wasRacingBeforeTimes = false;
   resetKeys();
   document.body.classList.remove("racing");
-  setVisible("start");
-  setVisible("stageBottom");
+  document.body.classList.add("configuring");
+  setVisible("game", false);
   setVisible("aside");
   for (const id of ["finish", "pausePanel", "hud", "instruments", "touch", "miniMap", "countdown", "raceProgress", "attackWarning", "lapTelemetry", "timesPanel", "miniStandings"]) {
     setVisible(id, false);
@@ -209,7 +214,7 @@ async function loadCircuit(circuitId) {
     updateCircuitInfoUI(circuit);
 
     byId("startRace").disabled = false;
-    byId("startRace").innerHTML = 'ENTRAR NA PISTA <span>↗</span>';
+    byId("startRace").innerHTML = 'COMEÇAR CORRIDA <span>↗</span>';
     if (isFirstLoad) requestAnimationFrame(animate);
   } catch (err) {
     console.error(err);

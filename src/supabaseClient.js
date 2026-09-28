@@ -12,8 +12,12 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// `?? {}`: fora do Vite (ex.: um script Node avulso importando src/ direto
+// para smoke-test) import.meta.env não existe — sem isso, o import deste
+// módulo quebraria mesmo quando ninguém usa o ranking online.
+const env = import.meta.env ?? {};
+const url = env.VITE_SUPABASE_URL;
+const anonKey = env.VITE_SUPABASE_ANON_KEY;
 
 const client = url && anonKey ? createClient(url, anonKey) : null;
 
