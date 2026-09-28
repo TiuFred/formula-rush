@@ -52,9 +52,26 @@ export function wireToggle(id, onToggle, initial = false) {
   };
 }
 
-/** Redesenha as linhas do ranking local para o circuito ativo. */
-export function renderLeaderboard() {
-  const entries = getLeaderboard(state.circuitId);
+/**
+ * Redesenha as linhas do ranking do circuito ativo. Busca o ranking ONLINE
+ * (Supabase) quando configurado, com fallback automático para o local — ver
+ * getLeaderboard em leaderboard.js. Mostra um estado de carregamento
+ * enquanto a busca online está em andamento (pode levar um instante).
+ */
+export async function renderLeaderboard() {
+  const circuitAtRequest = state.circuitId;
+  byId("leaderboardStatus").textContent = "Carregando ranking…";
+  byId("leaderboardStatus").classList.remove("online");
+  byId("leaderboardRows").innerHTML = "";
+  setVisible("leaderboardEmpty", false);
+
+  const { online, entries } = await getLeaderboard(circuitAtRequest);
+  if (state.circuitId !== circuitAtRequest) return; // usuário trocou de circuito enquanto isso carregava
+
+  byId("leaderboardStatus").textContent = online
+    ? "RANKING ONLINE · GLOBAL ENTRE JOGADORES"
+    : "RANKING LOCAL · SALVO SÓ NESTE NAVEGADOR";
+  byId("leaderboardStatus").classList.toggle("online", online);
   byId("leaderboardRows").innerHTML = entries
     .map(
       (entry, i) =>
@@ -65,10 +82,10 @@ export function renderLeaderboard() {
   setVisible("leaderboardEmpty", entries.length === 0);
 }
 
-/** Abre o painel de ranking local (sempre para o circuito ativo). */
+/** Abre o painel de ranking (sempre para o circuito ativo). */
 export function openLeaderboardPanel() {
-  renderLeaderboard();
   setVisible("leaderboardPanel");
+  renderLeaderboard();
 }
 
 /** Fecha o painel de ranking local. */
@@ -183,6 +200,41 @@ export function setupMenuUI() {
   });
 }
 
+/**
+ * Redesenha o painel de "classificação em tempo real" (mini-standings): uma
+ * janela de até 5 posições centrada no jogador (2 carros à frente, o
+ * jogador, 2 atrás — ajustada nas bordas do grid), com o gap para o líder em
+ * metros. Complementa o "GAP À FRENTE" (que só mostra o carro imediatamente
+ * na frente) com uma visão mais larga do pelotão. Não faz sentido no
+ * contra-relógio (não há outros carros).
+ */
+function updateMiniStandings(standings, player) {
+  if (state.timeTrial || standings.length < 2) {
+    setVisible("miniStandings", false);
+    return;
+  }
+  setVisible("miniStandings", true);
+  const leaderProgress = standings[0].progress;
+  const windowSize = Math.min(5, standings.length);
+  const playerIndex = standings.indexOf(player);
+  const start = clamp(playerIndex - 2, 0, standings.length - windowSize);
+
+  byId("miniStandings").innerHTML = standings
+    .slice(start, start + windowSize)
+    .map((d, i) => {
+      const pos = start + i + 1;
+      const gap = pos === 1 ? "LÍDER" : "−" + Math.max(0, Math.round(leaderProgress - d.progress)) + " m";
+      return (
+        '<div class="mini-standing' + (d === player ? " you" : "") + '">' +
+        "<b>" + String(pos).padStart(2, "0") + "</b>" +
+        '<i style="--c:' + d.color + '"></i>' +
+        "<span>" + d.name + "</span>" +
+        "<small>" + gap + "</small></div>"
+      );
+    })
+    .join("");
+}
+
 /** Atualiza todo o HUD (chamado por main.js a cada ~0.09s durante a corrida). */
 export function updateHud() {
   const player = state.player;
@@ -190,10 +242,11 @@ export function updateHud() {
     a.finish && b.finish ? a.finish - b.finish : a.finish ? -1 : b.finish ? 1 : b.progress - a.progress
   );
   const position = standings.indexOf(player) + 1;
+  updateMiniStandings(standings, player);
 
   byId("position").innerHTML = state.timeTrial
     ? '<span style="font-size:.55em">CONTRA-RELÓGIO</span>'
-    : position + "<span>/8</span>";
+    : position + "<span>/" + state.drivers.length + "</span>";
   byId("lap").innerHTML = state.timeTrial
     ? (player.completedLaps + 1) + "<span>VOLTA</span>"
     : Math.min(state.lapCountRace, player.completedLaps + 1) + "<span>/" + state.lapCountRace + "</span>";

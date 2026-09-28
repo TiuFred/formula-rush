@@ -119,7 +119,12 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
     if (car === state.player) showNotice("LIMITES DE PISTA EXCEDIDOS · VOLTA INVÁLIDA");
   }
 
-  // --- Colisão com o muro. ---
+  // --- Colisão com o muro: a perda de velocidade agora depende da
+  // SEVERIDADE do impacto (ângulo entre a direção real de movimento e a
+  // tangente da pista no ponto do muro, e a velocidade no momento) — um
+  // roçar quase paralelo à parede perde pouca velocidade; um encontro quase
+  // perpendicular (bater "de frente" no muro) perde muito mais do que o
+  // valor fixo de antes.
   const wallLimit = updated.halfWidth + cornerWideningAt(car.s, Math.sign(car.lane) || 1) - 1.6;
   if (updated.dist > wallLimit) {
     car.lane = Math.sign(updated.lane) * (wallLimit - .1);
@@ -127,12 +132,14 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
     car.x = wallFrame.p.x;
     car.z = wallFrame.p.z;
     if (car.wallCooldown <= 0) {
-      car.speed *= .72;
+      const headingDiff = wrapAngle(movementYaw - updated.yaw);
+      const impactSeverity = clamp(Math.abs(Math.sin(headingDiff)) * clamp(car.speed / 45, 0, 1), 0, 1);
+      car.speed *= 1 - (.18 + impactSeverity * .55);
       car.wallCooldown = .5;
-      car.cameraShake = .35;
+      car.cameraShake = .2 + impactSeverity * .55;
       if (car === state.player) engineAudio.cue("impact");
     }
-    car.yaw += wrapAngle(updated.yaw - car.yaw) * dt * 2;
+    car.yaw += wrapAngle(updated.yaw - car.yaw) * dt * (2 + 4 * Math.min(1, car.speed / 40));
     car.slip = 0;
   }
 

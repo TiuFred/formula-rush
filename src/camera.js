@@ -13,7 +13,7 @@ const lookTarget = new THREE.Vector3();
 export function updateCamera(dt) {
   const camera = state.camera;
 
-  if (state.gameState === "menu") {
+  if (state.gameState === "menu" || state.gameState === "title") {
     state.player.group.visible = true;
     const scale = worldScale();
     const angle = .23 + Math.sin(state.clockTime * .05) * .05;

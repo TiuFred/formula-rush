@@ -73,7 +73,7 @@ export function advanceSimulation(dt) {
 
   for (const car of state.drivers) {
     if (!car.isHuman) updateBot(car, dt);
-    for (const field of ["boost", "shield", "stun", "boxCooldown", "invulnerable", "wallCooldown"]) {
+    for (const field of ["boost", "shield", "stun", "boxCooldown", "invulnerable", "wallCooldown", "collisionCooldown"]) {
       car[field] = Math.max(0, car[field] - dt);
     }
     car.shieldMesh.visible = car.shield > 0;

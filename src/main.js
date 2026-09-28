@@ -51,12 +51,26 @@ function startRace() {
   setVisible("countdown");
   setVisible("raceProgress");
   setVisible("lapTelemetry");
+  setVisible("miniStandings", !state.timeTrial);
   setVisible("attackWarning", false);
   byId("raceStatus").textContent = state.timeTrial
     ? "CONTRA-RELÓGIO · SEM LIMITE DE VOLTAS"
     : state.lapCountRace + " VOLTAS · CORRIDA ARCADE";
   if (state.soundOn) syncEngineAudioEnabled(state.soundOn);
   resizeRenderer();
+}
+
+/** Sai da tela de título e mostra a configuração de corrida. */
+function showRaceSetup() {
+  state.gameState = "menu";
+  setVisible("titleScreen", false);
+}
+
+/** Volta à tela de título (só faz sentido a partir da tela de configuração). */
+function showTitleScreen() {
+  if (state.gameState !== "menu") return;
+  state.gameState = "title";
+  setVisible("titleScreen");
 }
 
 /** Volta ao menu principal (encerra a corrida atual sem completá-la). */
@@ -68,7 +82,7 @@ function returnToMenu() {
   document.body.classList.remove("racing");
   setVisible("start");
   setVisible("stageBottom");
-  for (const id of ["finish", "pausePanel", "hud", "instruments", "touch", "miniMap", "countdown", "raceProgress", "attackWarning", "lapTelemetry", "timesPanel"]) {
+  for (const id of ["finish", "pausePanel", "hud", "instruments", "touch", "miniMap", "countdown", "raceProgress", "attackWarning", "lapTelemetry", "timesPanel", "miniStandings"]) {
     setVisible(id, false);
   }
   byId("raceStatus").textContent = "PRONTO PARA LARGAR";
@@ -99,6 +113,10 @@ function wireLifecycleButtons() {
   wireOptionGroup("circuit", (value) => {
     loadCircuit(value);
   }, { guardMenu: true });
+
+  byId("titlePlay").onclick = showRaceSetup;
+  byId("titleLeaderboard").onclick = openLeaderboardPanel;
+  byId("brandHome").onclick = showTitleScreen;
 }
 
 const FIXED_STEP = 1 / 120;
@@ -146,7 +164,7 @@ function animate(now) {
   }
 
   hudAccumulator += dt;
-  if (hudAccumulator > .09 && state.gameState !== "menu") {
+  if (hudAccumulator > .09 && state.gameState !== "menu" && state.gameState !== "title") {
     updateHud();
     hudAccumulator = 0;
   }

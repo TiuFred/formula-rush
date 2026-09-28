@@ -1,5 +1,5 @@
 // Cria o modelo 3D low-poly do monoposto (usado tanto para o jogador quanto
-// para os 7 bots) e o objeto de estado associado a cada carro. Também cuida
+// para os 22 bots) e o objeto de estado associado a cada carro. Também cuida
 // de sincronizar a posição/rotação visual do carro com a física a cada frame,
 // e de montar o grid de largada no início de cada corrida.
 
@@ -102,6 +102,7 @@ export function createCar(color, index) {
     decision: 0,
     invulnerable: 0,
     wallCooldown: 0,
+    collisionCooldown: 0,
     boostPower: 0,
     shieldMesh,
     flame,
@@ -124,7 +125,6 @@ export function createCar(color, index) {
     stun: 0,
     item: null,
     finish: null,
-    aiSkill: .88 + index * .023,
     itemTimer: 9 + index,
     boxCooldown: 0,
     // Limites de pista (só verificado/aplicado no contra-relógio, ver

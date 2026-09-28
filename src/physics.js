@@ -10,6 +10,7 @@ import { checkLapCompletion, formatLapTime } from "./timing.js";
 import { showNotice } from "./dom.js";
 import { syncCarVisual } from "./car.js";
 import { recordLap } from "./leaderboard.js";
+import { engineAudio } from "./audio.js";
 
 /** Marca `car` como tendo terminado a corrida (usa o instante da última volta como tempo final). */
 export function finishRace(car) {
@@ -50,7 +51,7 @@ export function advanceLapTracking(car, prevProgress, dt, notify = false) {
   // (bots não "contam" tempos). Registra sempre que uma nova melhor volta é
   // batida, usando o nome configurado para aquele piloto.
   if (car.isHuman && car.bestLap !== bestLapBefore) {
-    recordLap(state.circuitId, car.leaderboardName ?? car.name, car.bestLap);
+    recordLap(state.circuitId, car.name, car.bestLap);
   }
   syncCarVisual(car);
   if (car.completedLaps >= state.lapCountRace && !car.finish) finishRace(car);
@@ -58,8 +59,15 @@ export function advanceLapTracking(car, prevProgress, dt, notify = false) {
 
 /**
  * Resolve sobreposições entre carros próximos (mesma pista, lanes próximas):
- * empurra cada um lateralmente para o lado oposto e reduz levemente a
- * velocidade de ambos (simula o contato/roçar entre monopostos).
+ * empurra cada um lateralmente para o lado oposto e aplica uma perda de
+ * velocidade + "chacoalhão" de direção proporcionais à SEVERIDADE do impacto
+ * (velocidade relativa entre os dois carros e o quão alinhados eles estão no
+ * traçado — quase no mesmo ponto da pista = mais "de frente", bem mais
+ * severo que só roçar as laterais). `car.collisionCooldown` garante que o
+ * "baque" (perda de velocidade, câmera, som) só é aplicado uma vez por
+ * contato, não a cada tick de física enquanto os carros continuam
+ * sobrepostos (o empurrão lateral em si continua todo tick, para eles não
+ * se atravessarem visualmente).
  */
 export function resolveCarCollisions(dt) {
   const drivers = state.drivers;
@@ -73,14 +81,27 @@ export function resolveCarCollisions(dt) {
       if (progressGap < 4.3 && Math.abs(laneGap) < 2.1) {
         const pushDir = laneGap === 0 ? (a.id < b.id ? -1 : 1) : Math.sign(laneGap);
         const pushAmount = (2.1 - Math.abs(laneGap)) * .45;
-        for (const [car, dir] of [[a, pushDir], [b, -pushDir]]) {
+        const relativeSpeed = Math.abs(a.speed - b.speed);
+        const headOnFactor = 1 - progressGap / 4.3; // 1 = quase no mesmo ponto da pista, 0 = quase não sobrepõe
+        const impactSeverity = clamp(relativeSpeed / 40 + headOnFactor * .5, 0, 1);
+
+        for (const [car, other, dir] of [[a, b, pushDir], [b, a, -pushDir]]) {
           car.lane = clamp(car.lane + pushAmount * dir, -trackHalfWidthAt(car.s) + 1.2, trackHalfWidthAt(car.s) - 1.2);
           if (car.isHuman) {
             const frame = state.track.at(car.s, car.lane);
             car.x = frame.p.x;
             car.z = frame.p.z;
           }
-          car.speed *= Math.exp(-dt * 1.1);
+          // O carro mais rápido dos dois "absorve" mais o choque (perde mais
+          // velocidade) do que o mais lento, que é mais empurrado do que frenado.
+          const speedFactor = car.speed >= other.speed ? 1 : .55;
+          car.speed *= Math.exp(-dt * (1.1 + impactSeverity * 3 * speedFactor));
+          car.yaw += dir * impactSeverity * dt * 1.6;
+          if (car.collisionCooldown <= 0) {
+            car.collisionCooldown = .4;
+            car.cameraShake = Math.max(car.cameraShake, .12 + impactSeverity * .4);
+            if (car === state.player && impactSeverity > .25) engineAudio.cue("impact");
+          }
           syncCarVisual(car);
         }
       }

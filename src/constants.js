@@ -13,7 +13,7 @@
 export let TRACK_LENGTH = 4309;
 export function setTrackLength(v) { TRACK_LENGTH = v; }
 
-/** Número de pilotos em uma corrida normal (jogador + 7 bots). No contra-relógio, só 1. */
+/** Número de pilotos em uma corrida normal (jogador + 22 bots). No contra-relógio, só 1. */
 export const DRIVER_COUNT = 23;
 
 /**

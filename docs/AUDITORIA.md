@@ -571,3 +571,123 @@ sempre larga na última fileira, agora entre 23 carros em vez de 8.
 
 Validado: simulação real de 15s nos três circuitos com os 23 carros na
 pista (nenhum `NaN`, nomes/ordem conferidos do primeiro ao último piloto).
+
+## 15. Correções da RTM (posição "X/8"), main menu, ranking online, HUD e física de colisões
+
+### 15.1 Bug real corrigido: HUD de posição mostrava "X/8" com 23 carros na pista
+Uma revisão geral do repositório (pedida pelo usuário) encontrou que o HUD
+(`src/ui.js`, `updateHud`) e o texto inicial (`index.html`) ainda mostravam
+"/8" como total de pilotos — resquício de antes da seção 14.4 (grid
+expandido de 8 para 23 carros). Corrigido para usar `state.drivers.length`
+dinamicamente em vez de um número fixo. Também foram removidos dois campos
+mortos encontrados na mesma revisão: `car.leaderboardName` (nunca era
+atribuído; `physics.js` já caía sempre no fallback `car.name`) e
+`car.aiSkill` (calculado em `createCar` mas nunca lido em lugar nenhum).
+
+### 15.2 Tela de título (main menu)
+Adicionada uma tela de título de página inteira (`#titleScreen` em
+`index.html`, estilo em `styles.css`), mostrada antes da tela de
+configuração de corrida que já existia (barra lateral com circuito/
+dificuldade/voltas/piloto). `state.gameState` ganhou um novo valor
+`"title"` (era o estado inicial padrão "menu"; agora o padrão é "title").
+Botão "JOGAR" leva ao "menu" (a configuração de corrida, sem mudança de
+comportamento a partir daí); botão "RANKING ONLINE" abre o painel de
+ranking direto da tela de título; o logo no header (`#brandHome`, antes um
+`<a href="./">` que recarregava a página) agora é um botão que volta da
+tela de configuração para a tela de título sem perder o circuito já
+carregado — só funciona nesse sentido (não interrompe uma corrida em
+andamento). A câmera de órbita do menu (`camera.js`) e o bloqueio de
+atalhos de teclado (`input.js`) foram estendidos para tratar `"title"`
+igual a `"menu"`.
+
+Um bug foi pego e corrigido durante o teste manual no navegador: o painel
+de ranking (`.modal`, z-index 7) abria **atrás** da tela de título
+(z-index 20 na primeira versão) quando aberto direto da tela de título —
+corrigido baixando o z-index da tela de título para 6 (abaixo de todos os
+`.modal`, que continuam por cima de qualquer tela).
+
+### 15.3 Ranking online (Supabase)
+O projeto era 100% estático/sem backend (ver seção 13.1/13.3). A pedido do
+usuário, o ranking (`src/leaderboard.js`) passou a tentar um ranking
+ONLINE via Supabase antes de cair para o local:
+
+- `src/supabaseClient.js`: cria o client a partir de
+  `import.meta.env.VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`; se essas
+  variáveis não estiverem definidas (`.env.local`, ver
+  `.env.local.example`), o client é `null` e todo o resto do jogo
+  continua funcionando exatamente como antes (ranking só local).
+- `docs/leaderboard-schema.sql`: schema a ser rodado manualmente pelo
+  usuário no SQL Editor do próprio projeto Supabase (criar uma conta e um
+  projeto ali é uma ação que só o usuário pode fazer). Decisão de design:
+  a tabela `leaderboard_entries` não aceita INSERT/UPDATE/DELETE direto da
+  role `anon` — toda escrita passa por uma função `submit_lap_time`
+  (`security definer`) que só grava se o tempo novo for melhor que o já
+  salvo para aquele (circuito, nome de piloto), com `on conflict ...
+  where excluded.time_ms < ...`. Isso centraliza a regra "só grava se for
+  recorde" no banco (uma única fonte da verdade) em vez de confiar só no
+  cliente, e impede que alguém sobrescreva o tempo de outra pessoa com um
+  valor pior.
+- `recordLap()`/`getLeaderboard()` em `leaderboard.js` viraram `async`:
+  `recordLap` sempre grava no local primeiro (síncrono, mesma linha de
+  código de antes) e, se o online estiver configurado, também tenta
+  enviar (erro de rede/config só gera um `console.warn`, nunca quebra o
+  jogo); `getLeaderboard` tenta o online e cai para o local em caso de
+  falha, retornando `{ online, entries }` para a UI poder indicar a
+  origem. `src/ui.js` (`renderLeaderboard`) mostra um estado "Carregando…"
+  e depois "RANKING ONLINE · GLOBAL ENTRE JOGADORES" ou "RANKING LOCAL ·
+  SALVO SÓ NESTE NAVEGADOR" conforme o resultado.
+
+**Limitação conhecida, documentada de propósito (não escondida)**: como é
+um jogo inteiramente client-side sem validação de corrida no servidor, a
+chave "anon" do Supabase — pública por natureza no próprio modelo do
+Supabase, protegida por Row Level Security, não por sigilo — permite que
+alguém tecnicamente chame `submit_lap_time()` direto com um tempo forjado,
+sem ter jogado. Não há anti-cheat; é um ranking "por honestidade", só que
+agora compartilhado entre navegadores/dispositivos em vez de só local.
+Se isso importar no futuro, a mitigação exigiria validar a corrida no
+servidor (ex.: assinar o resultado com dados da simulação), o que é uma
+mudança de arquitetura maior, fora do escopo desta rodada.
+
+### 15.4 HUD: mini-classificação em tempo real
+Novo painel (`#miniStandings`, `updateMiniStandings` em `src/ui.js`): uma
+janela de até 5 posições centrada no jogador (2 carros à frente, o
+jogador, 2 atrás — ajustada nas bordas do grid), com o gap para o líder em
+metros e um marcador da cor de cada carro. Atualizado junto com o resto do
+HUD (~11×/s). Escondido no contra-relógio (não há outros carros) e em
+telas estreitas (`max-width: 760px`) para não competir por espaço com os
+controles de toque.
+
+### 15.5 Física de colisões: severidade em vez de penalidade fixa
+Pedido do usuário: a colisão carro-carro e a colisão com o muro pareciam
+"pouco realistas" (sempre a mesma penalidade, independente de como o
+choque aconteceu).
+
+- **Carro-carro** (`resolveCarCollisions`, `physics.js`): a perda de
+  velocidade e o "chacoalhão" de direção agora escalam com uma
+  `impactSeverity` calculada a partir da velocidade relativa entre os dois
+  carros e de quão alinhados eles estão no traçado (dois carros quase no
+  mesmo ponto da pista = impacto mais "de frente", bem mais severo que só
+  roçar as laterais). O carro mais rápido dos dois perde
+  proporcionalmente mais velocidade (absorve mais o choque) que o mais
+  lento. Um novo campo por carro, `car.collisionCooldown` (decai junto com
+  `boost`/`shield`/etc. em `simulation.js`), garante que o "baque" (perda
+  de velocidade, tremor de câmera, som) só é aplicado uma vez por contato,
+  não a cada tick de física enquanto os carros continuam sobrepostos — o
+  empurrão lateral em si (para eles não se atravessarem visualmente)
+  continua todo tick, sem cooldown. Antes, uma colisão carro-carro era
+  totalmente silenciosa e sem tremor de câmera (só o muro tinha isso);
+  agora colisões fortes (`impactSeverity > .25`) também disparam
+  `engineAudio.cue("impact")` para o jogador.
+- **Muro** (`updatePlayerPhysics`, `player.js`): a perda de velocidade
+  fixa (28%, `car.speed *= .72`) foi substituída por uma severidade
+  baseada no ângulo entre a direção REAL de movimento (heading menos o
+  ângulo de slip do drift) e a tangente da pista no ponto do muro, e na
+  velocidade do carro — um roçar quase paralelo à parede perde pouca
+  velocidade; um encontro quase perpendicular perde bem mais que antes
+  (até ~73% em vez de 28% fixo). O tremor de câmera e a velocidade de
+  realinhamento do yaw após o impacto também escalam com essa severidade.
+
+Validado com um script de smoke-test (Node, apagado depois — ver seção
+"Como testar mudanças" no `CLAUDE.md`) que força repetidamente os dois
+tipos de colisão por 30s simulados: ambos os cooldowns dispararam, sem
+`NaN` nem exceções.

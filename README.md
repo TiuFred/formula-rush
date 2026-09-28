@@ -4,8 +4,9 @@ Corrida arcade 3D (three.js) com **três circuitos reais** (Interlagos,
 Monza e o oval da Indy 500 em Indianápolis) — drift, miniturbo, itens
 (turbo/míssil/óleo/escudo), 22 bots com IA usando os pilotos e cores reais
 da F1 2026, câmera externa/cockpit, minimapa, cronometragem de voltas,
-contra-relógio solo com regra de limites de pista, e um **ranking local**
-das melhores voltas.
+contra-relógio solo com regra de limites de pista, uma tela de título
+(main menu) antes da configuração de corrida, e um **ranking de melhores
+voltas** — online (Supabase, opcional) com fallback automático para local.
 
 Este projeto foi **reconstruído a partir da versão publicada** (bundle
 minificado) em uma estrutura modular e legível, pronta para abrir e continuar
@@ -51,7 +52,8 @@ formula-rush-interlagos/
 │   ├── main.js                # ponto de entrada: inicialização + loop principal
 │   ├── constants.js           # constantes do jogo (tabelas de pista trocáveis + grid da F1 2026)
 │   ├── circuits.js             # registro de circuitos (Interlagos, Monza, Indianápolis)
-│   ├── leaderboard.js           # ranking local (localStorage) de melhores voltas
+│   ├── leaderboard.js           # ranking de melhores voltas: online (Supabase) com fallback local
+│   ├── supabaseClient.js       # client Supabase do ranking online (null se não configurado)
 │   ├── state.js                # estado mutável central (compartilhado entre os módulos)
 │   ├── mathUtils.js            # clamp, wrapAngle, interpolação, etc.
 │   ├── dom.js                  # helpers de DOM (mostrar/ocultar, avisos)
@@ -108,11 +110,27 @@ cronometrado tivesse sido bom. O tempo da volta atual fica vermelho no HUD
 enquanto ela estiver inválida, e o painel de tempos marca voltas inválidas
 com ⚠️.
 
-## Ranking local
-O botão "VER RANKING DESTA PISTA" no menu mostra as melhores voltas salvas
-no seu navegador (uma por nome digitado em "SEU PILOTO", por circuito). Não
-é global entre jogadores de máquinas diferentes — é um ranking local
-(localStorage), não um serviço online. Ver `docs/AUDITORIA.md` § 13.3.
+## Ranking (online + local)
+O botão "RANKING ONLINE" (tela de título) ou "VER RANKING DESTA PISTA"
+(menu) mostra as melhores voltas por circuito, uma entrada por nome
+digitado em "SEU PILOTO".
+
+Por padrão, sem nenhuma configuração extra, o ranking é **local**
+(salvo só no seu navegador, via `localStorage`) — funciona imediatamente,
+sem depender de nada externo. Para ativar um ranking **online** (global
+entre navegadores/dispositivos), configure um projeto gratuito no
+[Supabase](https://supabase.com):
+
+1. Crie um projeto e rode o SQL de
+   [`docs/leaderboard-schema.sql`](docs/leaderboard-schema.sql) no SQL Editor dele.
+2. Copie `.env.local.example` para `.env.local` e preencha com a Project URL
+   e a chave `anon public` do seu projeto (em Project Settings → API).
+3. Reinicie `npm run dev` (ou refaça o `npm run build`).
+
+Sem essa configuração, o jogo funciona normalmente e usa só o ranking
+local — nada quebra. Ver `docs/AUDITORIA.md` § 13.3 e § 15.3 para mais
+detalhes (inclusive a limitação conhecida: como o jogo é 100% client-side,
+não há validação de corrida no servidor — é um ranking "por honestidade").
 
 ## Circuitos
 O seletor "CIRCUITO" no menu troca a qualquer momento entre Interlagos,
