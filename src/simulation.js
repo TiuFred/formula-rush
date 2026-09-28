@@ -76,7 +76,7 @@ export function advanceSimulation(dt) {
 
   for (const car of state.drivers) {
     if (!car.isHuman) updateBot(car, dt);
-    for (const field of ["boost", "shield", "stun", "boxCooldown", "invulnerable", "wallCooldown", "collisionCooldown"]) {
+    for (const field of ["boost", "shield", "stun", "boxCooldown", "invulnerable"]) {
       car[field] = Math.max(0, car[field] - dt);
     }
     car.shieldMesh.visible = car.shield > 0;
@@ -84,7 +84,10 @@ export function advanceSimulation(dt) {
     car.flame.scale.y = 1 + Math.sin(state.clockTime * 40) * .25;
   }
 
-  resolveCarCollisions(dt);
+  // Na classificação o jogador está sozinho na pista de verdade (os bots
+  // rodam a própria volta por trás dos panos, ocultos, só pra ter um tempo
+  // — ver main.js/startRace) — sem colisão nenhuma, igual ao contra-relógio.
+  if (!state.qualifying) resolveCarCollisions(dt);
 
   // Caixas de item: animação de flutuar/girar, e coleta pelo primeiro carro
   // elegível que passar perto o suficiente.

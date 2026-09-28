@@ -212,7 +212,7 @@ export function setupMenuUI() {
  * contra-relógio (não há outros carros).
  */
 function updateMiniStandings(standings, player) {
-  if (state.timeTrial || standings.length < 2) {
+  if (state.timeTrial || state.qualifying || standings.length < 2) {
     setVisible("miniStandings", false);
     return;
   }
@@ -265,8 +265,9 @@ export function updateHud() {
   byId("gear").textContent = player.speed < .5 ? "N" : Math.min(8, Math.floor(player.speed * 3.6 / 43) + 1);
 
   // Gap (em metros) para o carro imediatamente à frente — só faz sentido
-  // com outros carros na pista (corrida normal, não contra-relógio).
-  if (state.timeTrial || state.drivers.length < 2) {
+  // com outros carros VISÍVEIS na pista (corrida normal; não no
+  // contra-relógio nem na classificação, onde o jogador está sozinho).
+  if (state.timeTrial || state.qualifying || state.drivers.length < 2) {
     setVisible("gapBox", false);
   } else {
     const carAhead = state.drivers
@@ -325,7 +326,7 @@ export function updateHud() {
       ? ["CARREGANDO", "MINITURBO · SOLTE", "SUPER · SOLTE", "ULTRA · SOLTE"][level]
       : "SEGURE SHIFT NAS CURVAS";
 
-  const itemInfo = state.timeTrial
+  const itemInfo = state.timeTrial || state.qualifying
     ? { icon: "—", name: "SEM ITENS" }
     : player.item ? ITEM_DEFS[player.item] : { icon: "◇", name: "PEGUE UMA CAIXA" };
   byId("itemIcon").textContent = itemInfo.icon;

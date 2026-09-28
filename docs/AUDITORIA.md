@@ -871,3 +871,118 @@ os ids existentes no HTML (só `#miniMap`, criado dinamicamente, aparece
 como "ausente" — o mesmo caso já documentado desde a auditoria original),
 e um smoke-test de Node cobrindo setores/DRS/drift/colisão nos 3
 circuitos sem `NaN` nem exceções.
+
+## 18. Colisões "horríveis" — a causa raiz de verdade (a seção 17 não tinha resolvido)
+
+O usuário testou a correção da seção 17 (baque só uma vez por contato, via
+`car.collisionCooldown`) e relatou que continuava horrível. Motivo: gatear
+por um COOLDOWN DE TEMPO (0.4s) não é a mesma coisa que gatear por um
+EVENTO DE CONTATO — disputas de posição normais (dois carros correndo
+colados por vários segundos, coisa comum numa corrida) faziam o baque
+disparar de novo a cada 0.4s enquanto o contato durasse, e não só isso: a
+magnitude de UM baque isolado também podia chegar a 40% da velocidade
+NUM SÓ TICK (até ~40 m/s de queda instantânea, medido no smoke-test) —
+brusco demais mesmo sem repetir.
+
+Processo de diagnóstico (documentado porque o primeiro smoke-test escrito
+deu resultado enganoso): um script forçando o jogador a ficar "colado" num
+bot por 5s mostrou 69-84 quedas de velocidade e o carro girando quase
+180°. Investigando, a causa era o PRÓPRIO SCRIPT DE TESTE: ele forçava só
+`car.lane` sem atualizar `car.x`/`car.z` correspondentes — e
+`updatePlayerPhysics` recalcula a lane a partir da posição x/z real via
+`state.track.nearest(...)`, descartando a forçação a cada tick. Corrigido
+o teste para posicionar x/z consistentes com a lane desejada (via
+`state.track.at(s, lane)`, a mesma função que o próprio jogo usa) — só
+então o teste ficou confiável o bastante pra guiar a correção de verdade.
+
+### Correções aplicadas em `physics.js`/`player.js`
+
+1. **Detecção por BORDA DE SUBIDA do contato, não por cooldown de tempo.**
+   Cada carro guarda `car.touching` (um `Set` de ids de quem está tocando
+   NESTE tick), recalculado do zero a cada chamada de
+   `resolveCarCollisions` e comparado com o valor do tick anterior — o
+   "baque" (perda de velocidade, chacoalhão, câmera, som) só dispara
+   quando o par passa de "não tocando" para "tocando", nunca de novo
+   enquanto o contato continuar, não importa por quantos segundos. O
+   empurrão lateral (pra não se atravessarem visualmente) continua
+   rodando todo tick, sem penalidade nenhuma associada.
+2. **Histerese entre entrar e sair do contato.** Só isso ainda não bastava
+   — testado com posição real (x/z corretos), o gap entre dois carros
+   correndo colados naturalmente OSCILA de um tick pro outro (aceleração,
+   resposta de curva, drift), cruzando repetidamente a fronteira de
+   detecção (`progressGap<4.3 && |laneGap|<2.1`) mesmo sem os carros terem
+   realmente se separado — cada cruzamento contava como toque novo. A
+   correção: limiares de SAÍDA maiores que os de ENTRADA
+   (`RELEASE_PROGRESS_GAP=6.5`/`RELEASE_LANE_GAP=2.7` vs
+   `OVERLAP_PROGRESS_GAP=4.3`/`OVERLAP_LANE_GAP=2.1`) — uma vez tocando,
+   só volta a contar como "separados" quando o gap abrir de verdade, não
+   em toda micro-flutuação. Validado com dois testes diretos (medindo
+   transições do `Set` de contato, não mais a queda de velocidade como
+   proxy, que se provou um sinal ruidoso — flutuações normais de
+   aceleração geram quedas de velocidade sem colisão nenhuma): contato
+   sustentado real por 5s → exatamente 1 borda de subida; 10 ciclos de
+   aproximar/afastar de verdade → exatamente 10 bordas de subida.
+3. **Magnitude do baque isolado reduzida.** Carro-carro: perda máxima de
+   velocidade num toque de 40%→22%, chacoalhão de yaw de até 0.1→0.08 rad
+   por toque. Muro: 57%→40% no topo da faixa (a base, pra um roçar quase
+   paralelo, também caiu de 12%→10%). A mesma técnica de borda de
+   subida/sem repetição foi aplicada ao muro (`car.wallTouching`,
+   substituindo o antigo `car.wallCooldown`, que ficou órfão e foi
+   removido) — raspar numa zebra/muro por 1-2s (comum ao cortar uma curva)
+   agora perde velocidade só uma vez, não a cada ~0.5s como antes.
+
+### Validação
+- 3 smoke-tests de Node dedicados: contato sustentado real (5s → 1 baque),
+  toques distintos (10 ciclos → 10 bordas de subida, uma a uma), muro
+  sustentado (2s → 1 baque).
+- Corrida completa simulada (23 carros, IA orgânica dos bots, 90s × 3
+  circuitos): sem `NaN`/exceções; maior queda de velocidade num único
+  tick caiu de ~40 m/s para ~29 m/s (a métrica de "giro suspeito >90°/s"
+  usada numa rodada intermediária do diagnóstico se mostrou um falso
+  positivo — Interlagos/Monza têm curvas fechadas de verdade que exigem
+  essa taxa de giro sem colisão nenhuma; Indianápolis, um oval quase sem
+  curvas fechadas, teve 50× menos ocorrências, confirmando que não era um
+  sinal de bug).
+- Teste ao vivo no navegador (não só headless): jogador teleportado para
+  sobrepor um bot em corrida real rodando de verdade, lido o estado
+  imediatamente antes/depois via console — 1 baque (câmera chacoalhou
+  0→0.25, velocidade caiu ~22%, batendo com o novo teto configurado), sem
+  ficar preso batendo repetidamente, carros se separando normalmente
+  depois.
+
+## 19. Classificação: o jogador fica SOZINHO na pista de verdade
+
+A seção 16 implementou a classificação reaproveitando a corrida normal com
+os 23 carros (só sem itens) — o usuário corrigiu: classificação é 1 volta
+SÓ do jogador, sem mais ninguém na pista, igual ao contra-relógio.
+
+Solução: os bots continuam rodando a própria volta por trás dos panos —
+mesma física/IA de sempre (`updateBot`, chamada normalmente em
+`advanceSimulation`) — pra ter um tempo de volta realista e formar o grid
+da corrida de verdade depois (é esse tempo simulado que entra no
+`sort()` de `finishQualifying`, em `main.js`). Só que eles ficam:
+
+- **Ocultos**: `car.group.visible = car.isHuman` logo depois de
+  `setupGrid()`, em `startRace()` (só quando `state.qualifying`).
+  `minimap.js` (`drawTrackMap`, modo `live`) já pula carros com
+  `group.visible === false`, então o minimapa também mostra só o jogador.
+- **Sem colisão**: `resolveCarCollisions(dt)` é pulado por completo durante
+  a classificação (`simulation.js`) — o jogador nunca é tocado por um bot
+  que ele nem consegue ver.
+- **Sem DRS por causa deles**: `computeDrsActive` (`physics.js`) agora
+  também exige `other.group.visible` pra contar como "carro da frente" —
+  sem isso, o jogador podia ganhar (ou um bot perder) DRS por causa de um
+  carro que nem está na tela.
+- **HUD consistente com "sozinho"**: mini-classificação e "GAP À FRENTE"
+  escondidos (`ui.js`, mesmo tratamento que já existia pro contra-relógio),
+  e o painel de item mostra "SEM ITENS" em vez de "PEGUE UMA CAIXA" (não
+  há caixas na classificação — `setupItemBoxes` já pulava a criação delas,
+  só faltava a mensagem do HUD acompanhar).
+
+Validado com um smoke-test dedicado: ao entrar em classificação, só o
+carro do jogador (`id 0`) fica com `group.visible`; forçando o jogador a
+sobrepor um bot de propósito, `player.touching` continua vazio e
+`cameraShake` continua em 0 (nenhum baque, confirmando que a colisão
+está mesmo desligada); os 22 bots terminam com `progress > 0`,
+confirmando que a física/IA deles continua rodando normalmente nos
+bastidores. Sem `NaN` nem exceções.

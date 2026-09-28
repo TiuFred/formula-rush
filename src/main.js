@@ -60,6 +60,16 @@ function startRace() {
   setupGrid(gridOrderForThisRace);
   setupItemBoxes();
 
+  // Classificação de verdade é o jogador SOZINHO na pista (como o
+  // contra-relógio) — os bots continuam correndo a própria volta por
+  // trás dos panos (mesma física/IA de sempre, pra ter um tempo realista
+  // e formar o grid depois), só não aparecem nem colidem: ficam ocultos
+  // (ver minimap.js, que já pula carros escondidos) e resolveCarCollisions
+  // é pulado inteiro durante a classificação (ver simulation.js).
+  if (state.qualifying) {
+    for (const car of state.drivers) car.group.visible = car.isHuman;
+  }
+
   // Replay cinematográfico: começa a gravar do zero a cada largada (a
   // classificação também grava a própria volta, mas ela é descartada aqui
   // quando a corrida de verdade começa de fato).
@@ -88,7 +98,7 @@ function startRace() {
   setVisible("countdown");
   setVisible("raceProgress");
   setVisible("lapTelemetry");
-  setVisible("miniStandings", !state.timeTrial);
+  setVisible("miniStandings", !state.timeTrial && !state.qualifying);
   setVisible("attackWarning", false);
   byId("raceStatus").textContent = state.qualifying
     ? "CLASSIFICAÇÃO · 1 VOLTA DEFINE O GRID"

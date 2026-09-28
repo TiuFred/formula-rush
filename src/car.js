@@ -101,8 +101,12 @@ export function createCar(color, index) {
     avoidLane: 0,
     decision: 0,
     invulnerable: 0,
-    wallCooldown: 0,
-    collisionCooldown: 0,
+    wallTouching: false,
+    // ids dos carros que este carro está tocando NESTE tick (ver
+    // resolveCarCollisions em physics.js) — comparado com o tick anterior
+    // para só aplicar o "baque" da colisão na borda de subida do contato,
+    // nunca repetidamente enquanto os carros continuarem sobrepostos.
+    touching: new Set(),
     drsActive: false,
     boostPower: 0,
     shieldMesh,

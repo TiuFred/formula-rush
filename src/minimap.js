@@ -79,8 +79,11 @@ export function drawTrackMap(canvas, live) {
 
   if (live) {
     // Desenha por último (por cima) o carro do jogador, iterando em ordem
-    // inversa da lista de pilotos.
+    // inversa da lista de pilotos. Pula carros escondidos (ex.: bots
+    // durante a classificação, que roda só com o jogador visível na pista
+    // — ver main.js/startRace).
     for (const driver of [...state.drivers].reverse()) {
+      if (!driver.group.visible) continue;
       const point = outline.project(rotateForMap(driver.group.position));
       const isPlayer = driver === state.player;
       ctx.beginPath();

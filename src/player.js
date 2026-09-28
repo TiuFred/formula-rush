@@ -129,28 +129,37 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
     if (car === state.player) showNotice("LIMITES DE PISTA EXCEDIDOS · VOLTA INVÁLIDA");
   }
 
-  // --- Colisão com o muro: a perda de velocidade agora depende da
-  // SEVERIDADE do impacto (ângulo entre a direção real de movimento e a
-  // tangente da pista no ponto do muro, e a velocidade no momento) — um
-  // roçar quase paralelo à parede perde pouca velocidade; um encontro quase
-  // perpendicular (bater "de frente" no muro) perde muito mais do que o
-  // valor fixo de antes.
+  // --- Colisão com o muro: a perda de velocidade depende da SEVERIDADE do
+  // impacto (ângulo entre a direção real de movimento e a tangente da
+  // pista no ponto do muro, e a velocidade no momento) — um roçar quase
+  // paralelo à parede perde pouca velocidade; um encontro quase
+  // perpendicular perde bem mais. Crucial: a perda só é aplicada na BORDA
+  // DE SUBIDA do contato (`!car.wallTouching`), nunca repetidamente
+  // enquanto o carro continuar encostado/raspando no muro (ex.: cortando
+  // uma curva rente à zebra por 1-2s) — sem isso, ficar raspando no muro
+  // por alguns segundos ia comendo a velocidade a cada ~0.5s, o que parecia
+  // um bug de colisão "quebrada" mesmo sem um impacto de verdade se repetindo.
   const wallLimit = updated.halfWidth + cornerWideningAt(car.s, Math.sign(car.lane) || 1) - 1.6;
   if (updated.dist > wallLimit) {
     car.lane = Math.sign(updated.lane) * (wallLimit - .1);
     const wallFrame = state.track.at(car.s, car.lane);
     car.x = wallFrame.p.x;
     car.z = wallFrame.p.z;
-    if (car.wallCooldown <= 0) {
+    if (!car.wallTouching) {
+      // Faixa moderada de propósito (10%-40%, era 12%-57%): mesmo só uma
+      // vez por toque, o topo da faixa ainda precisa parecer um baque, não
+      // uma freada abrupta que praticamente para o carro.
       const headingDiff = wrapAngle(movementYaw - updated.yaw);
       const impactSeverity = clamp(Math.abs(Math.sin(headingDiff)) * clamp(car.speed / 45, 0, 1), 0, 1);
-      car.speed *= 1 - (.18 + impactSeverity * .55);
-      car.wallCooldown = .5;
-      car.cameraShake = .2 + impactSeverity * .55;
+      car.speed *= 1 - (.1 + impactSeverity * .3);
+      car.cameraShake = .15 + impactSeverity * .4;
       if (car === state.player) engineAudio.cue("impact");
+      car.wallTouching = true;
     }
     car.yaw += wrapAngle(updated.yaw - car.yaw) * dt * (2 + 4 * Math.min(1, car.speed / 40));
     car.slip = 0;
+  } else {
+    car.wallTouching = false;
   }
 
   // --- Carga de drift / miniturbo. ---
