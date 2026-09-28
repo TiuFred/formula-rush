@@ -168,7 +168,9 @@ export function advanceSimulation(dt) {
 
   // Replay cinematográfico: grava a pose do carro do jogador a cada
   // REPLAY_SAMPLE_INTERVAL segundos (não a cada tick de física — 120
-  // amostras/s seria muito mais dado do que o replay precisa). Ver replay.js.
+  // amostras/s seria muito mais dado do que o replay precisa), junto com a
+  // telemetria (velocidade/volta/DRS) usada pela HUD estilo F1 do replay.
+  // Ver replay.js.
   state.replayTimer += dt;
   if (state.replayTimer >= REPLAY_SAMPLE_INTERVAL) {
     state.replayTimer = 0;
@@ -176,6 +178,9 @@ export function advanceSimulation(dt) {
       t: state.raceTime,
       pos: state.player.group.position.clone(),
       quat: state.player.group.quaternion.clone(),
+      speed: state.player.speed,
+      lap: state.player.completedLaps + 1,
+      drsActive: state.player.drsActive,
     });
   }
 

@@ -1,7 +1,10 @@
 // Replay cinematográfico: reproduz a pose gravada do carro do jogador (ver
-// REPLAY_SAMPLE_INTERVAL/advanceSimulation em simulation.js) com uma câmera
-// que corta entre dois enquadramentos dramáticos, alternando a cada 6s de
-// replay — bem diferente da câmera de corrida normal, de propósito.
+// REPLAY_SAMPLE_INTERVAL/advanceSimulation em simulation.js), com uma barra
+// de progresso arrastável (ver main.js, que traduz cliques/arrasto em
+// seekReplay), play/pause, e duas câmeras que o próprio jogador escolhe:
+// "onboard" (colada perto/baixo atrás do carro) e "transmissão" (o
+// director-cut estilo F1 de TV, alternando corte a cada 6s entre uma câmera
+// de perseguição e um drone orbital).
 //
 // Não é um novo "modo de jogo": é só uma troca temporária de quem move a
 // câmera/o carro do jogador (ver main.js, animate() chama updateReplay em
@@ -12,63 +15,91 @@
 import * as THREE from "three";
 import { state } from "./state.js";
 import { clamp } from "./mathUtils.js";
-import { setVisible } from "./dom.js";
+import { byId, setVisible } from "./dom.js";
+import { formatRaceClock } from "./timing.js";
 import { REPLAY_SAMPLE_INTERVAL } from "./simulation.js";
 
 let playbackClock = 0;
+let paused = false;
+/** "broadcast" (default, "transmissão") ou "onboard". */
+let cameraMode = "broadcast";
+
 const lookTarget = new THREE.Vector3();
 const forward = new THREE.Vector3();
 const _pos = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 
-/** Elementos do HUD de corrida que normalmente ficam por baixo do modal
- * `#finish` (coberto por ele, então nunca precisou de setVisible próprio ao
- * terminar a corrida) — mas o replay TROCA o modal pela cena 3D, então
- * precisa escondê-los explicitamente, senão aparecem por cima da câmera
- * cinematográfica com dados congelados da corrida (posição 0 km/h etc.). */
 const HUD_ELEMENTS_TO_HIDE_DURING_REPLAY = [
   "hud", "instruments", "lapTelemetry", "miniStandings", "raceProgress", "attackWarning", "miniMap",
 ];
 
-/** Inicia o replay a partir do início da gravação da corrida atual. */
+/** Duração total do replay gravado, em segundos. */
+function replayDuration() {
+  return (state.replayFrames.length - 1) * REPLAY_SAMPLE_INTERVAL;
+}
+
 export function startReplay() {
-  if (state.replayFrames.length < 2) return; // nada de útil gravado
+  if (state.replayFrames.length < 2) return;
   playbackClock = 0;
-  state.gameState = "replay";
-  // Só o carro do jogador tem pose gravada — os outros ficam ocultos
-  // durante o replay para não confundir (eles ficariam congelados no lugar
-  // onde a corrida terminou, o que pareceria um bug, não um replay).
+  paused = false;
   for (const car of state.drivers) car.group.visible = car.isHuman;
   setVisible("finish", false);
   setVisible("replayBar");
+  setVisible("replayHud");
   for (const id of HUD_ELEMENTS_TO_HIDE_DURING_REPLAY) setVisible(id, false);
+
+  byId("replayHudNumber").textContent = state.playerNumber;
+  byId("replayHudNumber").style.background = state.selectedColor;
+  byId("replayHudName").textContent = (state.player.name || "").toUpperCase();
+
+  setReplayCamera("broadcast");
+  updatePlayPauseUI();
+  renderFrameAt(0);
 }
 
-/** Encerra o replay (fim natural da gravação, ou "PULAR REPLAY") e volta para a tela de resultado. */
 export function stopReplay() {
   state.gameState = "finished";
   for (const car of state.drivers) car.group.visible = true;
   setVisible("replayBar", false);
+  setVisible("replayHud", false);
   setVisible("finish");
 }
 
-/**
- * Chamada uma vez por FRAME (não em passo fixo — é só reprodução visual de
- * dados já gravados) enquanto `state.gameState === "replay"`. Interpola a
- * pose do jogador entre as duas amostras mais próximas de `playbackClock` e
- * posiciona a câmera num dos dois enquadramentos cinematográficos.
- */
-export function updateReplay(dt) {
-  const frames = state.replayFrames;
-  playbackClock += dt;
+/** Alterna play/pause; se estiver parado bem no fim, reinicia do começo. */
+export function toggleReplayPlayPause() {
+  if (paused && playbackClock >= replayDuration()) playbackClock = 0;
+  paused = !paused;
+  updatePlayPauseUI();
+}
 
+function updatePlayPauseUI() {
+  byId("replayPlayPause").textContent = paused ? "▶" : "Ⅱ";
+}
+
+/** Pula para uma fração (0–1) da gravação — ver barra de progresso em main.js. */
+export function seekReplay(fraction) {
+  if (state.replayFrames.length < 2) return;
+  playbackClock = clamp(fraction, 0, 1) * replayDuration();
+  renderFrameAt(playbackClock);
+}
+
+/** Escolhe explicitamente a câmera do replay ("broadcast" ou "onboard"). */
+export function setReplayCamera(mode) {
+  cameraMode = mode;
+  byId("replayCameraMode").textContent = mode === "onboard" ? "CÂMERA: ONBOARD" : "CÂMERA: TRANSMISSÃO";
+}
+
+/** Alterna entre as duas câmeras do replay. */
+export function cycleReplayCamera() {
+  setReplayCamera(cameraMode === "onboard" ? "broadcast" : "onboard");
+}
+
+/** Interpola a pose gravada em `clock` e atualiza carro + HUD + barra. Não mexe na câmera (ver applyReplayCamera). */
+function renderFrameAt(clock) {
+  const frames = state.replayFrames;
   const maxIndex = frames.length - 2;
-  const rawIndex = playbackClock / REPLAY_SAMPLE_INTERVAL;
-  if (rawIndex >= maxIndex + 1) {
-    stopReplay();
-    return;
-  }
-  const index = Math.min(maxIndex, Math.floor(rawIndex));
+  const rawIndex = clock / REPLAY_SAMPLE_INTERVAL;
+  const index = clamp(Math.floor(rawIndex), 0, maxIndex);
   const alpha = clamp(rawIndex - index, 0, 1);
   const a = frames[index];
   const b = frames[index + 1];
@@ -78,23 +109,81 @@ export function updateReplay(dt) {
   state.player.group.position.copy(_pos);
   state.player.group.quaternion.copy(_quat);
 
+  const speed = a.speed + (b.speed - a.speed) * alpha;
+  updateReplayHud(a, speed);
+  updateScrubUI(clock);
+}
+
+/** Atualiza a HUD estilo transmissão de F1 (nome/número, volta, velocidade, marcha, DRS). */
+function updateReplayHud(frame, speed) {
+  // Contra-relógio não tem nº de voltas fixo (ver ui.js/updateHud) — mostra só a volta atual, sem "/total".
+  byId("replayHudLap").textContent = state.timeTrial
+    ? frame.lap
+    : Math.min(frame.lap, state.lapCountRace) + "/" + state.lapCountRace;
+  byId("replayHudSpeed").textContent = Math.round(speed * 3.6);
+  byId("replayHudGear").textContent = speed < .5 ? "N" : Math.min(8, Math.floor(speed * 3.6 / 43) + 1);
+  byId("replayHudDrs").classList.toggle("hidden", !frame.drsActive);
+}
+
+/** Atualiza a barra de progresso (que nem um player de vídeo) e os tempos. */
+function updateScrubUI(clock) {
+  const duration = replayDuration();
+  const pct = duration > 0 ? clamp(clock / duration, 0, 1) * 100 : 0;
+  byId("replayScrubFill").style.width = pct + "%";
+  byId("replayScrubHandle").style.left = pct + "%";
+  byId("replayTimeCurrent").textContent = formatRaceClock(clock);
+  byId("replayTimeTotal").textContent = formatRaceClock(duration);
+}
+
+/**
+ * Câmera "transmissão": o corte automático de diretor de TV de F1,
+ * alternando a cada 6s entre uma câmera de perseguição baixa e um drone
+ * orbital — deliberadamente diferente da câmera de corrida normal.
+ */
+function applyBroadcastCamera(dt, clock) {
   const camera = state.camera;
-  const shot = Math.floor(playbackClock / 6) % 2;
+  const shot = Math.floor(clock / 6) % 2;
   if (shot === 0) {
-    // Perseguição dramática: mais baixa e mais perto que a câmera de corrida normal.
     forward.set(0, 0, 1).applyQuaternion(_quat);
     const desired = _pos.clone().addScaledVector(forward, -6.5);
     desired.y += 1.7;
     camera.position.lerp(desired, 1 - Math.exp(-dt * 6));
     lookTarget.lerp(_pos.clone().addScaledVector(forward, 14).setY(_pos.y + 1), 1 - Math.exp(-dt * 8));
   } else {
-    // Órbita lenta ao redor do carro, de um ângulo que muda com o tempo.
-    const angle = playbackClock * .6;
+    const angle = clock * .6;
     const desired = _pos.clone().add(new THREE.Vector3(Math.sin(angle) * 13, 4.5, Math.cos(angle) * 13));
     camera.position.lerp(desired, 1 - Math.exp(-dt * 4));
     lookTarget.lerp(_pos, 1 - Math.exp(-dt * 8));
   }
-  camera.lookAt(lookTarget);
   camera.fov += (58 - camera.fov) * (1 - Math.exp(-dt * 3));
+}
+
+/** Câmera "onboard": colada perto e baixo atrás do carro, sem cortes — como uma câmera de bordo de verdade. */
+function applyOnboardCamera(dt) {
+  const camera = state.camera;
+  forward.set(0, 0, 1).applyQuaternion(_quat);
+  const desired = _pos.clone().addScaledVector(forward, -3.2);
+  desired.y += 1.15;
+  camera.position.lerp(desired, 1 - Math.exp(-dt * 10));
+  lookTarget.lerp(_pos.clone().addScaledVector(forward, 18).setY(_pos.y + 1), 1 - Math.exp(-dt * 10));
+  camera.fov += (68 - camera.fov) * (1 - Math.exp(-dt * 3));
+}
+
+export function updateReplay(dt) {
+  const duration = replayDuration();
+  if (!paused) {
+    playbackClock = Math.min(duration, playbackClock + dt);
+    if (playbackClock >= duration) {
+      paused = true;
+      updatePlayPauseUI();
+    }
+  }
+  renderFrameAt(playbackClock);
+
+  if (cameraMode === "onboard") applyOnboardCamera(dt);
+  else applyBroadcastCamera(dt, playbackClock);
+
+  const camera = state.camera;
+  camera.lookAt(lookTarget);
   camera.updateProjectionMatrix();
 }

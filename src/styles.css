@@ -917,21 +917,33 @@ kbd {
   left: 50%;
   transform: translate(-50%);
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 10px 10px 18px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 18px;
   background: #12201ad9;
   border-radius: 5px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
+  width: min(92vw, 460px);
 }
 
-.replay-bar span {
+.replay-bar-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.replay-bar-top span {
   color: #ff6b6b;
 }
 
-.replay-bar button {
+.replay-bar-top button:last-child {
+  margin-left: auto;
+}
+
+.replay-bar button,
+.replay-cam-btn {
   background: var(--lime);
   border: 0;
   border-radius: 4px;
@@ -940,6 +952,166 @@ kbd {
   font-weight: 800;
   font-size: 11px;
   letter-spacing: .5px;
+  white-space: nowrap;
+}
+
+.replay-scrub-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#replayPlayPause {
+  padding: 6px 11px;
+  min-width: 34px;
+}
+
+.replay-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  min-width: 58px;
+  text-align: center;
+}
+
+/* Barra arrastável (Pointer Events em main.js) — clicar/arrastar pula pra
+   qualquer ponto do replay, igual a um player de vídeo. */
+.replay-scrub-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  background: #ffffff2a;
+  border-radius: 4px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.replay-scrub-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: var(--lime);
+  border-radius: 4px;
+}
+
+.replay-scrub-handle {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 13px;
+  height: 13px;
+  background: var(--lime);
+  border: 2px solid #14200f;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* HUD estilo transmissão de F1 durante o replay (ver replay.js). */
+.replay-hud {
+  position: absolute;
+  z-index: 5;
+  bottom: 26px;
+  left: 50%;
+  transform: translate(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  background: #0d1712e0;
+  border: 1px solid #ffffff1f;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.replay-hud-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  color: #0c1a10;
+  font-size: 14px;
+}
+
+.replay-hud-name {
+  color: #fff;
+  font-size: 13px;
+  letter-spacing: .5px;
+}
+
+.replay-hud-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 44px;
+}
+
+.replay-hud-item small {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.replay-hud-item b {
+  color: var(--lime);
+  font-size: 15px;
+}
+
+.replay-hud-drs {
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: #58dfff;
+  color: #0c2027;
+  font-size: 11px;
+  animation: drsPulse .5s infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .replay-hud-drs {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .replay-hud {
+    gap: 8px;
+    padding: 8px 12px;
+    bottom: 14px;
+  }
+
+  .replay-hud-item {
+    min-width: 34px;
+  }
+
+  .replay-hud-name {
+    display: none;
+  }
+
+  /* Sem espaço pras 3 ações numa linha só num telão de ~375px — quebra em
+     duas linhas em vez de deixar "FECHAR REPLAY" vazar da tela (RN27:
+     funcionalidades críticas — incluindo o replay — precisam operar em
+     mobile sem gerar scroll horizontal). */
+  .replay-bar {
+    width: 94vw;
+    padding: 10px 12px;
+  }
+
+  .replay-bar-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .replay-bar-top button:last-child {
+    margin-left: 0;
+  }
+
+  .replay-bar button,
+  .replay-cam-btn {
+    padding: 7px 10px;
+    font-size: 10px;
+  }
 }
 
 .attack-warning {

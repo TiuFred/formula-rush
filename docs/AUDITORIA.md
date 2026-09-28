@@ -986,3 +986,54 @@ sobrepor um bot de propósito, `player.touching` continua vazio e
 está mesmo desligada); os 22 bots terminam com `progress > 0`,
 confirmando que a física/IA deles continua rodando normalmente nos
 bastidores. Sem `NaN` nem exceções.
+
+## 20. Replay: barra de progresso, HUD estilo F1 e câmera onboard/transmissão
+
+O replay cinematográfico (seção 17) só tinha uma câmera automática que
+cortava sozinha a cada 6s, sem jeito de pausar, voltar um trecho ou saber
+velocidade/volta durante a reprodução. Pedido: uma barra de progresso
+"que nem YouTube", uma HUD de telemetria "que nem F1 de verdade", e
+escolha manual entre câmera onboard e a de transmissão (que passa a ser a
+câmera padrão do replay).
+
+Mudanças:
+
+- **`simulation.js`**: cada frame gravado (a cada `REPLAY_SAMPLE_INTERVAL`)
+  passou a levar `speed`, `lap` e `drsActive` do jogador além de
+  `pos`/`quat` — sem isso a HUD do replay não tinha de onde tirar
+  velocidade/marcha/volta/DRS.
+- **`replay.js`**: reescrito para separar "avançar o relógio de reprodução"
+  de "renderizar o frame num instante `clock` qualquer" (`renderFrameAt`).
+  Isso é o que permite `seekReplay(fraction)` pular pra qualquer ponto sem
+  depender da reprodução estar rolando, e `toggleReplayPlayPause` pausar
+  sem perder posição. As duas câmeras (`applyBroadcastCamera` — o corte
+  automático que já existia, virou o modo "transmissão" e continua
+  default — e `applyOnboardCamera`, nova, colada bem perto/baixo atrás do
+  carro) ficam num `cameraMode` escolhido só pelo jogador
+  (`setReplayCamera`/`cycleReplayCamera`), nunca alternando sozinho.
+- **`index.html`/`styles.css`**: nova barra arrastável (`#replayScrubTrack`)
+  ligada em `main.js` via Pointer Events (cobre mouse e touch com o mesmo
+  código, sem `<input type="range">` nativo — convenção de controles
+  customizados do projeto) e uma HUD inferior (`#replayHud`) com
+  número/nome do piloto, volta, velocidade, marcha e indicador de DRS.
+
+Dois bugs pegos só testando de verdade (não só lendo o código):
+
+1. **"VOLTA 1/Infinity"** — contra-relógio não tem número fixo de voltas
+   (`state.lapCountRace === Infinity`), e a HUD nova mostrava
+   `volta/Infinity` literalmente. Corrigido pra, no contra-relógio, mostrar
+   só o número da volta (mesma convenção que `updateHud` já usa no HUD da
+   corrida normal).
+2. **Botão "FECHAR REPLAY" vazando da tela em 375px** — a barra de replay
+   (label + botão de câmera + botão de fechar) não quebrava linha; num
+   viewport de celular o terceiro botão saía do viewport, violando RN27.
+   Corrigido com `flex-wrap` na linha de botões abaixo de 640px (RN27:
+   funcionalidades críticas — incluindo o replay — têm que operar em
+   mobile sem gerar scroll horizontal).
+
+Testado num contra-relógio real no navegador (desktop e emulando 375×812):
+scrub por clique atualiza carro/HUD/tempo corretamente, play/pause
+congela e retoma do ponto certo, alternar câmera troca de fato o
+comportamento (`CÂMERA: ONBOARD` ↔ `CÂMERA: TRANSMISSÃO`), "FECHAR REPLAY"
+volta pra tela de resultado sem erros no console, e não há scroll
+horizontal em 375px (`scrollWidth === clientWidth`).

@@ -11,7 +11,7 @@ import { buildScene, resizeRenderer } from "./scene.js";
 import { setupGrid, applyRenderInterpolation } from "./car.js";
 import { setupItemBoxes, advanceSimulation, endTimeTrial } from "./simulation.js";
 import { updateCamera } from "./camera.js";
-import { startReplay, stopReplay, updateReplay } from "./replay.js";
+import { startReplay, stopReplay, updateReplay, seekReplay, toggleReplayPlayPause, cycleReplayCamera } from "./replay.js";
 import { updateHud, setupMenuUI, updateLapCountUI, updateCircuitInfoUI, wireOptionGroup, openLeaderboardPanel, closeLeaderboardPanel } from "./ui.js";
 import { attachInputHandlers, resetKeys, togglePause } from "./input.js";
 import { openTimesPanel, closeTimesPanel } from "./timing.js";
@@ -180,6 +180,31 @@ function returnToMenu() {
   resizeRenderer();
 }
 
+/**
+ * Liga a barra de progresso do replay (arrastar/clicar pula pra qualquer
+ * ponto da gravação, que nem um player de vídeo) via Pointer Events — cobre
+ * mouse e touch com o mesmo código, sem precisar de um <input type="range">
+ * nativo (ver convenção de controles customizados do projeto).
+ */
+function wireReplayScrubber() {
+  const track = byId("replayScrubTrack");
+  let dragging = false;
+  const seekFromEvent = (e) => {
+    const rect = track.getBoundingClientRect();
+    seekReplay((e.clientX - rect.left) / rect.width);
+  };
+  track.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    seekFromEvent(e);
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (dragging) seekFromEvent(e);
+  });
+  window.addEventListener("pointerup", () => {
+    dragging = false;
+  });
+}
+
 /** Liga os botões que não são de configuração de menu (ver ui.js para esses). */
 function wireLifecycleButtons() {
   byId("recover").onclick = () => {
@@ -201,6 +226,9 @@ function wireLifecycleButtons() {
   byId("closeLeaderboard").onclick = closeLeaderboardPanel;
   byId("viewReplay").onclick = startReplay;
   byId("skipReplay").onclick = stopReplay;
+  byId("replayPlayPause").onclick = toggleReplayPlayPause;
+  byId("replayCameraMode").onclick = cycleReplayCamera;
+  wireReplayScrubber();
   wireOptionGroup("circuit", (value) => {
     loadCircuit(value);
   }, { guardMenu: true });
