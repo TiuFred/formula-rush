@@ -1840,7 +1840,8 @@ body.configuring main {
   margin-bottom: 0;
 }
 
-.config-block > label {
+.config-block > label,
+.config-block-label {
   display: block;
   font-size: 12px;
   letter-spacing: 1px;

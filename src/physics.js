@@ -112,18 +112,27 @@ export function resolveCarCollisions(dt) {
         const impactSeverity = clamp(relativeSpeed / 40 + headOnFactor * .5, 0, 1);
 
         for (const [car, other, dir] of [[a, b, pushDir], [b, a, -pushDir]]) {
+          // O empurrão lateral roda TODO tick (para os carros não se
+          // atravessarem visualmente enquanto seguem sobrepostos), mas o
+          // "baque" em si (perda de velocidade, chacoalhão de direção,
+          // câmera, som) só é aplicado UMA VEZ por contato, gated pelo
+          // mesmo cooldown — sem isso, dois carros correndo lado a lado por
+          // só 1s (comum numa disputa de posição) perderiam a maior parte
+          // da velocidade, já que a perda era composta a cada um dos 120
+          // ticks/s enquanto durasse o contato.
           car.lane = clamp(car.lane + pushAmount * dir, -trackHalfWidthAt(car.s) + 1.2, trackHalfWidthAt(car.s) - 1.2);
           if (car.isHuman) {
             const frame = state.track.at(car.s, car.lane);
             car.x = frame.p.x;
             car.z = frame.p.z;
           }
-          // O carro mais rápido dos dois "absorve" mais o choque (perde mais
-          // velocidade) do que o mais lento, que é mais empurrado do que frenado.
-          const speedFactor = car.speed >= other.speed ? 1 : .55;
-          car.speed *= Math.exp(-dt * (1.1 + impactSeverity * 3 * speedFactor));
-          car.yaw += dir * impactSeverity * dt * 1.6;
           if (car.collisionCooldown <= 0) {
+            // O carro mais rápido dos dois "absorve" mais o choque (perde
+            // mais velocidade) do que o mais lento, que é mais empurrado do
+            // que frenado.
+            const speedFactor = car.speed >= other.speed ? 1 : .55;
+            car.speed *= 1 - clamp(impactSeverity * .5 * speedFactor, 0, .6);
+            car.yaw += dir * impactSeverity * .15;
             car.collisionCooldown = .4;
             car.cameraShake = Math.max(car.cameraShake, .12 + impactSeverity * .4);
             if (car === state.player && impactSeverity > .25) engineAudio.cue("impact");

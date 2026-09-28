@@ -777,3 +777,97 @@ abertura→config→corrida→pausa→config→abertura, em desktop (1440×900) 
 mobile (375×812). Física revalidada com um smoke-test de Node (apagado
 depois) nos 3 circuitos após a remoção da chamada a `drawTrackMap` em
 `scene.js` — sem `NaN` nem exceções.
+
+## 17. Setores, DRS, drift ajustado, classificação, replay e correção do ranking online
+
+Rodada com 6 pedidos do usuário: 3 setores por volta, classificação (1
+volta define o grid), zonas de DRS, drift mais fácil/recompensador, replay
+cinematográfico no fim da corrida, e o ranking online que não estava
+funcionando.
+
+- **Setores**: `timing.js` (`checkSectorCompletion`) trata fronteiras de
+  setor como uma sequência contínua a cada `trackLength/3`, independente
+  das fronteiras de volta (o fim do 3º setor É o fim da volta) — mesma
+  técnica de interpolação sub-frame de `checkLapCompletion`. `bestSectors`
+  guarda o melhor tempo de cada setor isoladamente (podem vir de voltas
+  diferentes). HUD novo em `#lapTelemetry` (3 caixas S1/S2/S3, verde =
+  igualou o melhor daquele setor).
+- **DRS**: nova tabela por circuito `DRS_ZONES` (`constants.js`/
+  `circuits.js`, aproximada como as outras tabelas decorativas) +
+  `drsZoneAt(s)` (`track.js`) + `computeDrsActive(car)` (`physics.js`,
+  compartilhada entre `player.js` e `bots.js` de propósito — sem isso o
+  jogador teria uma vantagem que os bots não têm). Indicador "DRS" no HUD.
+- **Drift**: limiares de acionamento reduzidos (`steer>.3`/`speed>12`, eram
+  `.45`/`17`), carga mais rápida (`items.js`/`driftLevel` com limiares
+  menores), boost maior (`DRIFT_BOOST_BY_LEVEL` de `[.7,1.3,2]` para
+  `[1,1.8,2.8]`) e o limiar de `slip` que podia zerar o boost em silêncio
+  ao soltar o Shift um instante antes do carro assentar foi relaxado
+  (`.4`→`.65`) — essa era provavelmente a causa principal do miniturbo
+  parecer "pouco recompensador": o jogador fazia tudo certo e as vezes não
+  recebia nada.
+- **Classificação**: `setupGrid()` (`car.js`) ganhou um parâmetro
+  `gridOrder` opcional (array `posição → índice de identidade`); sem ele,
+  mantém o comportamento padrão de sempre. `main.js` reutiliza quase toda a
+  infraestrutura de corrida normal para a sessão de 1 volta
+  (`state.qualifying=true`, `state.lapCountRace=1`, sem itens), e
+  `animate()` detecta o fim dela (todos terminaram, ou 90s de limite) para
+  então montar o grid real ordenado pelos tempos e iniciar a corrida de
+  verdade. **Bug real pego e corrigido durante o teste no navegador**: como
+  o toggle de classificação continua ligado, a chamada de `startRace()`
+  feita pelo próprio fim da classificação disparava OUTRA classificação —
+  loop infinito. Corrigido usando `qualifyingGridOrder !== null` (só
+  preenchido na segunda chamada) para diferenciar "largada nova" de
+  "largada da corrida que vem depois da classificação".
+- **Replay cinematográfico**: `simulation.js` grava a pose do jogador a
+  cada 0.1s (`REPLAY_SAMPLE_INTERVAL`) durante `advanceSimulation`; novo
+  módulo `src/replay.js` reproduz isso com uma câmera que corta entre
+  perseguição dramática e órbita a cada 6s. Não é um novo "modo de jogo" de
+  verdade — é só main.js chamando `updateReplay` em vez de `updateCamera`
+  quando `state.gameState === "replay"` (a física real não roda nesse
+  estado). **Bug pego durante o teste**: o modal de resultado sempre cobriu
+  o HUD de corrida (visualmente, com blur) sem precisar escondê-lo — o
+  replay troca esse modal pela cena 3D e revelava o HUD congelado por
+  baixo. Corrigido escondendo `hud`/`instruments`/`lapTelemetry`/
+  `miniStandings`/`raceProgress`/`attackWarning`/`miniMap` explicitamente
+  em `startReplay()`.
+- **Ranking online "não funcionando"**: investigado antes de tentar
+  qualquer coisa — a API do Supabase (leitura E escrita, via `curl`)
+  respondia normalmente, e testar `recordLap`/`getLeaderboard` direto no
+  console do navegador local também funcionava (`online: true`). O
+  problema real estava só no site publicado no Vercel: alguém tinha feito
+  um novo deploy (fora desta sessão) sem as variáveis
+  `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` salvas permanentemente no
+  projeto (só tinham sido passadas pontualmente num deploy anterior via
+  `-b`) — esse novo deploy caía no fallback local. Corrigido salvando as
+  duas variáveis via `vercel env add ... production` e refazendo o deploy;
+  confirmado ao vivo em produção depois (`RANKING ONLINE · GLOBAL ENTRE
+  JOGADORES`).
+
+### Bug real adicional, pego numa revisão geral pedida pelo usuário (não relatado por ele)
+A severidade de impacto da colisão carro-carro (seção 15.5) tinha um erro:
+o comentário dizia que a perda de velocidade só seria aplicada "uma vez por
+contato" (como o tremor de câmera/som), mas no código ela era recalculada e
+multiplicada a CADA tick (120×/s) enquanto os carros continuassem
+sobrepostos — uma decisão exponencial composta, não um evento único. Na
+prática, dois carros correndo lado a lado por só 1s (situação comum numa
+disputa de posição) perderiam ~87% da velocidade só por estarem próximos,
+não por um impacto de fato. Corrigido: a perda de velocidade e o
+"chacoalhão" de yaw agora só são aplicados quando `car.collisionCooldown`
+libera (mesmo gate do tremor de câmera/som) — um baque de cada vez, não
+uma sangria contínua. Validado com um smoke-test forçando o jogador a
+ficar colado no carro da frente por 20s simulados: a velocidade mínima
+durante o contato ficou em 15-39 m/s (dependendo do circuito) em vez de
+desabar perto de zero.
+
+Outros achados menores da revisão, corrigidos: dois `<label for=
+"playerName">` diferentes na seção "SEU PILOTO" da configuração (trocado o
+externo por um `<span>` não associado, com a mesma classe de estilo); "T"
+(painel de tempos) e "C" (aviso de câmera) continuavam ativos durante o
+replay, sem fazer sentido ali (a câmera do replay é fixa) — bloqueados
+junto com o resto dos atalhos, igual à tela de abertura.
+
+Validado: build limpo, cross-check de todo `byId(...)` usado no JS contra
+os ids existentes no HTML (só `#miniMap`, criado dinamicamente, aparece
+como "ausente" — o mesmo caso já documentado desde a auditoria original),
+e um smoke-test de Node cobrindo setores/DRS/drift/colisão nos 3
+circuitos sem `NaN` nem exceções.

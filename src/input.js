@@ -30,7 +30,11 @@ export function togglePause() {
 }
 
 function handleKeyDown(e) {
-  if (state.gameState === "landing") return; // nenhum atalho de jogo faz sentido na tela de abertura
+  // Nenhum atalho de jogo faz sentido na tela de abertura, nem durante o
+  // replay cinematográfico (T abriria o painel de tempos por cima da
+  // câmera do replay; C mostraria um aviso de câmera que não existe ali —
+  // a câmera do replay é fixa, controlada por replay.js).
+  if (state.gameState === "landing" || state.gameState === "replay") return;
   if (e.repeat && ["t", "T", "p", "P", "c", "C", "Escape"].includes(e.key)) return;
 
   if (state.timesPanelOpen) {

@@ -21,6 +21,15 @@ const forward = new THREE.Vector3();
 const _pos = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 
+/** Elementos do HUD de corrida que normalmente ficam por baixo do modal
+ * `#finish` (coberto por ele, então nunca precisou de setVisible próprio ao
+ * terminar a corrida) — mas o replay TROCA o modal pela cena 3D, então
+ * precisa escondê-los explicitamente, senão aparecem por cima da câmera
+ * cinematográfica com dados congelados da corrida (posição 0 km/h etc.). */
+const HUD_ELEMENTS_TO_HIDE_DURING_REPLAY = [
+  "hud", "instruments", "lapTelemetry", "miniStandings", "raceProgress", "attackWarning", "miniMap",
+];
+
 /** Inicia o replay a partir do início da gravação da corrida atual. */
 export function startReplay() {
   if (state.replayFrames.length < 2) return; // nada de útil gravado
@@ -32,6 +41,7 @@ export function startReplay() {
   for (const car of state.drivers) car.group.visible = car.isHuman;
   setVisible("finish", false);
   setVisible("replayBar");
+  for (const id of HUD_ELEMENTS_TO_HIDE_DURING_REPLAY) setVisible(id, false);
 }
 
 /** Encerra o replay (fim natural da gravação, ou "PULAR REPLAY") e volta para a tela de resultado. */
