@@ -20,7 +20,16 @@ import { normalizePlayerName, normalizePlayerNumber } from "./validation.js";
 export function createCar(color, index) {
   const group = new THREE.Group();
   state.scene.add(group);
-  const bodyMaterial = makeMaterial(color, { metalness: .42, roughness: .3 });
+  const bodyMaterial = state.graphicsBeta
+    ? new THREE.MeshPhysicalMaterial({
+      color,
+      metalness: .58,
+      roughness: .22,
+      clearcoat: 1,
+      clearcoatRoughness: .16,
+      envMapIntensity: 1.25,
+    })
+    : makeMaterial(color, { metalness: .42, roughness: .3 });
   const wheels = [];
 
   // Carroceria: assoalho, sidepods, difusor, nariz, halo, cockpit...
@@ -32,7 +41,7 @@ export function createCar(color, index) {
   addBox(.12, .75, .2, MATERIALS.black, -.8, .66, -2, group);
   addBox(.12, .75, .2, MATERIALS.black, .8, .66, -2, group);
   addBox(.72, .26, 1.02, MATERIALS.black, 0, .94, -.15, group);
-  addMesh(new THREE.SphereGeometry(.24, 10, 8), MATERIALS.white, 0, 1.14, 0, group);
+  addMesh(new THREE.SphereGeometry(.24, state.graphicsBeta ? 20 : 10, state.graphicsBeta ? 14 : 8), MATERIALS.white, 0, 1.14, 0, group);
 
   // Halo (proteção do cockpit).
   const halo = addMesh(new THREE.TorusGeometry(.4, .047, 5, 16, Math.PI), MATERIALS.black, 0, 1.19, .14, group);
@@ -42,12 +51,46 @@ export function createCar(color, index) {
   // Rodas (pneu + roda) nas 4 posições.
   for (const side of [-1, 1]) {
     for (const z of [-1.44, 1.5]) {
-      const tire = addMesh(new THREE.CylinderGeometry(.39, .39, .4, 12), MATERIALS.tire, side, .4, z, group);
+      const tire = addMesh(new THREE.CylinderGeometry(.39, .39, .4, state.graphicsBeta ? 24 : 12), MATERIALS.tire, side, .4, z, group);
       tire.rotation.z = Math.PI / 2;
       wheels.push(tire);
-      const rim = addMesh(new THREE.CylinderGeometry(.2, .2, .42, 10), MATERIALS.metal, side, .4, z, group);
+      const rimMaterial = state.graphicsBeta
+        ? makeMaterial("#657077", { metalness: .9, roughness: .2 })
+        : MATERIALS.metal;
+      const rim = addMesh(new THREE.CylinderGeometry(.2, .2, .42, state.graphicsBeta ? 20 : 10), rimMaterial, side, .4, z, group);
       rim.rotation.z = Math.PI / 2;
     }
+  }
+
+  if (state.graphicsBeta) {
+    const carbon = makeMaterial("#080b0c", { metalness: .45, roughness: .32 });
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: "#14242a",
+      metalness: .15,
+      roughness: .12,
+      transmission: .18,
+      transparent: true,
+      opacity: .9,
+    });
+    // Camadas aerodinâmicas extras dão uma silhueta mais próxima de um
+    // monoposto moderno sem exigir um modelo externo pesado no beta.
+    addBox(2.35, .045, .18, carbon, 0, .39, 2.7, group);
+    addBox(1.9, .04, .16, carbon, 0, .48, 2.48, group);
+    addBox(2.15, .055, .3, carbon, 0, .94, -2.28, group);
+    addBox(1.48, .09, 1.35, carbon, 0, .25, -.72, group);
+    addBox(.66, .34, .82, glass, 0, .93, .02, group);
+    for (const side of [-1, 1]) {
+      addBox(.08, .08, 1.45, carbon, side * .72, .46, .28, group).rotation.z = side * -.17;
+      addBox(.06, .06, 1.05, carbon, side * .83, .55, -1.05, group).rotation.z = side * .2;
+    }
+    addMesh(
+      new THREE.SphereGeometry(.085, 10, 8),
+      new THREE.MeshBasicMaterial({ color: "#ff2828", toneMapped: false }),
+      0,
+      .56,
+      -2.58,
+      group,
+    );
   }
 
   // Escudo (esfera wireframe, oculta até um item "shield" ser usado).
@@ -91,6 +134,7 @@ export function createCar(color, index) {
     0, .015, 0, group
   );
   shadow.rotation.x = -Math.PI / 2;
+  shadow.visible = !state.graphicsBeta;
 
   // Número do carro na traseira ("07" por padrão para o jogador, editável no
   // menu — ver setPlayerIdentity — e o número real de cada piloto de F1

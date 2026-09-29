@@ -231,8 +231,10 @@ export function showResults() {
   setVisible("countdown", false);
 
   const position = state.finishOrder.indexOf(state.player) + 1;
-  byId("resultTitle").textContent = state.timeTrial
-    ? "Contra-relógio concluído!"
+  byId("resultTitle").textContent = state.graphicsBeta
+    ? "Formula Rush 2.0"
+    : state.timeTrial
+      ? "Contra-relógio concluído!"
     : position === 1 ? "Você venceu!" : position + "º lugar";
   const circuitLabel = (CIRCUITS[state.circuitId]?.label ?? "Pista").toUpperCase();
   const lapsLabel = state.timeTrial
@@ -240,7 +242,7 @@ export function showResults() {
     : state.lapCountRace + (state.lapCountRace === 1 ? " VOLTA" : " VOLTAS");
   byId("resultInfo").textContent =
     circuitLabel + " · " + lapsLabel + " · " +
-    DIFFICULTIES[state.difficultyKey].label.toUpperCase() + " · " +
+    (state.graphicsBeta ? "BETA NÃO RANQUEADO" : DIFFICULTIES[state.difficultyKey].label.toUpperCase()) + " · " +
     formatLapTime(state.player.finish) + " · MELHOR " + formatLapTime(state.player.bestLap);
 
   const standings = [

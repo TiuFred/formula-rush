@@ -44,10 +44,9 @@ export function wireOptionGroup(id, onSelect, { guardMenu = false } = {}) {
  */
 export function wireToggle(id, onToggle, initial = false) {
   const btn = byId(id);
-  let pressed = initial;
-  btn.setAttribute("aria-pressed", pressed);
+  btn.setAttribute("aria-pressed", initial);
   btn.onclick = () => {
-    pressed = !pressed;
+    const pressed = btn.getAttribute("aria-pressed") !== "true";
     btn.setAttribute("aria-pressed", pressed);
     onToggle(pressed);
   };

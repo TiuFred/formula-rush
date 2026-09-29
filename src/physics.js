@@ -126,7 +126,7 @@ export function advanceLapTracking(car, prevProgress, dt, notify = false) {
   // Ranking local: só carros controlados por humanos entram no leaderboard
   // (bots não "contam" tempos). Registra sempre que uma nova melhor volta é
   // batida, usando o nome configurado para aquele piloto.
-  if (car.isHuman && car.bestLap !== bestLapBefore) {
+  if (car.isHuman && car.bestLap !== bestLapBefore && !state.graphicsBeta) {
     recordLap(state.circuitId, car.name, car.bestLap);
   }
   syncCarVisual(car);

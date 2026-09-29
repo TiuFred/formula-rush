@@ -25,6 +25,18 @@ async function readPublicJson(relativePath) {
   return JSON.parse(await readFile(url, "utf8"));
 }
 
+test("experiência 2.0 mantém entrada e texturas próprias", async () => {
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(index, /id="startBeta"/);
+  assert.match(index, /FORMULA RUSH 2\.0/);
+
+  for (const filename of ["asphalt-albedo.jpg", "grass-albedo.jpg"]) {
+    const asset = await readFile(new URL("../public/assets/beta/" + filename, import.meta.url));
+    assert.ok(asset.length > 100_000, `${filename}: textura beta ausente ou pequena demais`);
+    assert.deepEqual([...asset.subarray(0, 2)], [0xff, 0xd8], `${filename}: JPEG inválido`);
+  }
+});
+
 function pointInPolygon(x, z, polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {

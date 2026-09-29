@@ -29,6 +29,10 @@ export const MATERIALS = {
 export function addMesh(geometry, material, x = 0, y = 0, z = 0, parent = state.scene) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(x, y, z);
+  if (state.graphicsBeta) {
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  }
   parent.add(mesh);
   return mesh;
 }

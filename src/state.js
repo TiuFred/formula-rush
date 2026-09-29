@@ -45,6 +45,11 @@ export const state = {
   circuitId: "interlagos",
   /** Contra-relógio: corrida solo, sem bots e sem itens. */
   timeTrial: false,
+  /**
+   * Experiência visual isolada "Formula Rush 2.0": Interlagos em
+   * contra-relógio não ranqueado, sem alterar a versão 1.0 do circuito.
+   */
+  graphicsBeta: false,
   /** Classificação (1 volta) ativada no menu? Define o grid da PRÓXIMA corrida. */
   qualifyingEnabled: false,
   /** `true` durante a sessão de classificação em si (1 volta, sem itens) — ver main.js. */
@@ -89,6 +94,10 @@ export const state = {
   scene: null,
   camera: null,
   renderer: null,
+  /** Cadeia de pós-processamento usada somente no modo gráfico 2.0. */
+  composer: null,
+  /** Luz solar móvel do modo 2.0, mantida perto do jogador para sombras nítidas. */
+  betaSun: null,
 
   // --- Relógio / loop principal ---------------------------------------
   /** Tempo acumulado total (para animações como bob/vibração). */

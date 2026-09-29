@@ -8,7 +8,7 @@ import { CHAMPIONSHIP_CALENDAR, DRIVER_COLORS } from "./constants.js";
 import { CIRCUITS, applyCircuitProfile } from "./circuits.js";
 import { byId, setVisible, tickNotice, showNotice } from "./dom.js";
 import { buildTrackModel } from "./track.js";
-import { buildScene, resizeRenderer } from "./scene.js";
+import { buildScene, resizeRenderer, updateBetaGraphics } from "./scene.js";
 import { setupGrid, applyRenderInterpolation, setPlayerIdentity } from "./car.js";
 import { setupItemBoxes, advanceSimulation, endTimeTrial } from "./simulation.js";
 import { updateCamera } from "./camera.js";
@@ -105,6 +105,7 @@ function startRace() {
 
   document.body.classList.remove("configuring");
   document.body.classList.add("racing");
+  document.body.classList.toggle("beta-racing", state.graphicsBeta);
   setVisible("game");
   setVisible("aside", false);
   setVisible("championshipSetup", false);
@@ -124,6 +125,8 @@ function startRace() {
   setVisible("attackWarning", false);
   byId("raceStatus").textContent = state.qualifying
     ? "CLASSIFICAÇÃO · 1 VOLTA DEFINE O GRID"
+    : state.graphicsBeta
+      ? "FORMULA RUSH 2.0 BETA · VOLTAS NÃO RANQUEADAS"
     : state.timeTrial
       ? "CONTRA-RELÓGIO · SEM LIMITE DE VOLTAS"
       : state.lapCountRace + " VOLTAS · CORRIDA ARCADE";
@@ -133,6 +136,8 @@ function startRace() {
   // #circuitName só é tocado aqui e em updateCircuitInfoUI(), então fica.
   if (state.championship) {
     byId("circuitName").textContent += " · CAMPEONATO " + (state.championship.round + 1) + "/" + state.championship.calendar.length;
+  } else if (state.graphicsBeta) {
+    byId("circuitName").textContent = "INTERLAGOS · 2.0 BETA";
   }
   if (state.soundOn) syncEngineAudioEnabled(state.soundOn);
   resizeRenderer();
@@ -277,8 +282,47 @@ function backToLandingStep() {
   setVisible("stageBottom");
 }
 
+function syncToggleVisual(id, on) {
+  const button = byId(id);
+  button.setAttribute("aria-pressed", on);
+}
+
+/**
+ * Atalho isolado da landing page: Interlagos 2.0 é sempre solo, sem itens,
+ * sem classificação e sem leaderboard. A versão 1.0 permanece sendo a
+ * entrada `interlagos` normal do configurador.
+ */
+async function startGraphicsBeta() {
+  const button = byId("startBeta");
+  button.disabled = true;
+  button.classList.add("loading");
+  state.graphicsBeta = true;
+  state.championship = null;
+  state.timeTrial = true;
+  state.qualifyingEnabled = false;
+  state.qualifying = false;
+  state.nightMode = false;
+  syncToggleVisual("timeTrial", true);
+  syncToggleVisual("qualifying", false);
+  syncToggleVisual("nightMode", false);
+  byId("back").textContent = "VOLTAR AO MENU";
+  byId("exit").textContent = "VOLTAR AO MENU";
+
+  const loaded = await loadCircuit("interlagos");
+  button.disabled = false;
+  button.classList.remove("loading");
+  if (!loaded || !state.graphicsBeta) {
+    state.graphicsBeta = false;
+    state.timeTrial = false;
+    syncToggleVisual("timeTrial", false);
+    return;
+  }
+  if (state.racingLineMesh) state.racingLineMesh.visible = false;
+  startRace();
+}
+
 /** Volta à configuração de corrida (encerra a corrida atual sem completá-la, passo 3 -> passo 2). */
-function returnToMenu() {
+async function returnToMenu() {
   // Se o jogador saiu no meio da própria sessão de classificação (em vez de
   // deixá-la terminar naturalmente), desfaz o estado dela por completo —
   // senão o nº de voltas escolhido ficaria "perdido" em qualifyingTargetLaps.
@@ -291,11 +335,40 @@ function returnToMenu() {
   // Saiu pra configuração no meio do campeonato: abandona a temporada (não
   // dá pra "pausar" um campeonato pra correr uma avulsa e voltar depois).
   state.championship = null;
+
+  if (state.graphicsBeta) {
+    state.graphicsBeta = false;
+    state.timeTrial = false;
+    state.qualifyingEnabled = false;
+    state.nightMode = false;
+    syncToggleVisual("timeTrial", false);
+    syncToggleVisual("qualifying", false);
+    syncToggleVisual("nightMode", false);
+    state.gameState = "landing";
+    state.timesPanelOpen = false;
+    state.wasRacingBeforeTimes = false;
+    resetKeys();
+    document.body.classList.remove("racing", "configuring", "beta-racing");
+    setVisible("aside", false);
+    setVisible("game");
+    setVisible("start");
+    setVisible("stageBottom");
+    for (const id of ["finish", "pausePanel", "hud", "instruments", "touch", "miniMap", "countdown", "raceProgress", "attackWarning", "lapTelemetry", "timesPanel", "miniStandings"]) {
+      setVisible(id, false);
+    }
+    byId("back").textContent = "CONFIGURAR CORRIDA";
+    byId("exit").textContent = "VOLTAR AO GRID";
+    byId("raceStatus").textContent = "PRONTO PARA LARGAR";
+    await loadCircuit("interlagos");
+    return;
+  }
+
   state.gameState = "menu";
   state.timesPanelOpen = false;
   state.wasRacingBeforeTimes = false;
   resetKeys();
   document.body.classList.remove("racing");
+  document.body.classList.remove("beta-racing");
   document.body.classList.add("configuring");
   setVisible("game", false);
   setVisible("aside");
@@ -348,6 +421,7 @@ function wireLifecycleButtons() {
   };
   byId("nextRound").onclick = advanceChampionship;
   byId("startChampionship").onclick = openChampionshipSetup;
+  byId("startBeta").onclick = startGraphicsBeta;
   byId("backFromChampionship").onclick = closeChampionshipSetup;
   byId("championshipForm").onsubmit = startChampionship;
   byId("championshipLapCount").onchange = (event) => updateChampionshipLapCount(event.target.value);
@@ -461,7 +535,9 @@ function animate(now) {
   }
 
   engineAudio.update(state.player, state.gameState === "race", state.player.wasDrifting);
-  state.renderer.render(state.scene, state.camera);
+  updateBetaGraphics();
+  if (state.composer) state.composer.render();
+  else state.renderer.render(state.scene, state.camera);
 }
 
 /**
@@ -505,14 +581,16 @@ async function loadCircuit(circuitId) {
       animationStarted = true;
       requestAnimationFrame(animate);
     }
+    return true;
   } catch (err) {
-    if (err?.name === "AbortError" || loadSequence !== circuitLoadSequence) return;
+    if (err?.name === "AbortError" || loadSequence !== circuitLoadSequence) return false;
     console.error(err);
     byId("startRace").textContent = "RECARREGAR";
     byId("startRace").disabled = false;
     byId("startRace").onclick = () => location.reload();
     byId("start").querySelector("p").textContent =
       "Não foi possível abrir a pista. Verifique se a aceleração gráfica está ativada e tente novamente.";
+    return false;
   }
 }
 

@@ -7,6 +7,11 @@
 // são exatamente as do bundle original (função `dg` e auxiliares).
 
 import * as THREE from "three";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { state } from "./state.js";
 import {
   TRACK_LENGTH, CORNER_NAME_SIGNS, DISTANCE_BOARD_STATIONS,
@@ -95,8 +100,37 @@ export function addAlignedBox(s, lane, w, h, d, material, yOffset = 0) {
 }
 
 /** Gera uma textura de asfalto ruidosa (PRNG determinístico) e aplica ao material da pista. */
-function generateAsphaltTexture(renderer) {
+function generateAsphaltTexture(renderer, groundMaterial) {
   if (MATERIALS.road.map) MATERIALS.road.map.dispose(); // textura de uma troca de circuito anterior
+  MATERIALS.road.map = null;
+  MATERIALS.road.bumpMap = null;
+
+  if (state.graphicsBeta) {
+    const loader = new THREE.TextureLoader();
+    const configure = (texture, repeatX, repeatY) => {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(repeatX, repeatY);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
+      return texture;
+    };
+    const asphalt = configure(loader.load("./assets/beta/asphalt-albedo.jpg"), 1, 1);
+    const grass = configure(loader.load("./assets/beta/grass-albedo.jpg"), 95, 95);
+    MATERIALS.road.map = asphalt;
+    MATERIALS.road.bumpMap = asphalt;
+    MATERIALS.road.bumpScale = .055;
+    MATERIALS.road.color.set("#d8d8d5");
+    MATERIALS.road.roughness = .9;
+    MATERIALS.road.metalness = 0;
+    MATERIALS.road.needsUpdate = true;
+    groundMaterial.map = grass;
+    groundMaterial.bumpMap = grass;
+    groundMaterial.bumpScale = .16;
+    groundMaterial.roughness = 1;
+    groundMaterial.needsUpdate = true;
+    return;
+  }
+
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 256;
   const ctx = canvas.getContext("2d");
@@ -116,7 +150,10 @@ function generateAsphaltTexture(renderer) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   MATERIALS.road.map = texture;
+  MATERIALS.road.bumpMap = null;
+  MATERIALS.road.bumpScale = 0;
   MATERIALS.road.color.set("#c7cdce");
+  MATERIALS.road.roughness = .82;
   MATERIALS.road.needsUpdate = true;
 }
 
@@ -824,8 +861,18 @@ export function resizeRenderer() {
   const w = byId("race").clientWidth;
   const h = byId("race").clientHeight;
   state.renderer.setSize(w, h, false);
+  state.composer?.setSize(w, h);
   state.camera.aspect = w / h;
   state.camera.updateProjectionMatrix();
+}
+
+/** Mantém a janela de sombras do beta concentrada ao redor do carro. */
+export function updateBetaGraphics() {
+  if (!state.graphicsBeta || !state.betaSun || !state.player) return;
+  const target = state.player.group.position;
+  state.betaSun.position.set(target.x - 58, target.y + 92, target.z - 38);
+  state.betaSun.target.position.copy(target);
+  state.betaSun.target.updateMatrixWorld();
 }
 
 /**
@@ -848,7 +895,7 @@ export function buildScene() {
   // Ardenas. Noturna: céu quase negro (nunca preto puro — cidade/estádio ao
   // redor sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
   // "queimar" o preto do céu na distância como a névoa diurna faria.
-  const daySky = street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
+  const daySky = state.graphicsBeta ? "#83b7d2" : street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
   state.scene.background = new THREE.Color(night ? "#050810" : daySky);
   state.scene.fog = new THREE.Fog(
     night ? "#050810" : daySky,
@@ -856,23 +903,58 @@ export function buildScene() {
     (night ? 1000 : forest ? 1500 : woodland ? 1400 : 1900) * scale
   );
   state.camera = new THREE.PerspectiveCamera(60, 1, .2, 2500 * Math.max(1, scale));
+  state.composer?.dispose();
+  state.composer = null;
+  state.renderer?.dispose();
   state.renderer = new THREE.WebGLRenderer({
     canvas: byId("race"),
     antialias: true,
     powerPreference: "high-performance",
   });
-  state.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
+  state.renderer.setPixelRatio(Math.min(devicePixelRatio, state.graphicsBeta ? 1.5 : 1.7));
   state.renderer.outputColorSpace = THREE.SRGBColorSpace;
   state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  state.renderer.toneMappingExposure = night ? .95 : 1.15;
+  state.renderer.toneMappingExposure = state.graphicsBeta ? 1.08 : night ? .95 : 1.15;
+  state.renderer.shadowMap.enabled = state.graphicsBeta;
+  state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   // De noite, o "sol" vira luar (bem mais fraco e frio) — a pista em si é
   // iluminada por holofotes emissivos (ver buildFloodlights abaixo), não
   // por luzes dinâmicas de verdade (custaria caro com 23 carros na cena).
-  state.scene.add(new THREE.HemisphereLight("#d7f0ff", "#556c39", night ? .55 : 2.6));
-  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : "#fff2d1", night ? .4 : 2.5);
+  state.scene.add(new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#52613d" : "#556c39", state.graphicsBeta ? 1.35 : night ? .55 : 2.6));
+  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : state.graphicsBeta ? "#fff1cf" : "#fff2d1", state.graphicsBeta ? 3.4 : night ? .4 : 2.5);
   sun.position.set(-300, 700, 100);
   state.scene.add(sun);
+  state.scene.add(sun.target);
+  state.betaSun = null;
+  if (state.graphicsBeta) {
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = sun.shadow.camera.bottom = -58;
+    sun.shadow.camera.right = sun.shadow.camera.top = 58;
+    sun.shadow.camera.near = 8;
+    sun.shadow.camera.far = 220;
+    sun.shadow.bias = -.00035;
+    sun.shadow.normalBias = .035;
+    state.betaSun = sun;
+
+    const sky = new THREE.Mesh(
+      new THREE.SphereGeometry(1500, 32, 18),
+      new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        uniforms: {
+          topColor: { value: new THREE.Color("#327dac") },
+          horizonColor: { value: new THREE.Color("#d6e4e4") },
+          groundColor: { value: new THREE.Color("#9eb09a") },
+        },
+        vertexShader: "varying vec3 vWorld; void main(){ vec4 world=modelMatrix*vec4(position,1.0); vWorld=normalize(world.xyz); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+        fragmentShader: "varying vec3 vWorld; uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 groundColor; void main(){ float h=clamp(vWorld.y, -1.0, 1.0); vec3 c=h>0.0?mix(horizonColor,topColor,pow(h,.55)):mix(horizonColor,groundColor,min(1.0,-h*3.0)); gl_FragColor=vec4(c,1.0); }",
+      }),
+    );
+    sky.frustumCulled = false;
+    state.scene.add(sky);
+  }
 
   // Materiais por ambiente. Autódromo ("park", o visual original): gramado
   // + faixa verde de escape. Rua ("street"): tudo pavimento, sem grama. Floresta:
@@ -961,7 +1043,7 @@ export function buildScene() {
   }
   ground.computeVertexNormals();
   addMesh(ground, groundMaterial);
-  generateAsphaltTexture(state.renderer);
+  generateAsphaltTexture(state.renderer, groundMaterial);
 
   if (waterPolys.length) {
     const waterMaterial = new THREE.MeshStandardMaterial({
@@ -1010,6 +1092,15 @@ export function buildScene() {
   }
   buildRibbonMesh(outerEdge(-1), outerEdge(1), runoffMaterial, -.2);
   buildRibbonMesh((s) => -trackHalfWidthAt(s), trackHalfWidthAt, MATERIALS.road, .1);
+  if (state.graphicsBeta) {
+    const rubber = makeMaterial("#151719", {
+      roughness: .72,
+      transparent: true,
+      opacity: .34,
+      depthWrite: false,
+    });
+    buildRibbonMesh(-2.15, 2.15, rubber, .115);
+  }
   buildRibbonMesh((s) => -trackHalfWidthAt(s) + .04, (s) => -trackHalfWidthAt(s) + .23, MATERIALS.line, .12);
   buildRibbonMesh((s) => trackHalfWidthAt(s) - .23, (s) => trackHalfWidthAt(s) - .04, MATERIALS.line, .12);
   buildCurbsMesh();
@@ -1166,6 +1257,21 @@ export function buildScene() {
   buildTrackDecorations();
   mergeStaticMeshesByMaterial();
   buildRacingLineMesh();
+
+  if (state.graphicsBeta) {
+    state.racingLineMesh.visible = false;
+    const composer = new EffectComposer(state.renderer);
+    composer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    composer.addPass(new RenderPass(state.scene, state.camera));
+    const ssao = new SSAOPass(state.scene, state.camera, 1, 1);
+    ssao.kernelRadius = 7;
+    ssao.minDistance = .0025;
+    ssao.maxDistance = .075;
+    composer.addPass(ssao);
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), .22, .55, .82));
+    composer.addPass(new OutputPass());
+    state.composer = composer;
+  }
 
   // Minimapa dinâmico exibido durante a corrida (canvas extra sobreposto).
   // Se já existir um de uma troca de circuito anterior, remove-o primeiro —
