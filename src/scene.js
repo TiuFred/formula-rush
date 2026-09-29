@@ -11,6 +11,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { state } from "./state.js";
 import {
@@ -27,6 +28,12 @@ import {
 import { wrapAngle } from "./mathUtils.js";
 import { byId } from "./dom.js";
 import { MATERIALS, makeMaterial, addMesh, addBox, makeTextPanel } from "./materials.js";
+import {
+  buildBetaAtmosphere,
+  buildBetaTrackDetails,
+  setupBetaEnvironment,
+  updateBetaAtmosphere,
+} from "./betaGraphics.js";
 
 /** Escala dos elementos "de mundo" (terreno, dispersão de árvores/morros,
  * névoa, órbita da câmera do menu) em relação ao comprimento de referência
@@ -188,7 +195,8 @@ function buildCurbsMesh() {
   const colors = [];
   for (let s = 0; s < TRACK_LENGTH; s += 2) {
     if (Math.abs(wrapAngle(state.track.at(s + 7).yaw - state.track.at(s - 7).yaw)) < .012) continue;
-    const color = new THREE.Color(["#d9e8d6", "#d3e93e", "#268d64"][Math.floor(s / 4) % 3]);
+    const palette = state.graphicsBeta ? ["#f2f0e8", "#b91f2e"] : ["#d9e8d6", "#d3e93e", "#268d64"];
+    const color = new THREE.Color(palette[Math.floor(s / 4) % palette.length]);
     for (const side of [-1, 1]) {
       const inner = (x) => side * (trackHalfWidthAt(x) + .1);
       const outer = (x) => side * (trackHalfWidthAt(x) + 1.15);
@@ -873,6 +881,7 @@ export function updateBetaGraphics() {
   state.betaSun.position.set(target.x - 58, target.y + 92, target.z - 38);
   state.betaSun.target.position.copy(target);
   state.betaSun.target.updateMatrixWorld();
+  updateBetaAtmosphere(state.clockTime);
 }
 
 /**
@@ -917,6 +926,7 @@ export function buildScene() {
   state.renderer.toneMappingExposure = state.graphicsBeta ? 1.08 : night ? .95 : 1.15;
   state.renderer.shadowMap.enabled = state.graphicsBeta;
   state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (state.graphicsBeta) setupBetaEnvironment();
 
   // De noite, o "sol" vira luar (bem mais fraco e frio) — a pista em si é
   // iluminada por holofotes emissivos (ver buildFloodlights abaixo), não
@@ -1099,7 +1109,11 @@ export function buildScene() {
       opacity: .34,
       depthWrite: false,
     });
-    buildRibbonMesh(-2.15, 2.15, rubber, .115);
+    const grooveBias = (s) => {
+      const turn = wrapAngle(state.track.at(s + 58).yaw - state.track.at(s + 18).yaw);
+      return -Math.sign(turn) * Math.min(1.35, Math.abs(turn) * 2.1);
+    };
+    buildRibbonMesh((s) => grooveBias(s) - 1.65, (s) => grooveBias(s) + 1.65, rubber, .115);
   }
   buildRibbonMesh((s) => -trackHalfWidthAt(s) + .04, (s) => -trackHalfWidthAt(s) + .23, MATERIALS.line, .12);
   buildRibbonMesh((s) => trackHalfWidthAt(s) - .23, (s) => trackHalfWidthAt(s) - .04, MATERIALS.line, .12);
@@ -1213,6 +1227,11 @@ export function buildScene() {
   if (SCENERY.skyline) buildSkyline(rng, scale, SCENERY.skyline, night);
   if (SCENERY.banners) buildBanners(SCENERY.banners);
 
+  if (state.graphicsBeta) {
+    buildBetaAtmosphere(groundHeightAt, rng);
+    buildBetaTrackDetails(rng);
+  }
+
   // Fundo distante. Autódromo: "morros" de caixas atrás da largada. Rua:
   // paredões rochosos e altos (Mônaco é espremida contra a montanha).
   // Floresta: colinas cônicas cobertas de mata em volta de toda a volta.
@@ -1269,6 +1288,11 @@ export function buildScene() {
     ssao.maxDistance = .075;
     composer.addPass(ssao);
     composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), .22, .55, .82));
+    composer.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: "varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+      fragmentShader: "uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec3 c=texture2D(tDiffuse,vUv).rgb; c=(c-.5)*1.055+.5; float l=dot(c,vec3(.2126,.7152,.0722)); c=mix(vec3(l),c,1.08); float d=distance(vUv,vec2(.5)); c*=1.0-smoothstep(.34,.78,d)*.24; gl_FragColor=vec4(c,1.0); }",
+    }));
     composer.addPass(new OutputPass());
     state.composer = composer;
   }

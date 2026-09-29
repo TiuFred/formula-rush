@@ -33,11 +33,12 @@ export function updateCamera(dt) {
   const heading = car.yaw - car.slip * .35;
   const forward = new THREE.Vector3(Math.sin(heading), frame.t.y, Math.cos(heading)).normalize();
 
-  const desiredPos = car.group.position.clone().addScaledVector(forward, cockpit ? .45 : -11.8);
-  desiredPos.y += cockpit ? 1.32 : 5.3;
+  const chaseDistance = state.graphicsBeta ? -10.6 : -11.8;
+  const desiredPos = car.group.position.clone().addScaledVector(forward, cockpit ? .45 : chaseDistance);
+  desiredPos.y += cockpit ? 1.32 : state.graphicsBeta ? 4.45 : 5.3;
 
   const desiredLook = car.group.position.clone().addScaledVector(forward, cockpit ? 50 : 26);
-  desiredLook.y += cockpit ? 1.2 : 1.1;
+  desiredLook.y += cockpit ? 1.2 : state.graphicsBeta ? .82 : 1.1;
 
   car.group.visible = !cockpit;
 
@@ -57,7 +58,17 @@ export function updateCamera(dt) {
     camera.position.y += Math.sin(state.clockTime * 50) * car.cameraShake * .09;
   }
 
+  // Vibração mínima de alta velocidade: dá textura ao movimento sem tornar
+  // a perseguição instável ou desconfortável.
+  if (state.graphicsBeta && !cockpit && car.speed > 35) {
+    const vibration = Math.min(.035, (car.speed - 35) * .00055);
+    camera.position.y += Math.sin(state.clockTime * 46) * vibration;
+    camera.position.x += Math.sin(state.clockTime * 31) * vibration * .55;
+  }
+
   camera.lookAt(lookTarget);
-  camera.fov += ((cockpit ? 74 : 63) + (car.boost > 0 ? 6 : 0) - camera.fov) * (1 - Math.exp(-dt * 4));
+  const speedFov = state.graphicsBeta ? Math.min(cockpit ? 5 : 11, car.speed * (cockpit ? .045 : .1)) : 0;
+  const baseFov = cockpit ? 74 : state.graphicsBeta ? 60 : 63;
+  camera.fov += (baseFov + speedFov + (car.boost > 0 ? 6 : 0) - camera.fov) * (1 - Math.exp(-dt * 4));
   camera.updateProjectionMatrix();
 }

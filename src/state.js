@@ -98,6 +98,8 @@ export const state = {
   composer: null,
   /** Luz solar móvel do modo 2.0, mantida perto do jogador para sombras nítidas. */
   betaSun: null,
+  /** Mapa de iluminação procedural usado nos reflexos do modo 2.0. */
+  betaEnvironment: null,
 
   // --- Relógio / loop principal ---------------------------------------
   /** Tempo acumulado total (para animações como bob/vibração). */

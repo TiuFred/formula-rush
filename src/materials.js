@@ -49,6 +49,10 @@ export function addBox(w, h, d, material, x, y, z, parent = state.scene) {
  */
 export function disposeObject3D(obj) {
   if (!obj) return;
+  if (obj.isScene && obj.environment?.isTexture) {
+    obj.environment.dispose();
+    if (state.betaEnvironment === obj.environment) state.betaEnvironment = null;
+  }
   obj.traverse((child) => {
     if (child.geometry) child.geometry.dispose();
     for (const mat of Array.isArray(child.material) ? child.material : [child.material]) {

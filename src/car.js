@@ -10,6 +10,17 @@ import { MATERIALS, makeMaterial, addMesh, addBox, disposeObject3D, makeTextPane
 import { resetLapState } from "./timing.js";
 import { normalizePlayerName, normalizePlayerNumber } from "./validation.js";
 
+/** Haste cilíndrica entre dois pontos locais, usada na suspensão do carro 2.0. */
+function addBeam(group, start, end, radius, material) {
+  const a = new THREE.Vector3(...start);
+  const b = new THREE.Vector3(...end);
+  const direction = b.clone().sub(a);
+  const beam = addMesh(new THREE.CylinderGeometry(radius, radius, direction.length(), 8), material, 0, 0, 0, group);
+  beam.position.copy(a).add(b).multiplyScalar(.5);
+  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+  return beam;
+}
+
 /**
  * Constrói o grupo three.js do carro (carroceria, rodas, asas, halo, escudo
  * e chama de turbo — inicialmente ocultos) e o objeto de estado do carro.
@@ -64,6 +75,7 @@ export function createCar(color, index) {
 
   if (state.graphicsBeta) {
     const carbon = makeMaterial("#080b0c", { metalness: .45, roughness: .32 });
+    const machinedMetal = makeMaterial("#aeb6b8", { metalness: .92, roughness: .18 });
     const glass = new THREE.MeshPhysicalMaterial({
       color: "#14242a",
       metalness: .15,
@@ -79,10 +91,46 @@ export function createCar(color, index) {
     addBox(2.15, .055, .3, carbon, 0, .94, -2.28, group);
     addBox(1.48, .09, 1.35, carbon, 0, .25, -.72, group);
     addBox(.66, .34, .82, glass, 0, .93, .02, group);
+
+    // Superfícies curvas suavizam a carroceria originalmente feita de caixas.
+    const nose = addMesh(new THREE.CylinderGeometry(.18, .38, 2.35, 18), bodyMaterial, 0, .68, 1.55, group);
+    nose.rotation.x = Math.PI / 2;
+    const engineCover = addMesh(new THREE.SphereGeometry(1, 24, 14), bodyMaterial, 0, .83, -.82, group);
+    engineCover.scale.set(.5, .62, 1.18);
+    for (const side of [-1, 1]) {
+      const sidepod = addMesh(new THREE.SphereGeometry(1, 20, 12), bodyMaterial, side * .62, .61, -.38, group);
+      sidepod.scale.set(.54, .35, 1.15);
+    }
+
     for (const side of [-1, 1]) {
       addBox(.08, .08, 1.45, carbon, side * .72, .46, .28, group).rotation.z = side * -.17;
       addBox(.06, .06, 1.05, carbon, side * .83, .55, -1.05, group).rotation.z = side * .2;
+
+      // Braços triangulados da suspensão, discos de freio e porcas centrais.
+      for (const z of [-1.44, 1.5]) {
+        const anchorZ = z < 0 ? -.86 : .92;
+        addBeam(group, [side * .48, .48, anchorZ], [side * .94, .4, z], .026, carbon);
+        addBeam(group, [side * .43, .72, anchorZ + (z < 0 ? -.28 : .28)], [side * .94, .48, z], .023, carbon);
+        const disc = addMesh(new THREE.CylinderGeometry(.16, .16, .028, 20), machinedMetal, side * .785, .4, z, group);
+        disc.rotation.z = Math.PI / 2;
+        const nut = addMesh(new THREE.CylinderGeometry(.065, .065, .445, 10), makeMaterial(side < 0 ? "#ef3b35" : "#43b8e8", { metalness: .7, roughness: .25 }), side, .4, z, group);
+        nut.rotation.z = Math.PI / 2;
+      }
+
+      // Espelhos retrovisores com haste e superfície refletiva escura.
+      addBeam(group, [side * .45, .93, .48], [side * .86, 1.04, .63], .025, carbon);
+      const mirror = addMesh(new THREE.SphereGeometry(.18, 14, 8), bodyMaterial, side * .91, 1.06, .67, group);
+      mirror.scale.set(1.35, .7, .72);
+      addBox(.24, .1, .018, glass, side * .91, 1.06, .53, group);
     }
+
+    // Piloto com capacete, viseira e apoio de cabeça visíveis na câmera externa.
+    const helmet = addMesh(new THREE.SphereGeometry(.255, 24, 16), makeMaterial(index === 0 ? "#f2f4f1" : color, { metalness: .18, roughness: .24 }), 0, 1.16, .02, group);
+    helmet.scale.set(.92, 1, .94);
+    const visor = addMesh(new THREE.SphereGeometry(.258, 20, 12, 0, Math.PI, .58, .72), glass, 0, 1.17, .035, group);
+    visor.rotation.y = Math.PI;
+    addBox(.58, .2, .32, carbon, 0, 1.02, -.24, group);
+
     addMesh(
       new THREE.SphereGeometry(.085, 10, 8),
       new THREE.MeshBasicMaterial({ color: "#ff2828", toneMapped: false }),
