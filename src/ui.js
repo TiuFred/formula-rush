@@ -149,6 +149,19 @@ export function setupMenuUI() {
     state.assistOn = on;
   }, state.assistOn);
 
+  const turboSlider = byId("alwaysTurbo");
+  const updateTurboSlider = () => {
+    turboSlider.value = state.alwaysTurbo ? "1" : "0";
+    const label = state.alwaysTurbo ? "Ligado · sem ranking" : "Desligado";
+    byId("alwaysTurboValue").textContent = label;
+    turboSlider.setAttribute("aria-valuetext", label);
+  };
+  turboSlider.oninput = () => {
+    if (state.gameState === "menu" && !state.graphicsBeta) state.alwaysTurbo = turboSlider.value === "1";
+    updateTurboSlider();
+  };
+  updateTurboSlider();
+
   byId("lapCount").onchange = (e) => {
     if (state.gameState === "menu") updateLapCountUI(e.target.value);
   };
@@ -352,7 +365,9 @@ export function updateHud() {
   const driftColor = level >= 3 ? "#c783ff" : level >= 2 ? "#ffc24d" : "#58dfff";
   byId("driftFill").style.width = clamp(player.driftCharge / 2.6 * 100, 0, 100) + "%";
   byId("driftFill").style.background = driftColor;
-  byId("driftLabel").textContent = player.boost > 0
+  byId("driftLabel").textContent = state.alwaysTurbo && !state.graphicsBeta
+    ? "SEMPRE TURBO · SEM RANKING"
+    : player.boost > 0
     ? "TURBO ATIVO"
     : player.wasDrifting
       ? ["CARREGANDO", "MINITURBO · SOLTE", "SUPER · SOLTE", "ULTRA · SOLTE"][level]

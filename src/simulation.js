@@ -18,6 +18,7 @@ import { byId, setVisible, textElement } from "./dom.js";
 import { formatLapTime } from "./timing.js";
 import { engineAudio } from "./audio.js";
 import { CIRCUITS } from "./circuits.js";
+import { alwaysTurboEnabled } from "./turbo.js";
 
 /** Intervalo (s) entre amostras do replay cinematográfico — ver replay.js. */
 export const REPLAY_SAMPLE_INTERVAL = .1;
@@ -82,7 +83,7 @@ export function advanceSimulation(dt) {
       car[field] = Math.max(0, car[field] - dt);
     }
     car.shieldMesh.visible = car.shield > 0;
-    car.flame.visible = car.boost > 0;
+    car.flame.visible = car.boost > 0 || (car === state.player && alwaysTurboEnabled(state));
     car.flame.scale.y = 1 + Math.sin(state.clockTime * 40) * .25;
   }
 
@@ -242,7 +243,7 @@ export function showResults() {
     : state.lapCountRace + (state.lapCountRace === 1 ? " VOLTA" : " VOLTAS");
   byId("resultInfo").textContent =
     circuitLabel + " · " + lapsLabel + " · " +
-    (state.graphicsBeta ? "BETA NÃO RANQUEADO" : DIFFICULTIES[state.difficultyKey].label.toUpperCase()) + " · " +
+    (state.graphicsBeta ? "BETA NÃO RANQUEADO" : state.alwaysTurbo ? "SEMPRE TURBO · NÃO RANQUEADO" : DIFFICULTIES[state.difficultyKey].label.toUpperCase()) + " · " +
     formatLapTime(state.player.finish) + " · MELHOR " + formatLapTime(state.player.bestLap);
 
   const standings = [

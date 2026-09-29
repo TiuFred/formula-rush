@@ -541,6 +541,26 @@
             >
           </section>
           <section class="config-block">
+            <label for="alwaysTurbo">SEMPRE TURBO</label>
+            <div class="turbo-slider">
+              <input
+                id="alwaysTurbo"
+                type="range"
+                min="0"
+                max="1"
+                step="1"
+                value="0"
+                aria-describedby="alwaysTurboHint"
+                aria-valuetext="Desligado"
+              />
+              <output id="alwaysTurboValue" for="alwaysTurbo">Desligado</output>
+            </div>
+            <small id="alwaysTurboHint"
+              >Acelere até a velocidade do turbo (389 km/h). Exclusivo da 1.0;
+              ativado, não registra tempos no ranking.</small
+            >
+          </section>
+          <section class="config-block">
             <span class="config-block-label">SEU PILOTO</span>
             <div class="player-id-fields">
               <label for="playerName">NOME</label

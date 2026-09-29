@@ -2012,6 +2012,24 @@ body.racing #lapCount {
 }
 
 /* Botão de alternância (liga/desliga) — substitui checkboxes de opções. */
+.turbo-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.turbo-slider input {
+  flex: 1;
+  min-width: 60px;
+  accent-color: #daf951;
+  cursor: pointer;
+}
+
+.turbo-slider output {
+  font-size: 12px;
+}
+
 .toggle-btn {
   display: flex;
   align-items: center;

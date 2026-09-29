@@ -35,6 +35,8 @@ export const state = {
   difficultyKey: "sport",
   /** Assistência de direção ativada? */
   assistOn: true,
+  /** Turbo permanente opcional, exclusivo da versão clássica e não ranqueado. */
+  alwaysTurbo: false,
   /** Cor escolhida para o carro do jogador (uma de DRIVER_COLORS). */
   selectedColor: DRIVER_COLORS[0],
   /** Nome exibido do jogador (editável no menu). */

@@ -18,6 +18,7 @@ import { driftLevel } from "./items.js";
 import { engineAudio, beep } from "./audio.js";
 import { showNotice } from "./dom.js";
 import { addMesh } from "./materials.js";
+import { playerTurboSettings } from "./turbo.js";
 
 /** Faísca visual de drift (cor conforme o nível de miniturbo carregado). */
 function spawnDriftSpark(car, color) {
@@ -131,9 +132,10 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   if (brake) accel -= 53;
   if (!onTrack) accel -= car.speed * .62;
   if (car.stun > 0) accel -= 24;
-  if (car.boost > 0) accel += 36;
+  const turbo = playerTurboSettings(car, state, throttle && !brake);
+  if (turbo.accelerating) accel += 36;
   if (car.drsActive) accel += 14;
-  const speedCap = car.underYellow ? 46 : car.boost > 0 ? 108 : car.drsActive ? 90 : 84;
+  const speedCap = turbo.speedCap;
   car.speed = clamp(car.speed + accel * dt, 0, speedCap);
 
   // --- Lateral: escorregamento (slip) durante o drift. Entrada mais rápida
