@@ -154,6 +154,32 @@ export let TRACK_NAME_PANEL_TEXT = "INTERLAGOS";
 export function setTrackNamePanelText(v) { TRACK_NAME_PANEL_TEXT = v; }
 
 /**
+ * Perfil de CENÁRIO do circuito ativo (ver scene.js). Os padrões abaixo são o
+ * visual "autódromo" que Interlagos/Monza/Indianápolis sempre tiveram (gramado,
+ * arquibancadas, complexo de boxes, árvores esparsas) — circuitos com um
+ * ambiente diferente (Mônaco = rua, Spa = floresta) só sobrescrevem o que muda
+ * (ver `scenery` em circuits.js).
+ *   theme: "park" | "street" | "forest"
+ *   pitBoxSpacing: espaço (m) entre boxes/garagens — 20 nos autódromos grandes;
+ *     Mônaco tem uma reta dos boxes curta, então usa boxes bem mais juntos.
+ *   grandstands/pitBuilding: liga/desliga a arquibancada e o complexo de boxes.
+ *   tunnel: [inicio, fim] (m) de um túnel sobre a pista, ou null.
+ *   harbor: `{ segments: [[inicio, fim], ...], depth }` — trechos (m) cuja
+ *     margem ESQUERDA encosta na água; cada um vira um quadrilátero de água
+ *     estendido `depth` m pra dentro da volta. Ou null.
+ */
+export const DEFAULT_SCENERY = {
+  theme: "park",
+  pitBoxSpacing: 20,
+  grandstands: true,
+  pitBuilding: true,
+  tunnel: null,
+  harbor: null,
+};
+export let SCENERY = { ...DEFAULT_SCENERY };
+export function setScenery(v) { SCENERY = { ...DEFAULT_SCENERY, ...v }; }
+
+/**
  * Presets de dificuldade dos bots.
  * pace: velocidade-alvo relativa · acceleration: m/s² máx · reaction: tempo de
  * decisão (s, menor = mais reativo) · grip: multiplicador de assistência de curva.

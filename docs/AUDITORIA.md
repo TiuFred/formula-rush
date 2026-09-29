@@ -1218,3 +1218,49 @@ resto do jogo) — completar uma corrida inteira dirigindo de verdade não
 foi possível neste ciclo de testes automatizados (o foco do navegador
 alternava sozinho durante a automação, pausando a corrida repetidamente),
 então esse elo específico merece uma segunda checada jogando manualmente.
+
+## 25. Mônaco e Spa refeitos do zero
+
+As duas pistas da seção 24 saíram ruins — os erros eram estruturais, não de
+acabamento. Diagnóstico (medido com o próprio motor do jogo: `buildTrackModel`
+em Node, amostrando yaw a cada 5 m; e plotando os traçados em SVG):
+
+- **Mônaco largava no lugar errado.** O ponto 0 do GeoJSON de
+  `bacinger/f1-circuits` é o *Casino Square*, não a linha de largada. Portão,
+  grid, boxes, nomes de curva, DRS e caixas de item estavam todos deslocados
+  ~840 m. Corrigido girando o arquivo (`public/monaco.geojson`, com um vértice
+  interpolado exato) pra o índice 0 ser a linha, na reta dos boxes logo depois
+  do Antony Noghès. Spa já vinha com o ponto 0 na linha (confirmado: a La Source
+  está a ~245 m e o Bus Stop a ~337 m antes).
+- **Larguras 2× maiores que o real.** As tabelas são de MEIA-largura; usei 6–8,5
+  em Mônaco (17 m de pista, numa rua de ~10 m) e até 12 em Spa (24 m). Agora
+  Mônaco fica em ~4,7–6,4 e Spa em ~5,9–7,4.
+- **Escapes de grama numa pista de rua.** `cornerWideningTable` de Mônaco tinha
+  até 16 m de "escape" — na verdade são muros a ~2 m. Agora 3,4 m constante.
+- **Nomes/distâncias das curvas eram proporções chutadas.** Substituídos pelas
+  posições medidas na curva do jogo (ex.: Sainte Dévote em 200 m, Massenet em
+  ~735, Casino em 875, Grand Hotel Hairpin em 1255, Rascasse em 2905; Spa: La
+  Source 245, Eau Rouge 905, Raidillon 1020, Kemmel 1220–2200, Les Combes
+  2280–2510, Rivage 2895, Pouhon 3690/3900, Fagnes 4380/4520, Stavelot
+  4820/5040, Blanchimont 6060, Bus Stop 6585/6665). Banking, elevação (Raidillon
+  ~15% de rampa, Beau Rivage ~10%), DRS reais e as zonas de brita por
+  curva foram refeitos em cima disso; itens saem da região do grid.
+- **Cenário genérico de autódromo em cima de uma rua e de uma floresta.** Novo
+  `SCENERY` (constants.js, `scenery` em cada circuito): `theme` `street` (Mônaco:
+  calçada + muro de concreto branco, ~640 prédios mediterrâneos de telhado
+  vermelho, postes de luz, túnel com teto/luminárias em 1490–1790 m, o Port
+  Hercule como água à esquerda da Beira-Mar/Piscina, paredões rochosos ao
+  fundo, céu azul) e `forest` (Spa: ~2600 pinheiros em `InstancedMesh`, colinas
+  cônicas em volta, escapes de asfalto, céu fechado das Ardenas). Interlagos,
+  Monza e Indianápolis não mudam (`theme: "park"` é o padrão). Boxes/garagens
+  passaram a ter espaçamento configurável (`pitBoxSpacing`; Mônaco usa 10,5 m
+  porque a reta dos boxes é curta).
+
+Validação: simulação headless dos 22 bots (mesma física/IA do jogo) fecha a 1ª
+volta em Mônaco em 72,6–79,4 s (a real é ~72 s) e em Spa em 121–130 s, sem NaN
+nem carro travado; visual conferido no navegador com câmera livre em vários
+pontos (grid, Sainte Dévote, entrada do túnel, Beira-Mar, Piscina, La Source,
+Eau Rouge/Raidillon, Rivage). Um bug pego no caminho: o terreno de rua com
+queda de só 1,5 m ficava POR CIMA da pista nas ladeiras (a IDW mistura alturas
+vizinhas) e escondia o asfalto na entrada do túnel — voltou pra 5 m, com uma
+rampa curta entre a calçada e o terreno.

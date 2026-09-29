@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { state } from "./state.js";
 import {
   TRACK_LENGTH, CORNER_NAME_SIGNS, DISTANCE_BOARD_STATIONS,
-  ZEBRA_ZONES, APEX_GRASS_PATCHES, TRACK_NAME_PANEL_TEXT,
+  ZEBRA_ZONES, APEX_GRASS_PATCHES, TRACK_NAME_PANEL_TEXT, SCENERY,
 } from "./constants.js";
 import { trackHalfWidthAt, cornerWideningAt } from "./track.js";
 import { wrapAngle } from "./mathUtils.js";
@@ -225,43 +225,52 @@ function buildTrackDecorations() {
   namePanel.rotation.y = startFrame.yaw + Math.PI;
   state.scene.add(namePanel);
 
-  // Grid de largada numerado (23 posições marcadas no asfalto).
-  for (let i = 0; i < 23; i++) {
-    const s = TRACK_LENGTH - 245 + i * 20;
-    addAlignedBox(s, 24, 7, .08, 18, MATERIALS.road, .06);
-    addAlignedBox(s, 22.1, .18, .12, 8, MATERIALS.white, .15);
-    addAlignedBox(s, 26, 6, 1.5, 16, gridPaint, 5.4);
-    const numberFrame = state.track.at(s, 22);
-    const numberPanel = makeTextPanel(String(i + 1).padStart(2, "0"), 3, .8);
-    numberPanel.position.copy(numberFrame.p);
-    numberPanel.position.y += 4.3;
-    numberPanel.rotation.y = numberFrame.yaw + Math.PI / 2;
-    state.scene.add(numberPanel);
-  }
-
-  // Arquibancadas: assentos instanciados (720 assentos, 5 cores alternadas).
-  // As 8 estações são relativas ao comprimento da pista (perto do início E
-  // do fim da volta — que, no traçado circular, é a mesma linha de largada).
-  const grandstandStations = [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129];
-  const seatMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(.44, .75, .4), makeMaterial("#eeefe0"), 720);
-  let seatIndex = 0;
-  const dummy = new THREE.Object3D();
-  for (const s0 of grandstandStations) {
-    for (let row = 0; row < 5; row++) {
-      for (let col = 0; col < 18; col++) {
-        const frame = state.track.at(s0 - 25 + col * 2.8, -29 - row * 3);
-        dummy.position.copy(frame.p);
-        dummy.position.y += row * 1.25 + 1.45;
-        dummy.rotation.y = frame.yaw;
-        dummy.updateMatrix();
-        seatMesh.setMatrixAt(seatIndex, dummy.matrix);
-        seatMesh.setColorAt(seatIndex, new THREE.Color(["#d6ea55", "#f0e7d6", "#349e8e", "#293d62", "#eac170"][(seatIndex * 7 + row) % 5]));
-        seatIndex++;
-      }
+  // Grid de largada numerado (23 posições marcadas no asfalto). O espaço entre
+  // boxes (`SCENERY.pitBoxSpacing`) é 20 m nos autódromos grandes; Mônaco tem
+  // uma reta dos boxes curta e usa boxes bem mais juntos (as dimensões ao
+  // longo da pista escalam junto, `k`).
+  if (SCENERY.pitBuilding) {
+    const spacing = SCENERY.pitBoxSpacing;
+    const k = spacing / 20;
+    for (let i = 0; i < 23; i++) {
+      const s = TRACK_LENGTH + (i - 12.25) * spacing;
+      addAlignedBox(s, 24, 7, .08, 18 * k, MATERIALS.road, .06);
+      addAlignedBox(s, 22.1, .18, .12, 8 * k, MATERIALS.white, .15);
+      addAlignedBox(s, 26, 6, 1.5, 16 * k, gridPaint, 5.4);
+      const numberFrame = state.track.at(s, 22);
+      const numberPanel = makeTextPanel(String(i + 1).padStart(2, "0"), 3, .8);
+      numberPanel.position.copy(numberFrame.p);
+      numberPanel.position.y += 4.3;
+      numberPanel.rotation.y = numberFrame.yaw + Math.PI / 2;
+      state.scene.add(numberPanel);
     }
   }
-  seatMesh.instanceMatrix.needsUpdate = true;
-  state.scene.add(seatMesh);
+
+  if (SCENERY.grandstands) {
+    // Arquibancadas: assentos instanciados (720 assentos, 5 cores alternadas).
+    // As 8 estações são relativas ao comprimento da pista (perto do início E
+    // do fim da volta — que, no traçado circular, é a mesma linha de largada).
+    const grandstandStations = [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129];
+    const seatMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(.44, .75, .4), makeMaterial("#eeefe0"), 720);
+    let seatIndex = 0;
+    const dummy = new THREE.Object3D();
+    for (const s0 of grandstandStations) {
+      for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 18; col++) {
+          const frame = state.track.at(s0 - 25 + col * 2.8, -29 - row * 3);
+          dummy.position.copy(frame.p);
+          dummy.position.y += row * 1.25 + 1.45;
+          dummy.rotation.y = frame.yaw;
+          dummy.updateMatrix();
+          seatMesh.setMatrixAt(seatIndex, dummy.matrix);
+          seatMesh.setColorAt(seatIndex, new THREE.Color(["#d6ea55", "#f0e7d6", "#349e8e", "#293d62", "#eac170"][(seatIndex * 7 + row) % 5]));
+          seatIndex++;
+        }
+      }
+    }
+    seatMesh.instanceMatrix.needsUpdate = true;
+    state.scene.add(seatMesh);
+  }
 
   // Manchas de grama pintada perto de algumas curvas (detalhe visual extra).
   for (const s of APEX_GRASS_PATCHES) {
@@ -311,6 +320,142 @@ function mergeStaticMeshesByMaterial() {
   }
 }
 
+/** `true` se (x, z) cai dentro do polígono (lista de pontos {x, z}) — teste de raio par/ímpar. */
+function pointInPolygon(x, z, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i];
+    const b = poly[j];
+    if ((a.z > z) !== (b.z > z) && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Postes de iluminação de rua ao longo da pista (só em circuito de rua): um
+ * a cada ~40 m, alternando os lados, sobre o muro. A luminária é MeshBasicMaterial
+ * (sempre "acesa") — de dia é só um detalhe, de noite é o que dá cara de
+ * Monte Carlo à noite.
+ */
+function buildStreetLamps() {
+  const poleMaterial = makeMaterial("#33363a");
+  const lampMaterial = new THREE.MeshBasicMaterial({ color: "#fff2c4" });
+  const tunnel = SCENERY.tunnel;
+  for (let s = 10; s < TRACK_LENGTH; s += 40) {
+    if (tunnel && s > tunnel[0] - 10 && s < tunnel[1] + 10) continue;
+    const side = Math.floor(s / 40) % 2 ? -1 : 1;
+    const offset = side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + .8);
+    addAlignedBox(s, offset, .18, 7, .18, poleMaterial, -.2);
+    addAlignedBox(s, offset - side * .6, .9, .22, .5, lampMaterial, 6.7);
+  }
+}
+
+/**
+ * Túnel (Mônaco, sob o hotel): paredes escuras dos dois lados + teto, com
+ * uma fileira de luminárias amarelas emissivas no teto. Pura decoração —
+ * a física da pista não muda, e o teto fica alto o bastante (7 m) pra câmera
+ * de perseguição passar por baixo sem cortar a cena.
+ */
+function buildTunnel(from, to) {
+  const wallMaterial = makeMaterial("#3b3d40");
+  const ceilingMaterial = makeMaterial("#2a2c2f");
+  const lampMaterial = new THREE.MeshBasicMaterial({ color: "#ffd66b" });
+  for (let s = from; s < to; s += 12) {
+    const edge = trackHalfWidthAt(s) + cornerWideningAt(s, 1) + .9;
+    for (const side of [-1, 1]) addAlignedBox(s, side * edge, 1.2, 9, 12.4, wallMaterial, -.2);
+    addAlignedBox(s, 0, edge * 2 + 2.4, 1, 12.4, ceilingMaterial, 7.6);
+    if (Math.floor(s / 12) % 2 === 0) addAlignedBox(s, 0, 1.4, .2, 3, lampMaterial, 7.35);
+  }
+}
+
+/**
+ * Quarteirões de Mônaco: prédios de cores mediterrâneas (creme, ocre, rosado)
+ * com telhado vermelho fino, espalhados por toda a volta a partir de 40 m do
+ * centro da pista (depois de calçada + muro), nunca dentro d'água. Prédios
+ * com pegada de 12–28 m e 12–58 m de altura, levemente girados junto com a
+ * rua pra não parecer caixa alinhada ao mundo.
+ */
+function buildCityBlocks(rng, groundHeightAt, inWater, waterY) {
+  const walls = ["#e8dcc4", "#d9c3a0", "#efe6d6", "#c9d6d9", "#e3b98e", "#f1d9c6"].map((c) => makeMaterial(c));
+  const roofMaterial = makeMaterial("#a4553f");
+  const placed = [];
+  let attempts = 0;
+  while (placed.length < 640 && attempts++ < 14000) {
+    const s = rng() * TRACK_LENGTH;
+    const side = rng() < .5 ? -1 : 1;
+    const lateral = trackHalfWidthAt(s) + cornerWideningAt(s, side) + 26 + rng() * rng() * 190;
+    const frame = state.track.at(s, side * lateral);
+    const { x, z } = frame.p;
+    if (state.track.nearest(x, z).dist < trackHalfWidthAt(s) + 28) continue;
+    if (inWater(x, z)) continue;
+    const base = groundHeightAt(x, z);
+    if (base < waterY + 1) continue;
+    if (placed.some((b) => Math.hypot(b.x - x, b.z - z) < 18)) continue;
+    const w = 12 + rng() * 16;
+    const d = 12 + rng() * 16;
+    const h = 12 + rng() * rng() * 46;
+    const yaw = frame.yaw + (rng() - .5) * .3;
+    const body = addBox(w, h + 3, d, walls[Math.floor(rng() * walls.length)], x, base - 1.5 + (h + 3) / 2, z);
+    body.rotation.y = yaw;
+    const roof = addBox(w + .8, .9, d + .8, roofMaterial, x, base - 1.5 + h + 3.45, z);
+    roof.rotation.y = yaw;
+    placed.push({ x, z });
+  }
+}
+
+/**
+ * Floresta das Ardenas: milhares de pinheiros (troncos + duas camadas de copa)
+ * como InstancedMesh — um draw call por camada em vez de milhares — em volta de
+ * toda a pista, mais densos junto às bordas. A base de cada árvore segue a altura
+ * do terreno (não a da pista, que fica ~5 m acima).
+ */
+function buildForest(rng, scale, groundHeightAt) {
+  const COUNT = 2600;
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.5, .75, 1, 5), makeMaterial("#4b3d2f"), COUNT);
+  const lower = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), makeMaterial("#ffffff"), COUNT);
+  const upper = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), makeMaterial("#ffffff"), COUNT);
+  const dummy = new THREE.Object3D();
+  const greens = ["#2f5d3b", "#356a41", "#28503a", "#3c7247"].map((c) => new THREE.Color(c));
+  let n = 0;
+  let attempts = 0;
+  while (n < COUNT && attempts++ < COUNT * 6) {
+    const s = rng() * TRACK_LENGTH;
+    const side = rng() < .5 ? -1 : 1;
+    const edge = trackHalfWidthAt(s) + cornerWideningAt(s, side);
+    const lateral = edge + 5 + rng() * rng() * 260 * Math.max(.6, scale);
+    const frame = state.track.at(s, side * lateral);
+    const { x, z } = frame.p;
+    if (state.track.nearest(x, z).dist < trackHalfWidthAt(s) + 12) continue;
+    const base = groundHeightAt(x, z) - .3;
+    const trunkH = 5 + rng() * 6;
+    const crown = 7 + rng() * 6;
+    const radius = 2.6 + rng() * 2.4;
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.set(1, trunkH, 1);
+    dummy.position.set(x, base + trunkH / 2, z);
+    dummy.updateMatrix();
+    trunks.setMatrixAt(n, dummy.matrix);
+    dummy.scale.set(radius, crown, radius);
+    dummy.position.set(x, base + trunkH + crown * .35, z);
+    dummy.updateMatrix();
+    lower.setMatrixAt(n, dummy.matrix);
+    dummy.scale.set(radius * .65, crown * .8, radius * .65);
+    dummy.position.set(x, base + trunkH + crown * .85, z);
+    dummy.updateMatrix();
+    upper.setMatrixAt(n, dummy.matrix);
+    const tint = greens[Math.floor(rng() * greens.length)];
+    lower.setColorAt(n, tint);
+    upper.setColorAt(n, tint);
+    n++;
+  }
+  for (const mesh of [trunks, lower, upper]) {
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    state.scene.add(mesh);
+  }
+}
+
 /** Ajusta o tamanho do renderer/câmera ao tamanho atual do elemento <canvas>. */
 export function resizeRenderer() {
   if (!state.renderer) return;
@@ -329,12 +474,20 @@ export function resizeRenderer() {
 export function buildScene() {
   const scale = worldScale();
   const night = state.nightMode;
+  const street = SCENERY.theme === "street";
+  const forest = SCENERY.theme === "forest";
   state.scene = new THREE.Scene();
-  // Noturna: céu quase negro (nunca preto puro — cidade/estádio ao redor
-  // sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
+  // Céu/névoa por ambiente: Mediterrâneo azul em Mônaco, tempo fechado nas
+  // Ardenas. Noturna: céu quase negro (nunca preto puro — cidade/estádio ao
+  // redor sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
   // "queimar" o preto do céu na distância como a névoa diurna faria.
-  state.scene.background = new THREE.Color(night ? "#050810" : "#a9c8c7");
-  state.scene.fog = new THREE.Fog(night ? "#050810" : "#a9c8c7", (night ? 260 : 700) * scale, (night ? 1000 : 1900) * scale);
+  const daySky = street ? "#9ccbea" : forest ? "#a3b2b6" : "#a9c8c7";
+  state.scene.background = new THREE.Color(night ? "#050810" : daySky);
+  state.scene.fog = new THREE.Fog(
+    night ? "#050810" : daySky,
+    (night ? 260 : forest ? 420 : 700) * scale,
+    (night ? 1000 : forest ? 1500 : 1900) * scale
+  );
   state.camera = new THREE.PerspectiveCamera(60, 1, .2, 2500 * Math.max(1, scale));
   state.renderer = new THREE.WebGLRenderer({
     canvas: byId("race"),
@@ -354,6 +507,37 @@ export function buildScene() {
   sun.position.set(-300, 700, 100);
   state.scene.add(sun);
 
+  // Materiais por ambiente. Autódromo ("park", o visual original): gramado
+  // + faixa verde de escape. Rua ("street"): tudo pavimento, sem grama. Floresta:
+  // gramado mais denso e escapes de asfalto.
+  const groundMaterial = street ? makeMaterial("#7d786c") : forest ? makeMaterial("#4c7449") : MATERIALS.grass;
+  const runoffMaterial = street ? makeMaterial("#666a6d") : forest ? makeMaterial("#626b6a") : MATERIALS.green;
+  const sidewalkMaterial = makeMaterial("#8e8a7f");
+  const wallMaterial = street ? makeMaterial("#ece9e0") : MATERIALS.barrier;
+
+  // Porto de Mônaco (só rua com `harbor`): quadriláteros de água na margem
+  // ESQUERDA dos trechos indicados (a Port Hercule fica dentro da grande
+  // volta, do lado esquerdo da Beira-Mar e da perna da Piscina), estendidos
+  // `depth` m pra dentro.
+  const waterPolys = [];
+  let waterY = 0;
+  if (street && SCENERY.harbor) {
+    let ySum = 0, yCount = 0;
+    for (const [a, b] of SCENERY.harbor.segments) {
+      const fa = state.track.at(a);
+      const fb = state.track.at(b);
+      const p0 = state.track.at(a, -(trackHalfWidthAt(a) + 8)).p;
+      const p1 = state.track.at(b, -(trackHalfWidthAt(b) + 8)).p;
+      const q0 = p0.clone().addScaledVector(fa.right, -SCENERY.harbor.depth);
+      const q1 = p1.clone().addScaledVector(fb.right, -SCENERY.harbor.depth);
+      waterPolys.push([p0, p1, q1, q0]);
+      ySum += fa.p.y + fb.p.y;
+      yCount += 2;
+    }
+    waterY = ySum / yCount - 1.6;
+  }
+  const inWater = (x, z) => waterPolys.some((poly) => pointInPolygon(x, z, poly));
+
   // Terreno: grande plano cujo relevo segue (com suavização por distância
   // inversa) a elevação de amostras da pista, formando um "vale" ao redor
   // dela (terreno ~5m abaixo do nível médio da pista).
@@ -361,9 +545,8 @@ export function buildScene() {
   ground.rotateX(-Math.PI / 2);
   const groundPos = ground.attributes.position;
   const referencePoints = state.track.samples.filter((_, i) => i % 18 === 0);
-  for (let i = 0; i < groundPos.count; i++) {
-    const x = groundPos.getX(i);
-    const z = groundPos.getZ(i);
+  const groundDrop = 5;
+  const groundHeightAt = (x, z) => {
     let weightedY = 0;
     let weightSum = 0;
     for (const ref of referencePoints) {
@@ -371,34 +554,65 @@ export function buildScene() {
       weightedY += ref.y * weight;
       weightSum += weight;
     }
-    groundPos.setY(i, weightedY / weightSum - 5);
+    return weightedY / weightSum - groundDrop;
+  };
+  for (let i = 0; i < groundPos.count; i++) {
+    const x = groundPos.getX(i);
+    const z = groundPos.getZ(i);
+    // Fundo do porto: o terreno afunda sob a água pra ela aparecer.
+    groundPos.setY(i, inWater(x, z) ? waterY - 3 : groundHeightAt(x, z));
   }
   ground.computeVertexNormals();
-  addMesh(ground, MATERIALS.grass);
+  addMesh(ground, groundMaterial);
   generateAsphaltTexture(state.renderer);
+
+  for (const poly of waterPolys) {
+    const shape = new THREE.Shape(poly.map((p) => new THREE.Vector2(p.x, -p.z)));
+    const geo = new THREE.ShapeGeometry(shape);
+    geo.rotateX(-Math.PI / 2);
+    addMesh(geo, new THREE.MeshStandardMaterial({ color: night ? "#0c2238" : "#2f86b3", roughness: .3, metalness: .15 }), 0, waterY, 0);
+  }
 
   // Deslocamento lateral de "borda externa" (largura + alargamento em curva
   // + padding extra opcional), parametrizado por lado (-1 esquerda / 1 direita).
   const outerEdge = (side, extra = 0) => (s) => side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + extra);
+  const inHarbor = (s) => SCENERY.harbor?.segments.some(([a, b]) => s >= a && s <= b);
 
-  buildRibbonMesh(outerEdge(-1, 15), outerEdge(-1), MATERIALS.grass, [-11, -.2]);
-  buildRibbonMesh(outerEdge(1), outerEdge(1, 15), MATERIALS.grass, [-.2, -11]);
-  buildRibbonMesh(outerEdge(-1), outerEdge(1), MATERIALS.green, -.2);
+  if (street) {
+    // Calçada plana dos dois lados (12 m; só 6 m de cais no lado do porto),
+    // seguida de uma descida curta até o terreno — os prédios ficam logo
+    // depois, como nas ruas de Monte Carlo.
+    const inner = (side) => (s) => (side < 0 && inHarbor(s) ? 6 : 12);
+    const outer = (side) => (s) => (side < 0 && inHarbor(s) ? 16 : 26);
+    const edgeAt = (side, extra) => (s) => side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + extra(s));
+    buildRibbonMesh(edgeAt(-1, inner(-1)), outerEdge(-1), sidewalkMaterial, -.25);
+    buildRibbonMesh(outerEdge(1), edgeAt(1, inner(1)), sidewalkMaterial, -.25);
+    buildRibbonMesh(edgeAt(-1, outer(-1)), edgeAt(-1, inner(-1)), groundMaterial, [-6, -.25]);
+    buildRibbonMesh(edgeAt(1, inner(1)), edgeAt(1, outer(1)), groundMaterial, [-.25, -6]);
+  } else {
+    buildRibbonMesh(outerEdge(-1, 15), outerEdge(-1), groundMaterial, [-11, -.2]);
+    buildRibbonMesh(outerEdge(1), outerEdge(1, 15), groundMaterial, [-.2, -11]);
+  }
+  buildRibbonMesh(outerEdge(-1), outerEdge(1), runoffMaterial, -.2);
   buildRibbonMesh((s) => -trackHalfWidthAt(s), trackHalfWidthAt, MATERIALS.road, .1);
   buildRibbonMesh((s) => -trackHalfWidthAt(s) + .04, (s) => -trackHalfWidthAt(s) + .23, MATERIALS.line, .12);
   buildRibbonMesh((s) => trackHalfWidthAt(s) - .23, (s) => trackHalfWidthAt(s) - .04, MATERIALS.line, .12);
   buildCurbsMesh();
 
-  // Guard-rails com postes de suporte a cada 3 segmentos.
+  // Guard-rails com postes de suporte a cada 3 segmentos (em rua: muro de
+  // concreto mais alto e contínuo, sem postes).
   for (let s = 0; s < TRACK_LENGTH; s += 12) {
     for (const side of [-1, 1]) {
-      addAlignedBox(s, side * (trackHalfWidthAt(s) + cornerWideningAt(s, side)), 1, 1, 12.2, MATERIALS.barrier, -.2);
-      if (Math.floor(s / 12) % 3 === 0) {
-        addAlignedBox(s, side * (trackHalfWidthAt(s) + cornerWideningAt(s, side)), .15, 3, .15, MATERIALS.metal);
+      const wallOffset = side * (trackHalfWidthAt(s) + cornerWideningAt(s, side));
+      addAlignedBox(s, wallOffset, 1, street ? 1.5 : 1, 12.2, wallMaterial, -.2);
+      if (!street && Math.floor(s / 12) % 3 === 0) {
+        addAlignedBox(s, wallOffset, .15, 3, .15, MATERIALS.metal);
       }
     }
   }
 
+  if (SCENERY.tunnel) buildTunnel(SCENERY.tunnel[0], SCENERY.tunnel[1]);
+  if (street) buildStreetLamps();
   if (night) buildFloodlights();
 
   // Grid quadriculado (xadrez) próximo à linha de largada.
@@ -414,20 +628,27 @@ export function buildScene() {
     addAlignedBox(s, (i % 2 ? 1 : -1) * 3, 2.4, .015, .18, MATERIALS.white, .16);
   }
 
-  // Estrutura de telhado das arquibancadas (23 vãos).
-  for (let i = 0; i < 23; i++) {
-    const s = TRACK_LENGTH - 245 + i * 20;
-    addAlignedBox(s, 30, 15, 5.8, 18.8, MATERIALS.roof, -.4);
-    addAlignedBox(s, 22.4, .12, 3.5, 14, MATERIALS.black, .1);
-    addAlignedBox(s, 22.2, .2, .6, 15, MATERIALS.lime, 4);
+  // Estrutura de telhado dos boxes/arquibancadas (23 vãos, mesmo espaçamento
+  // dos boxes de largada — ver SCENERY.pitBoxSpacing).
+  if (SCENERY.pitBuilding) {
+    const spacing = SCENERY.pitBoxSpacing;
+    const k = spacing / 20;
+    for (let i = 0; i < 23; i++) {
+      const s = TRACK_LENGTH + (i - 12.25) * spacing;
+      addAlignedBox(s, 30, 15, 5.8, 18.8 * k, MATERIALS.roof, -.4);
+      addAlignedBox(s, 22.4, .12, 3.5, 14 * k, MATERIALS.black, .1);
+      addAlignedBox(s, 22.2, .2, .6, 15 * k, MATERIALS.lime, 4);
+    }
   }
 
   // Paredes de fundo das arquibancadas (faixas coloridas em camadas), nas
   // extremidades reta dos boxes / área de largada (mesmas estações dos assentos).
-  const wallColors = [makeMaterial("#c4d93e"), makeMaterial("#429b92"), makeMaterial("#eef1dc")];
-  for (const s of [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129]) {
-    for (let i = 0; i < 5; i++) {
-      addAlignedBox(s, -29 - i * 3, 3, 1.5, 56, wallColors[i % 3], i * 1.25);
+  if (SCENERY.grandstands) {
+    const wallColors = [makeMaterial("#c4d93e"), makeMaterial("#429b92"), makeMaterial("#eef1dc")];
+    for (const s of [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129]) {
+      for (let i = 0; i < 5; i++) {
+        addAlignedBox(s, -29 - i * 3, 3, 1.5, 56, wallColors[i % 3], i * 1.25);
+      }
     }
   }
 
@@ -442,30 +663,50 @@ export function buildScene() {
   addBox(21, 2, .7, MATERIALS.black, 0, 8, 0, gantry);
   for (let i = 0; i < 5; i++) addBox(.6, .6, .8, MATERIALS.lime, -3 + i * 1.5, 8, 0, gantry);
 
-  // PRNG determinístico (Park-Miller) para árvores e morros de fundo — o
-  // cenário fica sempre idêntico entre execuções (não usa Math.random aqui).
+  // PRNG determinístico (Park-Miller) para árvores, prédios e morros de fundo
+  // — o cenário fica sempre idêntico entre execuções (não usa Math.random aqui).
   let seed = 17;
   const rng = () => (seed = (seed * 16807) % 2147483647, (seed - 1) / 2147483646);
 
-  const trunkMaterial = makeMaterial("#5a6550");
-  const foliageMaterial = makeMaterial("#315a46");
-  for (let i = 0; i < 140; i++) {
-    const x = (rng() - .5) * 1700 * scale;
-    const z = (rng() - .5) * 1700 * scale;
-    const nearest = state.track.nearest(x, z);
-    if (nearest.dist < 32) continue; // evita árvores em cima da pista
-    const baseY = nearest.p.y - 1;
-    const trunkHeight = 5 + rng() * 9;
-    addMesh(new THREE.CylinderGeometry(.65, .9, trunkHeight, 5), trunkMaterial, x, baseY + trunkHeight / 2, z);
-    addMesh(new THREE.ConeGeometry(4 + rng() * 3, 10, 6), foliageMaterial, x, baseY + trunkHeight, z);
+  if (street) {
+    buildCityBlocks(rng, groundHeightAt, inWater, waterY);
+  } else if (forest) {
+    buildForest(rng, scale, groundHeightAt);
+  } else {
+    const trunkMaterial = makeMaterial("#5a6550");
+    const foliageMaterial = makeMaterial("#315a46");
+    for (let i = 0; i < 140; i++) {
+      const x = (rng() - .5) * 1700 * scale;
+      const z = (rng() - .5) * 1700 * scale;
+      const nearest = state.track.nearest(x, z);
+      if (nearest.dist < 32) continue; // evita árvores em cima da pista
+      const baseY = nearest.p.y - 1;
+      const trunkHeight = 5 + rng() * 9;
+      addMesh(new THREE.CylinderGeometry(.65, .9, trunkHeight, 5), trunkMaterial, x, baseY + trunkHeight / 2, z);
+      addMesh(new THREE.ConeGeometry(4 + rng() * 3, 10, 6), foliageMaterial, x, baseY + trunkHeight, z);
+    }
   }
 
-  // "Morros" de fundo (caixas simples atrás da área de largada).
-  for (let i = 0; i < 65; i++) {
-    const x = (rng() - .5) * 1900 * scale;
-    const z = -880 * scale - rng() * 260;
-    const h = 15 + rng() * 90;
-    addBox(15 + rng() * 30, h, 15 + rng() * 30, makeMaterial(i % 2 ? "#91a9a9" : "#7b9699"), x, h / 2, z);
+  // Fundo distante. Autódromo: "morros" de caixas atrás da largada. Rua:
+  // paredões rochosos e altos (Mônaco é espremida contra a montanha).
+  // Floresta: colinas cônicas cobertas de mata em volta de toda a volta.
+  if (forest) {
+    const hillMaterials = [makeMaterial("#3f6644"), makeMaterial("#365a3d"), makeMaterial("#4a7049")];
+    for (let i = 0; i < 46; i++) {
+      const angle = rng() * Math.PI * 2;
+      const radius = (780 + rng() * 240) * scale;
+      const r = 90 + rng() * 120;
+      const h = 70 + rng() * 120;
+      addMesh(new THREE.ConeGeometry(r, h, 7), hillMaterials[i % 3], Math.cos(angle) * radius, h / 2 - 20, Math.sin(angle) * radius);
+    }
+  } else {
+    const massifColors = street ? ["#a39a89", "#8b8373"] : ["#91a9a9", "#7b9699"];
+    for (let i = 0; i < (street ? 90 : 65); i++) {
+      const x = (rng() - .5) * 1900 * scale;
+      const z = -880 * scale - rng() * 260;
+      const h = (street ? 40 : 15) + rng() * (street ? 150 : 90);
+      addBox(15 + rng() * 30, h, 15 + rng() * 30, makeMaterial(massifColors[i % 2]), x, h / 2, z);
+    }
   }
 
   buildTrackDecorations();

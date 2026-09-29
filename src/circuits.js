@@ -10,8 +10,25 @@ import {
   setTrackLength, setSectorNames, setFallbackElevationSamples,
   setTrackWidthSamples, setBankingSamples, setCornerWideningTable,
   setItemBoxPositions, setCornerNameSigns, setDistanceBoardStations,
-  setZebraZones, setApexGrassPatches, setTrackNamePanelText, setDrsZones,
+  setZebraZones, setApexGrassPatches, setTrackNamePanelText, setDrsZones, setScenery,
 } from "./constants.js";
+
+/**
+ * Monta `bankingSamples` a partir de [distância do ápice, banking]: cada
+ * ápice vira um "morrinho" que sobe do zero uns 45 m antes e volta ao zero uns
+ * 45 m depois (positivo = curva à esquerda, negativo = à direita). Só serve
+ * pra ápices espaçados de pelo menos 2×45 m — os circuitos usam só assim.
+ */
+function bankingFromApexes(length, apexes, span = 45) {
+  const out = [[0, 0]];
+  for (const [s, bank] of apexes) {
+    if (s - span > out.at(-1)[0]) out.push([s - span, 0]);
+    out.push([s, bank]);
+    out.push([s + span, 0]);
+  }
+  out.push([length, 0]);
+  return out;
+}
 
 export const CIRCUITS = {
   interlagos: {
@@ -177,57 +194,68 @@ export const CIRCUITS = {
     turns: 19,
     direction: "HORÁRIO",
     trackLength: 3337,
-    // Circuito de rua real (traçado geográfico de bacinger/f1-circuits) —
-    // distâncias das curvas famosas são proporções estimadas ao longo da
-    // volta (mesma ressalva já feita pra Monza em docs/AUDITORIA.md), não
-    // medição por telemetria.
+    // Traçado real (bacinger/f1-circuits, MIT) girado pra o índice 0 ser a
+    // LINHA DE LARGADA de verdade (reta dos boxes, logo depois do Antony
+    // Noghès) — o ponto inicial do arquivo original é o Casino Square.
+    // Distâncias das curvas medidas na própria curva do jogo (mesma spline e
+    // escala que a física usa), não estimadas por proporção.
     sectorNames: [
-      [0, "Reta dos Boxes"], [150, "Sainte Devote · T1"], [400, "Subida Beau Rivage"],
-      [650, "Massenet · T3"], [800, "Casino Square · T4"], [1000, "Mirabeau · T5"],
-      [1150, "Grand Hotel Hairpin · T6"], [1300, "Portier · T8"], [1450, "Túnel"],
-      [1900, "Nouvelle Chicane · T10-11"], [2100, "Tabac · T12"], [2300, "Piscina · T13-16"],
-      [2750, "La Rascasse · T18"], [2950, "Antony Noghès · T19"],
+      [0, "Reta dos Boxes"], [150, "Sainte Dévote · T1"], [270, "Subida de Beau Rivage"],
+      [650, "Massenet · T3"], [820, "Casino Square · T4"], [960, "Descida de Mirabeau"],
+      [1060, "Mirabeau Haute · T5"], [1180, "Grand Hotel Hairpin · T6"], [1270, "Mirabeau Bas · T7"],
+      [1360, "Portier · T8"], [1470, "Túnel"], [1800, "Beira-Mar"],
+      [1990, "Nouvelle Chicane · T10-11"], [2200, "Reta do Porto"], [2330, "Tabac · T12"],
+      [2440, "Piscina · T13-16"], [2850, "La Rascasse · T17"], [3000, "Antony Noghès · T18-19"],
     ],
-    // Circuito de rua notoriamente estreito — bem mais apertado que os
-    // outros, sobretudo nas chicanes (Piscina, Nouvelle Chicane) e na
-    // Rascasse/Grand Hotel Hairpin.
+    // Meia-largura: rua de verdade (~10 m de asfalto), bem mais estreita que
+    // qualquer autódromo — só alarga um pouco na reta dos boxes e no Grand
+    // Hotel Hairpin (a curva mais lenta da F1, precisa de raio pra caber).
     widthSamples: [
-      [0, 8.5], [140, 7.8], [380, 8], [630, 7.6], [790, 7], [990, 6.8],
-      [1140, 6], [1290, 6.8], [1450, 7.2], [1880, 6], [2090, 6.4],
-      [2280, 6], [2740, 6.2], [2940, 7], [3337, 8.5],
+      [0, 6.4], [120, 6.2], [185, 5.4], [260, 5], [480, 5], [700, 5.1], [760, 5.1],
+      [860, 5.6], [1000, 5], [1100, 5.2], [1250, 5.6], [1300, 5.1], [1410, 4.8],
+      [1470, 5.2], [1790, 5.2], [2000, 4.8], [2030, 4.7], [2150, 4.8], [2200, 5.2],
+      [2370, 4.9], [2480, 4.7], [2650, 4.7], [2800, 4.8], [2900, 5.4], [3070, 5.2],
+      [3200, 6.2], [3337, 6.4],
     ],
-    // Rua asfaltada com camber leve, sem banking de autódromo de verdade.
-    bankingSamples: [[0, 0], [1450, .01], [1900, -.015], [2300, .01], [3337, 0]],
-    // A característica mais marcante de Monte Carlo pra um circuito de rua:
-    // sobe forte da largada (beira do porto) até o Casino Square (ponto
-    // mais alto do traçado) e desce de novo até o túnel/piscina, na beira
-    // d'água. Perfil estilizado a partir do desnível real conhecido do
-    // circuito (~42 m), não uma amostragem SRTM ponto a ponto.
+    // Asfalto de rua com camber suave — nada de banking de autódromo.
+    bankingSamples: bankingFromApexes(3337, [
+      [735, .015], [875, -.02], [1255, .03], [1415, -.02], [2030, .015], [2110, -.015], [2905, -.02],
+    ]),
+    // Do nível do porto (~5 m) até o Casino Square (~42 m, o ponto mais alto),
+    // e de volta ao nível do mar na Beira-Mar/Piscina — os ~40 m de desnível
+    // reais do circuito. A subida de Beau Rivage é forte no começo.
     elevationSamples: [
-      [0, 5], [150, 6], [400, 18], [650, 30], [800, 42], [1000, 33],
-      [1150, 24], [1300, 12], [1450, 6], [1900, 5], [2300, 4],
-      [2750, 5], [2950, 5], [3337, 5],
+      [0, 5], [100, 5], [200, 7], [300, 17], [480, 27], [735, 36], [875, 42],
+      [1105, 37], [1255, 30], [1415, 12], [1480, 7], [1780, 5], [2030, 4],
+      [2380, 4], [2650, 4], [2905, 4], [3070, 5], [3337, 5],
     ],
+    // Rua: muros/guard-rails a ~2 m da borda do asfalto, nada de escape em grama.
     cornerWideningTable: function monacoCornerWidening(_s, _side) {
-      return [
-        [0, 4], [150, 10], [650, 6], [800, 8], [1000, 9], [1150, 16],
-        [1300, 9], [1900, 12], [2100, 8], [2300, 11], [2750, 14],
-        [2950, 8], [3337, 4],
-      ];
+      return [[0, 3.4], [3337, 3.4]];
     },
-    itemBoxPositions: [500, 900, 1600, 2000, 2500, 3100],
+    // (nada perto da linha: as últimas fileiras do grid ocupam ~120 m antes dela)
+    itemBoxPositions: [380, 560, 950, 1600, 1720, 2230, 3110, 3170],
     cornerNameSigns: [
-      [150, "SAINTE DEVOTE"], [800, "CASINO"], [1150, "GRAND HOTEL HAIRPIN"],
-      [1450, "TÚNEL"], [1900, "NOUVELLE CHICANE"], [2300, "PISCINA"],
-      [2750, "LA RASCASSE"],
+      [200, "SAINTE DÉVOTE"], [735, "MASSENET"], [875, "CASINO"], [1255, "GRAND HOTEL"],
+      [1415, "PORTIER"], [2030, "NOUVELLE CHICANE"], [2380, "TABAC"], [2650, "PISCINA"],
+      [2905, "LA RASCASSE"],
     ],
     distanceBoardStations: [],
-    // Rua real: sem zebras de autódromo nem grama — é tudo asfalto e muro.
+    // Rua real: sem zebras de brita nem gramados — só asfalto, guard-rail e muro.
     zebraZones: [],
     apexGrassPatches: [],
     trackNamePanelText: "MONACO",
-    // Só existe uma zona de DRS de verdade em Monaco: a reta dos boxes.
-    drsZones: [[3050, 130]],
+    // Só existe uma zona de DRS de verdade em Mônaco: a reta dos boxes.
+    drsZones: [[3090, 170]],
+    scenery: {
+      theme: "street",
+      pitBoxSpacing: 10.5,
+      grandstands: false,
+      tunnel: [1490, 1790],
+      // Port Hercule: fica DENTRO da grande volta, à esquerda da Beira-Mar
+      // (reta do porto) e da perna da Piscina — dois quadriláteros de água.
+      harbor: { segments: [[1800, 2330], [2330, 2905]], depth: 300 },
+    },
   },
 
   spa: {
@@ -241,58 +269,73 @@ export const CIRCUITS = {
     turns: 20,
     direction: "HORÁRIO",
     trackLength: 7004,
-    // Traçado geográfico real (bacinger/f1-circuits); distâncias das curvas
-    // famosas são proporções estimadas ao longo da volta, mesma ressalva
-    // já feita pra Monza/Mônaco.
+    // Traçado real (bacinger/f1-circuits); o ponto inicial do arquivo já é a
+    // linha de largada. Distâncias medidas na própria curva do jogo.
     sectorNames: [
-      [0, "Reta Principal"], [350, "La Source · T1"], [700, "Eau Rouge"],
-      [850, "Raidillon"], [1450, "Reta Kemmel"], [2100, "Les Combes · T5-7"],
-      [2500, "Malmedy · T8"], [2750, "Bruxelles · T9"], [3600, "Pouhon · T10-11"],
-      [4300, "Fagnes · T12-13"], [5100, "Stavelot · T14-15"], [5700, "Blanchimont · T16"],
-      [6500, "Bus Stop · T17-20"],
+      [0, "Reta Principal"], [140, "La Source · T1"], [400, "Descida para Eau Rouge"],
+      [860, "Eau Rouge · T2"], [980, "Raidillon · T3"], [1130, "Topo do Raidillon"],
+      [1220, "Reta Kemmel"], [2200, "Les Combes · T4-6"], [2440, "Malmedy · T7"],
+      [2600, "Descida do Rivage"], [2820, "Rivage · T8"], [3000, "Reta de Ligação"],
+      [3090, "Curva 9"], [3300, "Descida para Pouhon"], [3600, "Pouhon · T10-11"],
+      [4020, "Reta dos Fagnes"], [4300, "Fagnes · T12-13"], [4600, "Campus"],
+      [4740, "Stavelot · T14-15"], [5150, "Reta de Blanchimont"], [5960, "Blanchimont · T16"],
+      [6150, "Reta do Bus Stop"], [6520, "Bus Stop · T17-18"], [6740, "Reta dos Boxes"],
     ],
-    // Autódromo moderno, largo e rápido — mais largo que Interlagos na
-    // maior parte da volta, afunilando só na Source e no Bus Stop.
+    // Autódromo moderno: ~13 m de pista (meia-largura ~6,5), um pouco mais
+    // estreito no Eau Rouge/Bus Stop e bem largo na reta dos boxes.
     widthSamples: [
-      [0, 12], [330, 9], [700, 11], [1450, 12], [2080, 9.5], [2500, 10.5],
-      [3600, 12], [4300, 11], [5100, 11], [5700, 12], [6480, 9], [7004, 12],
+      [0, 7.4], [150, 6.6], [245, 6.4], [330, 6.6], [800, 6.2], [905, 5.9], [1030, 6],
+      [1150, 6.4], [1220, 6.8], [2150, 6.8], [2280, 6.2], [2360, 6.2], [2510, 6.4],
+      [2895, 6.2], [3000, 6.6], [3155, 6.4], [3680, 6.6], [3900, 6.6], [4030, 6.8],
+      [4380, 6.3], [4520, 6.3], [4650, 6.6], [4820, 6.4], [5040, 6.4], [5200, 6.7],
+      [6060, 6.5], [6300, 6.7], [6560, 6.1], [6680, 6.1], [6760, 7.2], [7004, 7.4],
     ],
-    // Eau Rouge/Raidillon e Blanchimont/Pouhon têm banking real perceptível
-    // (parte do que torna essas curvas tomáveis em alta velocidade).
-    bankingSamples: [
-      [0, 0], [700, .02], [850, .05], [1450, 0], [3600, .03],
-      [5700, .04], [6480, 0], [7004, 0],
-    ],
-    // A marca registrada de Spa: ~100 m de desnível total, esculpido nas
-    // colinas das Ardenas. Subida forte logo depois da Source (Eau
-    // Rouge/Raidillon, o trecho mais famoso do calendário), pico perto de
-    // Les Combes, descida longa até Pouhon/Stavelot, subida de novo até o
-    // Bus Stop. Perfil estilizado a partir do desnível real conhecido do
-    // circuito, não uma amostragem SRTM ponto a ponto.
+    // Banking real de Eau Rouge/Raidillon, Pouhon, Stavelot e Blanchimont
+    // (positivo = curva à esquerda, mesma convenção dos outros circuitos).
+    bankingSamples: bankingFromApexes(7004, [
+      [245, -.02], [905, .05], [1020, -.06], [1140, .03], [2280, -.03], [2360, .03],
+      [2510, -.03], [2895, -.02], [3155, .02], [3690, .05], [3900, .04], [4380, -.03],
+      [4520, .03], [4820, -.05], [5040, -.04], [6060, .05], [6585, -.02], [6665, .02],
+    ]),
+    // Marca registrada de Spa: ~60 m de desnível nas Ardenas. Cai da La Source
+    // até o fundo do Eau Rouge, sobe ~35 m em ~250 m (Raidillon, ~15% de
+    // rampa) e segue subindo pela Kemmel até Les Combes; desce até Pouhon e
+    // Fagnes e sobe de novo até o Bus Stop.
     elevationSamples: [
-      [0, 30], [350, 20], [700, 14], [850, 45], [1450, 52], [2100, 50],
-      [2500, 38], [2750, 25], [3600, 10], [4300, 15], [5100, 20],
-      [5700, 30], [6500, 35], [7004, 30],
+      [0, 30], [245, 28], [500, 22], [700, 10], [905, 0], [1020, 17], [1150, 33],
+      [1400, 40], [2000, 52], [2280, 58], [2510, 48], [2895, 36], [3155, 32],
+      [3400, 26], [3680, 10], [3900, 6], [4380, 8], [4820, 14], [5040, 16],
+      [5500, 24], [6060, 30], [6300, 34], [6600, 34], [7004, 30],
     ],
+    // Escapes de asfalto/brita: enormes na La Source e no Rivage, apertados
+    // no Eau Rouge/Raidillon (muro colado).
     cornerWideningTable: function spaCornerWidening(_s, _side) {
       return [
-        [0, 5], [350, 14], [850, 8], [2080, 13], [2500, 9], [2750, 10],
-        [3600, 7], [5100, 9], [6480, 13], [7004, 5],
+        [0, 9], [150, 12], [245, 20], [380, 11], [800, 8], [905, 6], [1020, 6],
+        [1150, 8], [1250, 11], [2150, 12], [2280, 15], [2440, 12], [2600, 10],
+        [2895, 20], [3100, 13], [3400, 10], [3690, 15], [3950, 12], [4300, 10],
+        [4400, 13], [4520, 12], [4820, 16], [5050, 15], [5300, 10], [6060, 14],
+        [6300, 10], [6560, 9], [6700, 8], [6800, 9], [7004, 9],
       ];
     },
-    itemBoxPositions: [500, 1100, 1700, 2300, 3000, 3900, 4700, 5500, 6200],
+    // (nada perto da linha: as últimas fileiras do grid ocupam ~120 m antes dela)
+    itemBoxPositions: [480, 1250, 1650, 2050, 3350, 4150, 5350, 5650, 6250, 6780],
     cornerNameSigns: [
-      [350, "LA SOURCE"], [700, "EAU ROUGE"], [850, "RAIDILLON"],
-      [2100, "LES COMBES"], [2750, "BRUXELLES"], [3600, "POUHON"],
-      [5100, "STAVELOT"], [5700, "BLANCHIMONT"], [6500, "BUS STOP"],
+      [245, "LA SOURCE"], [905, "EAU ROUGE"], [1020, "RAIDILLON"], [2280, "LES COMBES"],
+      [2510, "MALMEDY"], [2895, "RIVAGE"], [3690, "POUHON"], [4400, "FAGNES"],
+      [4900, "STAVELOT"], [6060, "BLANCHIMONT"], [6600, "BUS STOP"],
     ],
-    distanceBoardStations: [400, 1500, 3700, 5800],
-    zebraZones: [[700, 950, 1], [3550, 3700, -1], [6450, 6600, 1]],
-    apexGrassPatches: [850, 3600, 5700],
+    distanceBoardStations: [245, 2280, 2895, 4820, 6600],
+    // Caixas de brita no lado de FORA de cada curva (sinal = lado do escape).
+    zebraZones: [
+      [170, 330, -1], [2200, 2320, -1], [2780, 2990, -1], [3580, 3820, 1],
+      [4760, 5000, -1], [5960, 6160, 1], [6520, 6680, 1],
+    ],
+    apexGrassPatches: [2895, 4820, 6060],
     trackNamePanelText: "SPA-FRANCORCHAMPS",
-    // DRS real de Spa: reta principal (antes da Source) e reta de Kemmel
-    // (depois de Raidillon).
-    drsZones: [[6800, 250], [950, 1450]],
+    // DRS real de Spa: reta dos boxes (Bus Stop → La Source) e a Kemmel.
+    drsZones: [[6760, 230], [1230, 2190]],
+    scenery: { theme: "forest" },
   },
 };
 
@@ -317,5 +360,6 @@ export function applyCircuitProfile(id) {
   setApexGrassPatches(circuit.apexGrassPatches);
   setTrackNamePanelText(circuit.trackNamePanelText);
   setDrsZones(circuit.drsZones);
+  setScenery(circuit.scenery ?? {});
   return circuit;
 }
