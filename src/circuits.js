@@ -10,7 +10,7 @@ import {
   setTrackLength, setSectorNames, setFallbackElevationSamples,
   setTrackWidthSamples, setBankingSamples, setCornerWideningTable,
   setItemBoxPositions, setCornerNameSigns, setDistanceBoardStations,
-  setZebraZones, setApexGrassPatches, setTrackNamePanelText, setDrsZones, setScenery,
+  setZebraZones, setApexGrassPatches, setTrackNamePanelText, setDrsZones, setScenery, setElevationSmooth,
 } from "./constants.js";
 
 /**
@@ -194,6 +194,7 @@ export const CIRCUITS = {
     turns: 19,
     direction: "HORÁRIO",
     trackLength: 3337,
+    smoothElevation: true,
     // Traçado real (bacinger/f1-circuits, MIT) girado pra o índice 0 ser a
     // LINHA DE LARGADA de verdade (reta dos boxes, logo depois do Antony
     // Noghès) — o ponto inicial do arquivo original é o Casino Square.
@@ -269,6 +270,7 @@ export const CIRCUITS = {
     turns: 20,
     direction: "HORÁRIO",
     trackLength: 7004,
+    smoothElevation: true,
     // Traçado real (bacinger/f1-circuits); o ponto inicial do arquivo já é a
     // linha de largada. Distâncias medidas na própria curva do jogo.
     sectorNames: [
@@ -302,7 +304,7 @@ export const CIRCUITS = {
     // rampa) e segue subindo pela Kemmel até Les Combes; desce até Pouhon e
     // Fagnes e sobe de novo até o Bus Stop.
     elevationSamples: [
-      [0, 30], [245, 28], [500, 22], [700, 10], [905, 0], [1020, 17], [1150, 33],
+      [0, 30], [245, 28], [500, 22], [700, 10], [905, 0], [1030, 16], [1170, 30],
       [1400, 40], [2000, 52], [2280, 58], [2510, 48], [2895, 36], [3155, 32],
       [3400, 26], [3680, 10], [3900, 6], [4380, 8], [4820, 14], [5040, 16],
       [5500, 24], [6060, 30], [6300, 34], [6600, 34], [7004, 30],
@@ -335,7 +337,13 @@ export const CIRCUITS = {
     trackNamePanelText: "SPA-FRANCORCHAMPS",
     // DRS real de Spa: reta dos boxes (Bus Stop → La Source) e a Kemmel.
     drsZones: [[6760, 230], [1230, 2190]],
-    scenery: { theme: "forest" },
+    scenery: {
+      theme: "forest",
+      // O padrão põe arquibancadas de 409 a 129 m ANTES da linha — em Spa isso
+      // cai em cima do Bus Stop (6520–6680 m), com as arquibancadas no meio do
+      // traçado. Aqui só ao longo da reta dos boxes de verdade (6790 → 146).
+      grandstandStations: [6790, 6860, 6930, 6, 76, 146],
+    },
   },
 };
 
@@ -361,5 +369,6 @@ export function applyCircuitProfile(id) {
   setTrackNamePanelText(circuit.trackNamePanelText);
   setDrsZones(circuit.drsZones);
   setScenery(circuit.scenery ?? {});
+  setElevationSmooth(circuit.smoothElevation ?? false);
   return circuit;
 }

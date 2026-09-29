@@ -11,12 +11,13 @@ import {
   TRACK_LENGTH,
   SECTOR_NAMES,
   FALLBACK_ELEVATION_SAMPLES,
+  ELEVATION_SMOOTH,
   TRACK_WIDTH_SAMPLES,
   BANKING_SAMPLES,
   cornerWideningTable,
   DRS_ZONES,
 } from "./constants.js";
-import { smoothstepLookup } from "./mathUtils.js";
+import { smoothstepLookup, monotoneLookup } from "./mathUtils.js";
 
 /** Meia-largura útil da pista (m) na distância `s`. */
 export function trackHalfWidthAt(s) {
@@ -33,7 +34,7 @@ export function bankingAt(s) {
  * traz amostras reais suficientes. `s` é a distância percorrida (m).
  */
 function fallbackElevationAt(s) {
-  return smoothstepLookup(FALLBACK_ELEVATION_SAMPLES, s, TRACK_LENGTH);
+  return (ELEVATION_SMOOTH ? monotoneLookup : smoothstepLookup)(FALLBACK_ELEVATION_SAMPLES, s, TRACK_LENGTH);
 }
 
 /**

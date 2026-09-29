@@ -1264,3 +1264,38 @@ Eau Rouge/Raidillon, Rivage). Um bug pego no caminho: o terreno de rua com
 queda de só 1,5 m ficava POR CIMA da pista nas ladeiras (a IDW mistura alturas
 vizinhas) e escondia o asfalto na entrada do túnel — voltou pra 5 m, com uma
 rampa curta entre a calçada e o terreno.
+
+## 26. Mônaco: "bugs de elevação"; Spa: arquibancadas no meio do traçado
+
+**Mônaco — três causas somadas** (medidas em Node, sem depender de olho):
+
+1. *Perfil de elevação em degraus.* `smoothstepLookup` zera a inclinação em
+   CADA amostra da tabela: o perfil vira patamar → rampa ~1,5× mais íngreme
+   → patamar, e a física usa a inclinação (`t.y * 9.81`) — o carro acelerava
+   e "engasgava" aos trancos. Novo `monotoneLookup` (cúbica monótona de
+   Fritsch–Carlson, `mathUtils.js`), opt-in por circuito (`smoothElevation`,
+   só Mônaco/Spa; os autódromos originais não mudam). Rampa máxima de Mônaco
+   caiu de 16,9% pra 12,8% (a real é ~12%); Spa de 21,8% pra ~19% (Raidillon
+   também foi suavizado na tabela).
+2. *Terreno "furando" a pista.* O terreno era uma média ponderada das alturas
+   de TODA a pista; em Mônaco duas partes da volta ficam a dezenas de metros
+   uma da outra a 30 m de diferença (Beira-Mar × Casino) e o terreno subia
+   por cima de calçada e asfalto (603 pontos de teste com terreno acima da
+   calçada, até 21 m). Agora, em rua, o terreno nunca passa da altura do pé de
+   nenhum trecho da pista e só sobe depois de ~38 m (0 pontos de teste).
+3. *Calçada/rampa se dobrando nos hairpins.* Faixa lateral com deslocamento
+   maior que o raio da curva (Grand Hotel Hairpin: raio ~13 m) dobra sobre si
+   mesma, e as duas pernas de um hairpin (a alturas diferentes) tinham as
+   calçadas invadindo o asfalto da outra: paredões/lajes soltas a 5–10 m do
+   carro. Achado com `Raycaster` + os vértices do triângulo atingido. Em
+   rua/floresta, cada borda lateral agora pára em 0,8× o raio (lado de dentro
+   da curva) e na metade da distância até a outra perna mais próxima.
+
+**Spa — arquibancadas.** O padrão põe 5 arquibancadas de 409 a 129 m ANTES da
+linha (pensado pra reta longa de Interlagos); em Spa isso cai em cima do Bus
+Stop (6520–6680 m). Novo `scenery.grandstandStations`; Spa agora só tem
+arquibancadas ao longo da reta dos boxes de verdade (6790 → 146 m).
+
+Validado: a simulação dos 22 bots continua fechando a volta (Mônaco
+73,3–79,6 s, Spa 120,8–129,0 s); câmera livre no hairpin de Mônaco e na reta
+dos boxes/Rivage de Spa sem as lajes nem as arquibancadas no traçado.

@@ -58,6 +58,14 @@ export let FALLBACK_ELEVATION_SAMPLES = [
   [1800, 18], [2088, 28], [2297, 26], [2423, 17], [2600, 20], [2719, 19],
   [2974, 8], [3235, 0], [3389, 8], [3620, 23], [3969, 38], [4309, 41],
 ];
+/**
+ * Interpolar as amostras de elevação com cúbica monótona (`true`) em vez do
+ * smoothstep por segmento (`false`, o comportamento original de
+ * Interlagos/Monza/Indianápolis) — ver monotoneLookup em mathUtils.js.
+ */
+export let ELEVATION_SMOOTH = false;
+export function setElevationSmooth(v) { ELEVATION_SMOOTH = v; }
+
 export function setFallbackElevationSamples(v) { FALLBACK_ELEVATION_SAMPLES = v; }
 
 /** Largura (m) da pista ATIVA em cada trecho, por distância. [distancia_m, meiaLargura_m] */
@@ -163,6 +171,8 @@ export function setTrackNamePanelText(v) { TRACK_NAME_PANEL_TEXT = v; }
  *   pitBoxSpacing: espaço (m) entre boxes/garagens — 20 nos autódromos grandes;
  *     Mônaco tem uma reta dos boxes curta, então usa boxes bem mais juntos.
  *   grandstands/pitBuilding: liga/desliga a arquibancada e o complexo de boxes.
+ *   grandstandStations: distâncias (m) das 8 arquibancadas; null = padrão de
+ *     Interlagos (3 depois da linha, 5 antes) — ver scene.js.
  *   tunnel: [inicio, fim] (m) de um túnel sobre a pista, ou null.
  *   harbor: `{ segments: [[inicio, fim], ...], depth }` — trechos (m) cuja
  *     margem ESQUERDA encosta na água; cada um vira um quadrilátero de água
@@ -172,6 +182,7 @@ export const DEFAULT_SCENERY = {
   theme: "park",
   pitBoxSpacing: 20,
   grandstands: true,
+  grandstandStations: null,
   pitBuilding: true,
   tunnel: null,
   harbor: null,

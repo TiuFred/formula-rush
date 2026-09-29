@@ -250,7 +250,7 @@ function buildTrackDecorations() {
     // Arquibancadas: assentos instanciados (720 assentos, 5 cores alternadas).
     // As 8 estações são relativas ao comprimento da pista (perto do início E
     // do fim da volta — que, no traçado circular, é a mesma linha de largada).
-    const grandstandStations = [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129];
+    const grandstandStations = GRANDSTAND_STATIONS();
     const seatMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(.44, .75, .4), makeMaterial("#eeefe0"), 720);
     let seatIndex = 0;
     const dummy = new THREE.Object3D();
@@ -318,6 +318,16 @@ function mergeStaticMeshesByMaterial() {
       mesh.geometry.dispose();
     }
   }
+}
+
+/**
+ * Estações (m) das arquibancadas: por padrão as 3 logo depois da linha e as 5
+ * antes dela — pensado pra uma reta dos boxes longa e limpa como a de
+ * Interlagos. Circuitos com curva/chicane perto da linha (Spa: o Bus Stop
+ * fica a ~340 m antes dela) definem `scenery.grandstandStations`.
+ */
+function GRANDSTAND_STATIONS() {
+  return SCENERY.grandstandStations ?? [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129];
 }
 
 /** `true` se (x, z) cai dentro do polígono (lista de pontos {x, z}) — teste de raio par/ímpar. */
@@ -546,6 +556,15 @@ export function buildScene() {
   const groundPos = ground.attributes.position;
   const referencePoints = state.track.samples.filter((_, i) => i % 18 === 0);
   const groundDrop = 5;
+  // Em rua a volta tem trechos PERTO um do outro em alturas bem diferentes
+  // (Mônaco: a Beira-Mar a ~6 m e o Casino a ~40 m, a poucas dezenas de
+  // metros) — a média ponderada de TODA a pista puxava o terreno pra cima e
+  // ele "furava" calçada e asfalto de outro trecho (o "bug de elevação").
+  // Aqui o terreno nunca passa da altura do pé de NENHUM trecho da pista
+  // (calçada + rampa ocupam até ~38 m da borda, sempre acima do terreno) e só
+  // sobe depois disso, numa encosta de ~24° — um penhasco de verdade em vez de
+  // um terreno atravessando a rua.
+  const capByRoad = street;
   const groundHeightAt = (x, z) => {
     let weightedY = 0;
     let weightSum = 0;
@@ -554,7 +573,14 @@ export function buildScene() {
       weightedY += ref.y * weight;
       weightSum += weight;
     }
-    return weightedY / weightSum - groundDrop;
+    const average = weightedY / weightSum - groundDrop;
+    if (!capByRoad) return average;
+    let cap = Infinity;
+    for (const p of state.track.samples) {
+      const d = Math.hypot(x - p.x, z - p.z);
+      cap = Math.min(cap, p.y - 6.5 + Math.max(0, d - 38) * .45);
+    }
+    return Math.min(average, cap);
   };
   for (let i = 0; i < groundPos.count; i++) {
     const x = groundPos.getX(i);
@@ -575,7 +601,49 @@ export function buildScene() {
 
   // Deslocamento lateral de "borda externa" (largura + alargamento em curva
   // + padding extra opcional), parametrizado por lado (-1 esquerda / 1 direita).
-  const outerEdge = (side, extra = 0) => (s) => side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + extra);
+  // Nas curvas FECHADAS (hairpins), a borda do lado de DENTRO não pode passar
+  // do raio da curva: um deslocamento lateral maior que o raio "dobra" a faixa
+  // por cima dela mesma e cria lajes de terreno/calçada flutuando a alturas
+  // erradas no meio da curva (era o "bug de elevação" no Grand Hotel Hairpin
+  // de Mônaco e nos hairpins de Spa). Só em rua/floresta — os autódromos
+  // originais mantêm a geometria de sempre.
+  const guardInside = street || forest;
+  const insideLimit = (side, s) => {
+    if (!guardInside) return Infinity;
+    const dyaw = wrapAngle(state.track.at(s + 4).yaw - state.track.at(s - 4).yaw);
+    if (-side * dyaw <= 0) return Infinity; // lado de fora da curva
+    return .8 / (Math.abs(dyaw) / 8 + 1e-6); // .8 × raio
+  };
+  // Outro problema parecido: as duas pernas de um hairpin (ou a Beira-Mar e o
+  // Casino, em Mônaco) passam a poucas dezenas de metros uma da outra em
+  // ALTURAS diferentes — calçada + rampa de uma perna avançavam por cima do
+  // asfalto da outra, formando paredões/lajes soltas a 5–10 m do carro. Cada
+  // faixa lateral pára na metade da distância até o outro trecho mais próximo
+  // (amostras a >30 m de percurso mas a <70% disso em linha reta = "outra
+  // perna", não a própria pista seguindo em frente).
+  const clearanceCache = new Map();
+  const legHalfGap = (s) => {
+    if (!guardInside) return Infinity;
+    const key = Math.round(s / 2);
+    if (clearanceCache.has(key)) return clearanceCache.get(key);
+    const p = state.track.at(s).p;
+    let best = Infinity;
+    const samples = state.track.samples;
+    for (let i = 0; i < samples.length; i++) {
+      const arc = Math.abs(((i * state.track.step - s) % TRACK_LENGTH + TRACK_LENGTH * 1.5) % TRACK_LENGTH - TRACK_LENGTH / 2);
+      if (arc <= 30) continue;
+      const d = Math.hypot(samples[i].x - p.x, samples[i].z - p.z);
+      if (d < arc * .7 && d < best) best = d;
+    }
+    const half = best / 2;
+    clearanceCache.set(key, half);
+    return half;
+  };
+  const outerEdge = (side, extra = 0) => (s) => {
+    const wall = trackHalfWidthAt(s) + cornerWideningAt(s, side);
+    const offset = wall + (typeof extra === "function" ? extra(s) : extra);
+    return side * Math.min(offset, Math.max(wall, Math.min(insideLimit(side, s), legHalfGap(s))));
+  };
   const inHarbor = (s) => SCENERY.harbor?.segments.some(([a, b]) => s >= a && s <= b);
 
   if (street) {
@@ -584,7 +652,7 @@ export function buildScene() {
     // depois, como nas ruas de Monte Carlo.
     const inner = (side) => (s) => (side < 0 && inHarbor(s) ? 6 : 12);
     const outer = (side) => (s) => (side < 0 && inHarbor(s) ? 16 : 26);
-    const edgeAt = (side, extra) => (s) => side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + extra(s));
+    const edgeAt = (side, extra) => outerEdge(side, extra);
     buildRibbonMesh(edgeAt(-1, inner(-1)), outerEdge(-1), sidewalkMaterial, -.25);
     buildRibbonMesh(outerEdge(1), edgeAt(1, inner(1)), sidewalkMaterial, -.25);
     buildRibbonMesh(edgeAt(-1, outer(-1)), edgeAt(-1, inner(-1)), groundMaterial, [-6, -.25]);
@@ -645,7 +713,7 @@ export function buildScene() {
   // extremidades reta dos boxes / área de largada (mesmas estações dos assentos).
   if (SCENERY.grandstands) {
     const wallColors = [makeMaterial("#c4d93e"), makeMaterial("#429b92"), makeMaterial("#eef1dc")];
-    for (const s of [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129]) {
+    for (const s of GRANDSTAND_STATIONS()) {
       for (let i = 0; i < 5; i++) {
         addAlignedBox(s, -29 - i * 3, 3, 1.5, 56, wallColors[i % 3], i * 1.25);
       }
