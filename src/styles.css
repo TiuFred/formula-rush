@@ -664,6 +664,12 @@ kbd {
   footer>div {
     display: none
   }
+
+  /* A "embreagem" da largada é feita soltando a tecla ESPAÇO (ver
+     player.js/resolveLaunch) — não existe em touch, então a dica some. */
+  .countdown-hint {
+    display: none
+  }
 }
 
 @media(max-width:760px) {
@@ -1129,6 +1135,49 @@ kbd {
   font-weight: 800;
   white-space: nowrap;
   animation: warningPulse .7s infinite alternate
+}
+
+/* Aviso de bandeira amarela (ver triggerYellowFlag/yellowFlagCapAt em
+   physics.js) — abaixo do aviso de míssil pra não sobrepor se os dois
+   estiverem ativos ao mesmo tempo. */
+.yellow-flag-warning {
+  position: absolute;
+  z-index: 5;
+  top: 236px;
+  left: 50%;
+  transform: translate(-50%);
+  padding: 10px 17px;
+  color: #14200f;
+  background: #f4d81ce8;
+  border: 1px solid #fff3a3;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: warningPulse .7s infinite alternate
+}
+
+/* Dica da "embreagem" na largada (ver player.js/resolveLaunch). */
+.countdown-hint {
+  position: absolute;
+  z-index: 4;
+  top: 62%;
+  left: 50%;
+  transform: translate(-50%);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  color: #fff;
+  text-shadow: 0 4px 14px #000a;
+  pointer-events: none;
+}
+
+.countdown-hint kbd {
+  background: var(--lime);
+  color: #14200f;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-weight: 800;
 }
 
 .race-progress {

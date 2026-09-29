@@ -345,6 +345,7 @@ export function updateHud() {
     (m) => m.target === player && progressDelta(player.s, m.s, TRACK_LENGTH) > 0 && progressDelta(player.s, m.s, TRACK_LENGTH) < 200
   );
   setVisible("attackWarning", underAttack);
+  setVisible("yellowFlagWarning", player.underYellow);
   drawTrackMap(byId("miniMap"), true);
 
 }

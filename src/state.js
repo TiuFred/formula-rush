@@ -62,6 +62,9 @@ export const state = {
   itemBoxes: [],
   /** Manchas de óleo ativas na pista. */
   oilPatches: [],
+  /** Zonas de bandeira amarela ativas (ver physics.js/triggerYellowFlag):
+   * `{s, life, mesh}`, disparadas por colisões fortes. */
+  yellowFlags: [],
   /** Mísseis em voo. */
   missiles: [],
   /** Partículas visuais de faísca de drift. */

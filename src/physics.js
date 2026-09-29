@@ -2,15 +2,17 @@
 // (bots.js): resolução de colisão carro-carro e o "pós-processamento" de
 // cada tick (detectar volta completada, sincronizar visual, checar chegada).
 
+import * as THREE from "three";
 import { state } from "./state.js";
 import { TRACK_LENGTH, DRS_GAP_THRESHOLD } from "./constants.js";
 import { trackHalfWidthAt, drsZoneAt } from "./track.js";
-import { clamp } from "./mathUtils.js";
+import { clamp, progressDelta } from "./mathUtils.js";
 import { checkLapCompletion, checkSectorCompletion, formatLapTime } from "./timing.js";
 import { showNotice } from "./dom.js";
 import { syncCarVisual } from "./car.js";
 import { recordLap } from "./leaderboard.js";
 import { engineAudio } from "./audio.js";
+import { addMesh } from "./materials.js";
 
 /** Marca `car` como tendo terminado a corrida (usa o instante da última volta como tempo final). */
 export function finishRace(car) {
@@ -38,6 +40,50 @@ export function computeDrsActive(car) {
     .filter((other) => other !== car && !other.finish && other.group.visible && other.progress > car.progress)
     .sort((a, b) => a.progress - b.progress)[0];
   return !!ahead && ahead.progress - car.progress < DRS_GAP_THRESHOLD;
+}
+
+/** Raio (m) da zona de cautela ao redor de um incidente, pra cada lado. */
+const YELLOW_FLAG_ZONE = 45;
+/** Duração (s) de uma bandeira amarela — renovada se um novo incidente acontecer perto o bastante. */
+const YELLOW_FLAG_LIFE = 9;
+
+/** `true` se `s` cai dentro do raio de cautela de alguma bandeira amarela ativa. */
+export function yellowFlagCapAt(s) {
+  return state.yellowFlags.some((flag) => Math.abs(progressDelta(s, flag.s, TRACK_LENGTH)) < YELLOW_FLAG_ZONE);
+}
+
+/**
+ * Dispara (ou renova) uma bandeira amarela na distância `s` — chamada em
+ * colisões fortes (carro-carro aqui, carro-muro em player.js). Cria dois
+ * mastros com bandeira nas bordas da pista, só pela primeira vez (um
+ * incidente perto de uma bandeira já ativa apenas renova o tempo dela, sem
+ * duplicar mastros).
+ */
+export function triggerYellowFlag(s) {
+  const existing = state.yellowFlags.find((flag) => Math.abs(progressDelta(s, flag.s, TRACK_LENGTH)) < YELLOW_FLAG_ZONE);
+  if (existing) {
+    existing.life = YELLOW_FLAG_LIFE;
+    return;
+  }
+
+  const group = new THREE.Group();
+  state.scene.add(group);
+  const flagMeshes = [];
+  for (const side of [-1, 1]) {
+    const frame = state.track.at(s, side * (trackHalfWidthAt(s) + 1.8));
+    const pole = new THREE.Group();
+    pole.position.copy(frame.p);
+    pole.rotation.y = frame.yaw;
+    group.add(pole);
+    addMesh(new THREE.CylinderGeometry(.05, .05, 2, 6), new THREE.MeshStandardMaterial({ color: "#242424" }), 0, 1, 0, pole);
+    const flag = addMesh(
+      new THREE.BoxGeometry(.75, .5, .04),
+      new THREE.MeshStandardMaterial({ color: "#f4d81c", emissive: "#8a7000", emissiveIntensity: .55 }),
+      .4, 1.75, 0, pole
+    );
+    flagMeshes.push(flag);
+  }
+  state.yellowFlags.push({ s, life: YELLOW_FLAG_LIFE, mesh: group, flagMeshes });
 }
 
 /**
@@ -146,6 +192,10 @@ export function resolveCarCollisions(dt) {
       const relativeSpeed = Math.abs(a.speed - b.speed);
       const headOnFactor = 1 - progressGap / OVERLAP_PROGRESS_GAP; // 1 = quase no mesmo ponto da pista, 0 = quase não sobrepõe
       const impactSeverity = clamp(relativeSpeed / 40 + headOnFactor * .5, 0, 1);
+
+      // Batida forte o bastante pra render um incidente de verdade: acende
+      // bandeira amarela na zona (ver YELLOW_FLAG_ZONE acima).
+      if (isNewContact && impactSeverity > .55) triggerYellowFlag((a.s + b.s) / 2);
 
       for (const [car, other, dir] of [[a, b, pushDir], [b, a, -pushDir]]) {
         car.lane = clamp(car.lane + pushAmount * dir, -trackHalfWidthAt(car.s) + 1.2, trackHalfWidthAt(car.s) - 1.2);

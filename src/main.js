@@ -96,6 +96,7 @@ function startRace() {
   setVisible("touch");
   setVisible("miniMap");
   setVisible("countdown");
+  setVisible("countdownHint");
   setVisible("raceProgress");
   setVisible("lapTelemetry");
   setVisible("miniStandings", !state.timeTrial && !state.qualifying);
@@ -111,13 +112,21 @@ function startRace() {
 
 /**
  * Fecha a sessão de classificação: ordena os pilotos pelo tempo da volta
- * única (quem não terminou fica por último) e larga a corrida de verdade
- * já com esse grid. Chamada por animate() quando detecta que a
- * classificação acabou (todo mundo terminou, ou o tempo limite passou).
+ * única e larga a corrida de verdade já com esse grid. Chamada por
+ * animate() assim que o JOGADOR termina a própria volta (ver checagem em
+ * animate() acima) — a maioria dos bots normalmente ainda está rodando a
+ * volta deles nesse momento; os que já terminaram entram ordenados pelo
+ * tempo, e os que ainda não terminaram entram depois, ordenados por quanto
+ * já avançaram (aproximação razoável de quem terminaria primeiro).
  */
 function finishQualifying() {
   const order = [...state.drivers]
-    .sort((a, b) => (a.finish ?? Infinity) - (b.finish ?? Infinity))
+    .sort((a, b) => {
+      if (a.finish != null && b.finish != null) return a.finish - b.finish;
+      if (a.finish != null) return -1;
+      if (b.finish != null) return 1;
+      return b.progress - a.progress;
+    })
     .map((car) => car.id);
   qualifyingGridOrder = order;
   state.lapCountSetting = qualifyingTargetLaps;
@@ -256,6 +265,7 @@ function animate(now) {
     const newCeil = Math.ceil(state.countdown);
     byId("countdown").textContent = state.countdown > 0 ? newCeil : "VAI!";
     if (newCeil !== prevCeil) beep(newCeil > 0 ? 450 : 900, .15);
+    if (state.countdown <= 0) setVisible("countdownHint", false);
     if (state.countdown < -.7) {
       state.gameState = "race";
       setVisible("countdown", false);
@@ -272,11 +282,16 @@ function animate(now) {
     physicsAccumulator = 0;
   }
 
-  // Classificação: termina quando todo mundo já cruzou a linha na volta
-  // única, ou depois de um tempo limite generoso (carro travado/preso não
-  // deve segurar a largada da corrida de verdade para sempre).
+  // Classificação: termina assim que o JOGADOR cruza a linha na volta
+  // única — não quando todo mundo (os 22 bots incluídos) termina. Os bots
+  // rodam a volta deles por trás dos panos só pra ter um tempo pro grid
+  // (ver finishQualifying/startRace); esperar todos os 23 terminarem fazia
+  // o jogador ficar parado na pista, sem nada pra fazer, por vários segundos
+  // depois da própria volta (o "demora um tempinho" reportado) — o tempo
+  // limite de 90s continua existindo só como rede de segurança (carro
+  // travado/preso não deve travar isso pra sempre).
   if (state.qualifying && state.gameState === "race" &&
-      (state.drivers.every((car) => car.finish) || state.raceTime > 90)) {
+      (state.player.finish || state.raceTime > 90)) {
     finishQualifying();
   }
 

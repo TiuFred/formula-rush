@@ -32,10 +32,12 @@ export function setupItemBoxes() {
   for (const patch of state.oilPatches) disposeObject3D(patch.mesh);
   for (const missile of state.missiles) disposeObject3D(missile.mesh);
   for (const particle of state.driftParticles) disposeObject3D(particle.mesh);
+  for (const flag of state.yellowFlags) disposeObject3D(flag.mesh);
   state.itemBoxes = [];
   state.oilPatches = [];
   state.missiles = [];
   state.driftParticles = [];
+  state.yellowFlags = [];
 
   if (state.timeTrial || state.qualifying) return; // contra-relógio/classificação: sem itens
 
@@ -125,6 +127,20 @@ export function advanceSimulation(dt) {
     }
     if (patch.life <= 0) {
       disposeObject3D(patch.mesh);
+      return false;
+    }
+    return true;
+  });
+
+  // Bandeiras amarelas: expiram sozinhas (ver triggerYellowFlag em
+  // physics.js); as bandeirinhas balançam só de enfeite enquanto ativas.
+  state.yellowFlags = state.yellowFlags.filter((flag) => {
+    flag.life -= dt;
+    for (const flagMesh of flag.flagMeshes) {
+      flagMesh.rotation.y = Math.sin(state.clockTime * 6 + flag.s) * .3;
+    }
+    if (flag.life <= 0) {
+      disposeObject3D(flag.mesh);
       return false;
     }
     return true;

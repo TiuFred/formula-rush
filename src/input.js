@@ -4,7 +4,7 @@
 
 import { state } from "./state.js";
 import { byId, setVisible } from "./dom.js";
-import { recoverCar } from "./player.js";
+import { recoverCar, resolveLaunch } from "./player.js";
 import { useItem } from "./items.js";
 import { openTimesPanel, closeTimesPanel } from "./timing.js";
 
@@ -57,7 +57,10 @@ function handleKeyDown(e) {
 
   if (!e.repeat) {
     state.keys[e.key] = true;
-    if (e.key === " ") useItem(state.player);
+    // Na contagem regressiva, ESPAÇO é a "embreagem" (ver resolveLaunch em
+    // player.js, disparada no keyup) — não usa item aí (nem faria sentido,
+    // ninguém tem item antes da corrida começar).
+    if (e.key === " " && state.gameState === "race") useItem(state.player);
     if (["p", "P", "Escape"].includes(e.key)) togglePause();
     if (["r", "R"].includes(e.key) && state.gameState === "race") recoverCar(state.player);
     if (["c", "C"].includes(e.key) && state.gameState !== "menu") byId("cameraMode").click();
@@ -67,7 +70,10 @@ function handleKeyDown(e) {
 /** Registra todos os listeners de teclado/toque/foco. Chamar uma única vez na inicialização. */
 export function attachInputHandlers() {
   addEventListener("keydown", handleKeyDown);
-  addEventListener("keyup", (e) => (state.keys[e.key] = false));
+  addEventListener("keyup", (e) => {
+    state.keys[e.key] = false;
+    if (e.key === " " && state.gameState === "countdown") resolveLaunch();
+  });
   addEventListener("blur", () => {
     resetKeys();
     if (["race", "countdown"].includes(state.gameState)) togglePause();

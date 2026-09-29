@@ -108,6 +108,8 @@ export function createCar(color, index) {
     // nunca repetidamente enquanto os carros continuarem sobrepostos.
     touching: new Set(),
     drsActive: false,
+    /** Dentro do raio de cautela de uma bandeira amarela ativa (ver physics.js)? */
+    underYellow: false,
     boostPower: 0,
     shieldMesh,
     flame,

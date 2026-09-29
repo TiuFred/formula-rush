@@ -13,7 +13,7 @@ import { state } from "./state.js";
 import { TRACK_LENGTH, DIFFICULTIES, DRIFT_BOOST_BY_LEVEL } from "./constants.js";
 import { clamp, wrapAngle, progressDelta } from "./mathUtils.js";
 import { trackHalfWidthAt, cornerWideningAt } from "./track.js";
-import { advanceLapTracking, computeDrsActive } from "./physics.js";
+import { advanceLapTracking, computeDrsActive, yellowFlagCapAt, triggerYellowFlag } from "./physics.js";
 import { driftLevel } from "./items.js";
 import { engineAudio, beep } from "./audio.js";
 import { showNotice } from "./dom.js";
@@ -56,6 +56,30 @@ export function recoverCar(car = state.player) {
 }
 
 /**
+ * Resolve a "embreagem" da largada: chamada por input.js quando o jogador
+ * solta ESPAÇO durante a contagem regressiva (segurar ESPAÇO nela não faz
+ * mais o carro usar item — ver input.js). Soltar ANTES do sinal verde
+ * (state.countdown > 0, contagem ainda contando pros carros pararem) é
+ * largada queimada — penalidade; soltar logo depois do sinal (dentro de uns
+ * 0.35s) é largada perfeita — bônus; mais tarde que isso é uma largada
+ * normal, sem bônus nem penalidade (e quem nunca encosta em ESPAÇO também
+ * larga normal, de propósito — a mecânica é opcional).
+ */
+export function resolveLaunch() {
+  const car = state.player;
+  if (!car) return;
+  if (state.countdown > 0) {
+    car.stun = .8;
+    showNotice("LARGADA QUEIMADA! · SOLTOU A EMBREAGEM CEDO DEMAIS");
+    engineAudio.cue("impact");
+  } else if (state.countdown > -.35) {
+    car.boost = Math.max(car.boost, 1.1);
+    showNotice("LARGADA PERFEITA!");
+    engineAudio.cue("boost");
+  }
+}
+
+/**
  * Atualiza a física de um carro controlado por humano para um passo fixo
  * `dt` (1/120 s). `keys` é o mapa de teclas desse jogador especificamente
  * (state.keys para o jogador 1, state.keys2 para o jogador 2).
@@ -79,9 +103,19 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   const isDrifting =
     keys.Shift && Math.abs(car.steer) > .3 && car.speed > 12 && onTrack && car.stun <= 0 && car.driftCooldown === 0;
 
+  // --- Bandeira amarela: zona de cautela ao redor de um incidente forte
+  // (ver triggerYellowFlag em physics.js) — sem DRS e com teto de
+  // velocidade bem mais baixo, igual à regra real. Avisa o jogador só na
+  // borda de entrada na zona (não a cada tick).
+  const wasUnderYellow = car.underYellow;
+  car.underYellow = yellowFlagCapAt(car.s);
+  if (car.underYellow && !wasUnderYellow && car === state.player) {
+    showNotice("BANDEIRA AMARELA · REDUZA A VELOCIDADE");
+  }
+
   // --- DRS: pequeno bônus de reta se estiver colado no carro da frente
   // numa zona marcada do circuito (ver computeDrsActive em physics.js).
-  car.drsActive = computeDrsActive(car);
+  car.drsActive = computeDrsActive(car) && !car.underYellow;
 
   // --- Longitudinal: aceleração, arrasto, gravidade na ladeira, penalidades. ---
   let accel = throttle ? 27 : -7;
@@ -92,7 +126,7 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   if (car.stun > 0) accel -= 24;
   if (car.boost > 0) accel += 36;
   if (car.drsActive) accel += 14;
-  const speedCap = car.boost > 0 ? 108 : car.drsActive ? 90 : 84;
+  const speedCap = car.underYellow ? 46 : car.boost > 0 ? 108 : car.drsActive ? 90 : 84;
   car.speed = clamp(car.speed + accel * dt, 0, speedCap);
 
   // --- Lateral: escorregamento (slip) durante o drift. Entrada mais rápida
@@ -154,6 +188,7 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
       car.speed *= 1 - (.1 + impactSeverity * .3);
       car.cameraShake = .15 + impactSeverity * .4;
       if (car === state.player) engineAudio.cue("impact");
+      if (impactSeverity > .55) triggerYellowFlag(car.s);
       car.wallTouching = true;
     }
     car.yaw += wrapAngle(updated.yaw - car.yaw) * dt * (2 + 4 * Math.min(1, car.speed / 40));

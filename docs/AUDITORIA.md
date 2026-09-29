@@ -1037,3 +1037,58 @@ congela e retoma do ponto certo, alternar câmera troca de fato o
 comportamento (`CÂMERA: ONBOARD` ↔ `CÂMERA: TRANSMISSÃO`), "FECHAR REPLAY"
 volta pra tela de resultado sem erros no console, e não há scroll
 horizontal em 375px (`scrollWidth === clientWidth`).
+
+## 21. Bandeiras amarelas, "embreagem" na largada, e o quali que demorava pra começar
+
+Três pedidos numa tacada: bandeira amarela numa colisão forte, uma mecânica
+de segurar/soltar ESPAÇO na largada (embreagem), e investigar por que a
+classificação demorava um tempinho pra começar a corrida de verdade depois
+da volta única.
+
+**Bandeira amarela** (`physics.js`/`player.js`/`bots.js`/`simulation.js`):
+reaproveita o `impactSeverity` que a colisão carro-carro (`resolveCarCollisions`)
+e a colisão com o muro (`updatePlayerPhysics`) já calculavam — acima de
+`.55` (o mesmo limiar que já definia um "baque" digno de nota), dispara
+`triggerYellowFlag(s)`, que cria dois mastros com bandeira nas bordas da
+pista (ou só renova o tempo de uma bandeira já ativa perto dali, sem
+duplicar mastro) e guarda a zona em `state.yellowFlags`. Qualquer carro
+(jogador ou bot) dentro do raio de 45m (`yellowFlagCapAt`) tem o teto de
+velocidade reduzido pra 46 (de 84-108) e perde o bônus de DRS — jogador e
+bots tratados igual, senão um bot causando o próprio incidente passaria
+voando por ele. HUD: toast (`showNotice`, só na borda de entrada da zona)
++ banner persistente (`#yellowFlagWarning`, mesmo padrão do aviso de
+míssil). Bandeiras expiram sozinhas (9s, renovável) e são
+recriadas/limpas a cada largada em `setupItemBoxes()`, igual óleo/mísseis.
+
+**Embreagem na largada** (`input.js`/`player.js`): ESPAÇO durante a
+contagem regressiva parou de tentar usar item (só faz isso durante
+`state.gameState === "race"` agora) e passou a ser a "embreagem" — uma
+dica (`#countdownHint`, escondida em touch via `@media(pointer:coarse)`,
+já que a mecânica é só teclado) pede pra segurar e soltar na largada.
+`resolveLaunch()` (chamada no `keyup`) lê `state.countdown` no instante da
+soltada: soltar ANTES do sinal (`countdown > 0`) é largada queimada —
+`car.stun = .8` (o mesmo campo que já dá aquele "atordoado" de levar
+item); soltar logo depois (até .35s) é largada perfeita —
+`car.boost = 1.1` (reaproveita o campo de boost do miniturbo); mais tarde
+que isso é largada normal, sem bônus nem penalidade — e quem nunca toca
+em ESPAÇO também larga normal, de propósito (mecânica opcional, não
+obrigatória). Validado direto via console: os três casos (`countdown=1.5`
+→ stun .8; `countdown=-.1` → boost 1.1; `countdown=-1` → nenhum efeito)
+batem exatamente com o esperado.
+
+**Quali "demorando pra começar"**: bug real, não impressão — a condição em
+`animate()` que fecha a classificação exigia `state.drivers.every(car =>
+car.finish)`, ou seja, esperava os 22 BOTS (que o jogador nem consegue
+ver, ver seção 19) terminarem a própria volta antes de seguir em frente,
+com um teto de 90s. O jogador cruzava a linha e ficava parado na pista
+sem nada pra fazer até isso acontecer. Trocado pra checar só
+`state.player.finish` — a classificação agora termina assim que O JOGADOR
+termina a volta dele; os bots que ainda não terminaram entram no grid da
+corrida de verdade ordenados pelo `progress` atual (aproximação razoável
+de quem chegaria primeiro), em vez de uma ordem arbitrária de empate. O
+teto de 90s continua existindo só como rede de segurança. Validado no
+navegador: teleportando o jogador pra 5m da linha às `raceTime≈21s` da
+sessão de classificação, a corrida de verdade já estava ~1.8s andada (e
+com um `countdown` novo já em curso) numa checagem ~1s de relógio real
+depois — antes disso ficaria parado por um tempo imprevisível dependendo
+do ritmo dos bots.

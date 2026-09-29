@@ -10,7 +10,7 @@ import { state } from "./state.js";
 import { TRACK_LENGTH, DIFFICULTIES } from "./constants.js";
 import { clamp, wrapAngle, progressDelta } from "./mathUtils.js";
 import { trackHalfWidthAt } from "./track.js";
-import { advanceLapTracking, computeDrsActive } from "./physics.js";
+import { advanceLapTracking, computeDrsActive, yellowFlagCapAt } from "./physics.js";
 import { useItem } from "./items.js";
 import { syncCarVisual } from "./car.js";
 
@@ -125,10 +125,15 @@ export function updateBot(car, dt) {
   }
 
   if (car.boost > 0) targetSpeed = Math.min(104, targetSpeed + 22);
+  // Bandeira amarela: mesma zona de cautela do jogador (ver
+  // triggerYellowFlag/yellowFlagCapAt em physics.js) — os bots também
+  // reduzem, senão passariam voando por um incidente que acabaram de causar.
+  car.underYellow = yellowFlagCapAt(car.s);
+  if (car.underYellow) targetSpeed = Math.min(targetSpeed, 46);
   // DRS: mesmo critério do jogador (ver computeDrsActive em physics.js) —
   // os bots também ganham o bônus, senão o jogador teria uma vantagem
   // artificial toda vez que colasse em alguém numa reta marcada.
-  car.drsActive = computeDrsActive(car);
+  car.drsActive = computeDrsActive(car) && !car.underYellow;
   if (car.drsActive) targetSpeed += 8;
   if (car.stun > 0) targetSpeed = 13;
 
