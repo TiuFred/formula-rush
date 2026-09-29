@@ -19,8 +19,14 @@ export const state = {
   pausedFromState: "race",
   /** Tempo total de corrida decorrido, em segundos. */
   raceTime: 0,
-  /** Contagem regressiva antes da largada, em segundos (decrescente). */
+  /** Tempo restante (s) até o apagão das 5 luzes vermelhas (decrescente,
+   * cruza pra negativo no instante exato da largada — ver main.js/player.js
+   * resolveLaunch). */
   countdown: 3.6,
+  /** Duração total sorteada pra ESTA largada (luzes acendendo + espera
+   * aleatória com tudo aceso) — guardado só pra saber quantas luzes acender
+   * a cada instante (ver main.js). */
+  countdownTotal: 3.6,
   /** Nº de voltas escolhido no menu (1-20). */
   lapCountSetting: 3,
   /** Nº de voltas "travado" para a corrida em andamento. */

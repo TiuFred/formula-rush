@@ -251,8 +251,18 @@ export function setupGrid(gridOrder = null) {
 
   order.forEach((identityIndex, slot) => {
     const car = cars[identityIndex];
-    if (state.timeTrial) {
-      // Sozinho na pista: parte centralizado, logo antes da linha de largada.
+    if (state.timeTrial || state.qualifying) {
+      // Sozinho na pista de verdade (contra-relógio E classificação — ver
+      // seção 19 do AUDITORIA): parte centralizado, logo antes da linha de
+      // largada. Sem isso, a classificação usava a mesma matemática de
+      // fileira de grid da corrida normal — e como ainda não existe grid
+      // definido na 1ª classificação, o `order` padrão colocava o jogador
+      // no ÚLTIMO slot (ex.: 22 de 23), ou seja, ~100m atrás da linha
+      // (dentro do 3º setor) em vez de bem perto dela. Isso fazia a única
+      // volta cronometrada da classificação incluir um trecho enorme de
+      // "arrancada do zero" ANTES mesmo de cruzar a linha pela 1ª vez — o
+      // cronômetro da volta já estava correndo havia bem mais tempo do que
+      // devia quando o carro finalmente chegava lá.
       car.progress = -10;
       car.lane = 0;
     } else {

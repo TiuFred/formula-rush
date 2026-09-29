@@ -69,11 +69,18 @@ export function resolveLaunch() {
   const car = state.player;
   if (!car) return;
   if (state.countdown > 0) {
-    car.stun = .8;
+    // Largada queimada: penalidade um pouco mais dura que a largada
+    // perfeita é generosa (stun mais longo + um corte imediato de
+    // velocidade, simulando o carro "engasgando" ao soltar cedo demais).
+    car.stun = 1;
+    car.speed *= .8;
     showNotice("LARGADA QUEIMADA! · SOLTOU A EMBREAGEM CEDO DEMAIS");
     engineAudio.cue("impact");
   } else if (state.countdown > -.35) {
-    car.boost = Math.max(car.boost, 1.1);
+    // Bônus bem mais discreto que o de um miniturbo de verdade (era 1.1s,
+    // quase um turbo inteiro) — a largada perfeita deve dar uma vantagem
+    // sutil, não decidir a corrida por si só.
+    car.boost = Math.max(car.boost, .35);
     showNotice("LARGADA PERFEITA!");
     engineAudio.cue("boost");
   }

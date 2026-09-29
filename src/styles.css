@@ -479,14 +479,50 @@ kbd {
   bottom: 0;
   left: 0;
   z-index: 4;
-  display: grid;
-  place-items: center;
-  font-size: 130px;
-  font-weight: 900;
-  font-style: italic;
-  text-shadow: 0 8px 25px #0008;
-  color: var(--lime);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
   pointer-events: none
+}
+
+/* Largada estilo F1: 5 luzes vermelhas (ver main.js/animate) — acendem uma
+   a uma e apagam TODAS juntas pra largar, sem número previsível. */
+.start-lights {
+  display: flex;
+  gap: 14px;
+  padding: 14px 20px;
+  background: #14181ae6;
+  border: 3px solid #2b2f31;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px #000a;
+}
+
+.light {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #3a1414;
+  border: 2px solid #1c1c1c;
+  box-shadow: inset 0 0 6px #000a;
+}
+
+.light.lit {
+  background: #ff2e2e;
+  box-shadow: 0 0 18px 6px #ff2e2eb0, inset 0 0 8px #ff8a8a;
+}
+
+@media (max-width: 640px) {
+  .start-lights {
+    gap: 9px;
+    padding: 10px 14px;
+  }
+
+  .light {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 .notice {
@@ -1159,11 +1195,6 @@ kbd {
 
 /* Dica da "embreagem" na largada (ver player.js/resolveLaunch). */
 .countdown-hint {
-  position: absolute;
-  z-index: 4;
-  top: 62%;
-  left: 50%;
-  transform: translate(-50%);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: .5px;

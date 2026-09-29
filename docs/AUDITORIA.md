@@ -1092,3 +1092,47 @@ sessão de classificação, a corrida de verdade já estava ~1.8s andada (e
 com um `countdown` novo já em curso) numa checagem ~1s de relógio real
 depois — antes disso ficaria parado por um tempo imprevisível dependendo
 do ritmo dos bots.
+
+## 22. Quali largando ~100m atrás da linha, largada com 5 luzes (F1), boost recalibrado
+
+Três ajustes na largada/classificação, pedidos juntos.
+
+**Quali largando longe da linha** (`car.js`/`setupGrid`): a posição de
+largada só tratava `state.timeTrial` como "sozinho, centralizado, bem
+perto da linha" (`progress = -10`) — a classificação caía no `else`
+(matemática de fileira de grid: `progress = -10 - Math.floor(slot/2)*9`).
+Como a classificação ainda não tem um grid definido na 1ª vez, a ordem
+padrão bota o jogador no ÚLTIMO slot (22 de 23) — `progress ≈ -109`, ou
+seja, quase 100m atrás da linha, dentro do 3º setor. Como o cronômetro da
+única volta da classificação começa em `raceTime = 0` (não quando cruza a
+linha), aquela arrancada inicial de quase 100m — feita saindo do zero, o
+trecho mais lento de qualquer largada — já contava pro tempo da volta
+antes mesmo do carro chegar na linha pela 1ª vez. Corrigido tratando
+`state.qualifying` igual a `state.timeTrial` nessa checagem: agora a
+classificação também larga centralizada, bem perto da linha, evitando
+esse pedaço de tempo "perdido" antes da volta cronometrada nem começar de
+verdade. Confirmado visualmente: o carro agora aparece exatamente ao lado
+da linha quadriculada ao entrar em classificação, não mais dezenas de
+metros atrás dela.
+
+**5 luzes vermelhas em vez de contagem numérica** (`main.js`/`index.html`/
+`styles.css`): a contagem "3, 2, 1, VAI!" virou o procedimento real de
+largada da F1 — 5 luzes acendem uma a uma a cada `LIGHT_INTERVAL` (.7s),
+ficam todas acesas por um tempo ALEATÓRIO (sorteado a cada largada, entre
+`LIGHTS_HOLD_MIN`/`MAX` = .3–2.2s) e então apagam TODAS DE UMA VEZ — esse
+apagão simultâneo é a própria largada, sem contagem previsível. Reaproveita
+o mesmo `state.countdown` decrescente de antes (só troca o que é exibido:
+`state.countdownTotal`, sorteado em `startRace()`, dá a duração total,
+usada só pra saber quantas luzes acender a cada instante); o instante em
+que `state.countdown` cruza 0 continua sendo exatamente o mesmo que
+`resolveLaunch()` (seção 21) usa pra julgar largada queimada/perfeita —
+nenhuma mudança na lógica da embreagem, só na duração (agora variável) e
+na exibição (luzes em vez de número). Testado no navegador: as 5 luzes
+acendem em sequência, ficam acesas, apagam juntas, e a corrida começa
+exatamente nesse instante, sem erros no console.
+
+**Boost recalibrado**: a largada perfeita dava `car.boost = 1.1` (quase um
+miniturbo ULTRA inteiro, generoso demais pra uma mecânica de bônus opcional)
+— reduzido pra `.35`, uma vantagem sutil. A largada queimada (`car.stun`)
+subiu de `.8` pra `1` e ganhou um corte imediato de velocidade
+(`car.speed *= .8`), tornando o erro um pouco mais punitivo (sem exagerar).

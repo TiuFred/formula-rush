@@ -27,6 +27,17 @@ let qualifyingGridOrder = null;
  * sessão de classificação (sempre 1 volta) está rolando. */
 let qualifyingTargetLaps = null;
 
+/** Largada estilo F1: 5 luzes vermelhas acendem uma a uma a cada
+ * LIGHT_INTERVAL segundos e, com as 5 acesas, ficam paradas por um tempo
+ * ALEATÓRIO antes de apagarem todas de uma vez — esse apagão simultâneo É
+ * a largada (nada de contagem numérica previsível). */
+const LIGHT_INTERVAL = .7;
+const LIGHTS_COUNT = 5;
+/** Espera (s) com as 5 luzes acesas antes de apagar — sorteada de novo a
+ * cada largada, dentro desse intervalo (mesmo espírito imprevisível da F1). */
+const LIGHTS_HOLD_MIN = .3;
+const LIGHTS_HOLD_MAX = 2.2;
+
 /** Inicia uma nova corrida a partir do menu (ou reinicia após o fim de uma). */
 function startRace() {
   if (!state.track) return; // pista ainda não carregou
@@ -77,7 +88,8 @@ function startRace() {
   state.replayTimer = 0;
 
   state.raceTime = 0;
-  state.countdown = 3.6;
+  state.countdownTotal = LIGHT_INTERVAL * LIGHTS_COUNT + (LIGHTS_HOLD_MIN + Math.random() * (LIGHTS_HOLD_MAX - LIGHTS_HOLD_MIN));
+  state.countdown = state.countdownTotal;
   state.gameState = "countdown";
   resetKeys();
   // (o estado de drift/câmera é zerado automaticamente: setupGrid() acima
@@ -260,13 +272,26 @@ function animate(now) {
   if (state.gameState !== "paused") state.clockTime += dt;
 
   if (state.gameState === "countdown") {
-    const prevCeil = Math.ceil(state.countdown);
+    // Largada estilo F1: cada luz acende conforme o tempo decorrido desde
+    // o início da contagem (ver LIGHT_INTERVAL acima); a partir da 5ª,
+    // `lit` fica travado em 5 (Math.min) durante toda a espera aleatória
+    // com tudo aceso. A largada em si é o APAGÃO simultâneo das 5 — não um
+    // número previsível — no instante em que `state.countdown` cruza 0
+    // (mesmo instante que resolveLaunch, em player.js, usa pra julgar
+    // largada queimada/perfeita).
+    const elapsedBefore = state.countdownTotal - state.countdown;
     state.countdown -= dt;
-    const newCeil = Math.ceil(state.countdown);
-    byId("countdown").textContent = state.countdown > 0 ? newCeil : "VAI!";
-    if (newCeil !== prevCeil) beep(newCeil > 0 ? 450 : 900, .15);
-    if (state.countdown <= 0) setVisible("countdownHint", false);
-    if (state.countdown < -.7) {
+    const elapsed = state.countdownTotal - state.countdown;
+    const litBefore = Math.min(LIGHTS_COUNT, Math.max(0, Math.ceil(elapsedBefore / LIGHT_INTERVAL)));
+    const lit = Math.min(LIGHTS_COUNT, Math.max(0, Math.ceil(elapsed / LIGHT_INTERVAL)));
+    if (lit > litBefore) {
+      byId("light" + (lit - 1)).classList.add("lit");
+      beep(420 + lit * 50, .09);
+    }
+    if (state.countdown <= 0) {
+      setVisible("countdownHint", false);
+      for (let i = 0; i < LIGHTS_COUNT; i++) byId("light" + i).classList.remove("lit");
+      beep(900, .18);
       state.gameState = "race";
       setVisible("countdown", false);
     }
