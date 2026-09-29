@@ -10,16 +10,7 @@ import { MATERIALS, makeMaterial, addMesh, addBox, disposeObject3D, makeTextPane
 import { resetLapState } from "./timing.js";
 import { normalizePlayerName, normalizePlayerNumber } from "./validation.js";
 
-/** Haste cilíndrica entre dois pontos locais, usada na suspensão do carro 2.0. */
-function addBeam(group, start, end, radius, material) {
-  const a = new THREE.Vector3(...start);
-  const b = new THREE.Vector3(...end);
-  const direction = b.clone().sub(a);
-  const beam = addMesh(new THREE.CylinderGeometry(radius, radius, direction.length(), 8), material, 0, 0, 0, group);
-  beam.position.copy(a).add(b).multiplyScalar(.5);
-  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
-  return beam;
-}
+import { buildBetaCar } from "./betaCar.js";
 
 /**
  * Constrói o grupo three.js do carro (carroceria, rodas, asas, halo, escudo
@@ -43,102 +34,36 @@ export function createCar(color, index) {
     : makeMaterial(color, { metalness: .42, roughness: .3 });
   const wheels = [];
 
-  // Carroceria: assoalho, sidepods, difusor, nariz, halo, cockpit...
-  addBox(1.28, .48, 3, bodyMaterial, 0, .64, -.25, group);
-  addBox(.48, .42, 2, bodyMaterial, 0, .53, 1.65, group);
-  addBox(1.7, .22, 1.7, bodyMaterial, 0, .43, -.7, group);
-  addBox(2.3, .12, .58, MATERIALS.black, 0, .29, 2.45, group);
-  addBox(2, .18, .68, bodyMaterial, 0, 1.05, -2.02, group);
-  addBox(.12, .75, .2, MATERIALS.black, -.8, .66, -2, group);
-  addBox(.12, .75, .2, MATERIALS.black, .8, .66, -2, group);
-  addBox(.72, .26, 1.02, MATERIALS.black, 0, .94, -.15, group);
-  addMesh(new THREE.SphereGeometry(.24, state.graphicsBeta ? 20 : 10, state.graphicsBeta ? 14 : 8), MATERIALS.white, 0, 1.14, 0, group);
-
-  // Halo (proteção do cockpit).
-  const halo = addMesh(new THREE.TorusGeometry(.4, .047, 5, 16, Math.PI), MATERIALS.black, 0, 1.19, .14, group);
-  halo.rotation.x = Math.PI / 2;
-  addBox(.07, .35, .07, MATERIALS.black, 0, 1, .57, group);
-
-  // Rodas (pneu + roda) nas 4 posições.
-  for (const side of [-1, 1]) {
-    for (const z of [-1.44, 1.5]) {
-      const tire = addMesh(new THREE.CylinderGeometry(.39, .39, .4, state.graphicsBeta ? 24 : 12), MATERIALS.tire, side, .4, z, group);
-      tire.rotation.z = Math.PI / 2;
-      wheels.push(tire);
-      const rimMaterial = state.graphicsBeta
-        ? makeMaterial("#657077", { metalness: .9, roughness: .2 })
-        : MATERIALS.metal;
-      const rim = addMesh(new THREE.CylinderGeometry(.2, .2, .42, state.graphicsBeta ? 20 : 10), rimMaterial, side, .4, z, group);
-      rim.rotation.z = Math.PI / 2;
-    }
-  }
-
   if (state.graphicsBeta) {
-    const carbon = makeMaterial("#080b0c", { metalness: .45, roughness: .32 });
-    const machinedMetal = makeMaterial("#aeb6b8", { metalness: .92, roughness: .18 });
-    const glass = new THREE.MeshPhysicalMaterial({
-      color: "#14242a",
-      metalness: .15,
-      roughness: .12,
-      transmission: .18,
-      transparent: true,
-      opacity: .9,
-    });
-    // Camadas aerodinâmicas extras dão uma silhueta mais próxima de um
-    // monoposto moderno sem exigir um modelo externo pesado no beta.
-    addBox(2.35, .045, .18, carbon, 0, .39, 2.7, group);
-    addBox(1.9, .04, .16, carbon, 0, .48, 2.48, group);
-    addBox(2.15, .055, .3, carbon, 0, .94, -2.28, group);
-    addBox(1.48, .09, 1.35, carbon, 0, .25, -.72, group);
-    addBox(.66, .34, .82, glass, 0, .93, .02, group);
+    buildBetaCar(group, bodyMaterial, wheels);
+  } else {
+    // Carroceria: assoalho, sidepods, difusor, nariz, halo, cockpit...
+    addBox(1.28, .48, 3, bodyMaterial, 0, .64, -.25, group);
+    addBox(.48, .42, 2, bodyMaterial, 0, .53, 1.65, group);
+    addBox(1.7, .22, 1.7, bodyMaterial, 0, .43, -.7, group);
+    addBox(2.3, .12, .58, MATERIALS.black, 0, .29, 2.45, group);
+    addBox(2, .18, .68, bodyMaterial, 0, 1.05, -2.02, group);
+    addBox(.12, .75, .2, MATERIALS.black, -.8, .66, -2, group);
+    addBox(.12, .75, .2, MATERIALS.black, .8, .66, -2, group);
+    addBox(.72, .26, 1.02, MATERIALS.black, 0, .94, -.15, group);
+    addMesh(new THREE.SphereGeometry(.24, 10, 8), MATERIALS.white, 0, 1.14, 0, group);
 
-    // Superfícies curvas suavizam a carroceria originalmente feita de caixas.
-    const nose = addMesh(new THREE.CylinderGeometry(.18, .38, 2.35, 18), bodyMaterial, 0, .68, 1.55, group);
-    nose.rotation.x = Math.PI / 2;
-    const engineCover = addMesh(new THREE.SphereGeometry(1, 24, 14), bodyMaterial, 0, .83, -.82, group);
-    engineCover.scale.set(.5, .62, 1.18);
+    // Halo (proteção do cockpit).
+    const halo = addMesh(new THREE.TorusGeometry(.4, .047, 5, 16, Math.PI), MATERIALS.black, 0, 1.19, .14, group);
+    halo.rotation.x = Math.PI / 2;
+    addBox(.07, .35, .07, MATERIALS.black, 0, 1, .57, group);
+
+    // Rodas (pneu + roda) nas 4 posições.
     for (const side of [-1, 1]) {
-      const sidepod = addMesh(new THREE.SphereGeometry(1, 20, 12), bodyMaterial, side * .62, .61, -.38, group);
-      sidepod.scale.set(.54, .35, 1.15);
-    }
-
-    for (const side of [-1, 1]) {
-      addBox(.08, .08, 1.45, carbon, side * .72, .46, .28, group).rotation.z = side * -.17;
-      addBox(.06, .06, 1.05, carbon, side * .83, .55, -1.05, group).rotation.z = side * .2;
-
-      // Braços triangulados da suspensão, discos de freio e porcas centrais.
       for (const z of [-1.44, 1.5]) {
-        const anchorZ = z < 0 ? -.86 : .92;
-        addBeam(group, [side * .48, .48, anchorZ], [side * .94, .4, z], .026, carbon);
-        addBeam(group, [side * .43, .72, anchorZ + (z < 0 ? -.28 : .28)], [side * .94, .48, z], .023, carbon);
-        const disc = addMesh(new THREE.CylinderGeometry(.16, .16, .028, 20), machinedMetal, side * .785, .4, z, group);
-        disc.rotation.z = Math.PI / 2;
-        const nut = addMesh(new THREE.CylinderGeometry(.065, .065, .445, 10), makeMaterial(side < 0 ? "#ef3b35" : "#43b8e8", { metalness: .7, roughness: .25 }), side, .4, z, group);
-        nut.rotation.z = Math.PI / 2;
+        const tire = addMesh(new THREE.CylinderGeometry(.39, .39, .4, 12), MATERIALS.tire, side, .4, z, group);
+        tire.rotation.z = Math.PI / 2;
+        wheels.push(tire);
+        const rimMaterial = MATERIALS.metal;
+        const rim = addMesh(new THREE.CylinderGeometry(.2, .2, .42, 10), rimMaterial, side, .4, z, group);
+        rim.rotation.z = Math.PI / 2;
       }
-
-      // Espelhos retrovisores com haste e superfície refletiva escura.
-      addBeam(group, [side * .45, .93, .48], [side * .86, 1.04, .63], .025, carbon);
-      const mirror = addMesh(new THREE.SphereGeometry(.18, 14, 8), bodyMaterial, side * .91, 1.06, .67, group);
-      mirror.scale.set(1.35, .7, .72);
-      addBox(.24, .1, .018, glass, side * .91, 1.06, .53, group);
     }
-
-    // Piloto com capacete, viseira e apoio de cabeça visíveis na câmera externa.
-    const helmet = addMesh(new THREE.SphereGeometry(.255, 24, 16), makeMaterial(index === 0 ? "#f2f4f1" : color, { metalness: .18, roughness: .24 }), 0, 1.16, .02, group);
-    helmet.scale.set(.92, 1, .94);
-    const visor = addMesh(new THREE.SphereGeometry(.258, 20, 12, 0, Math.PI, .58, .72), glass, 0, 1.17, .035, group);
-    visor.rotation.y = Math.PI;
-    addBox(.58, .2, .32, carbon, 0, 1.02, -.24, group);
-
-    addMesh(
-      new THREE.SphereGeometry(.085, 10, 8),
-      new THREE.MeshBasicMaterial({ color: "#ff2828", toneMapped: false }),
-      0,
-      .56,
-      -2.58,
-      group,
-    );
   }
 
   // Escudo (esfera wireframe, oculta até um item "shield" ser usado).
@@ -166,13 +91,15 @@ export function createCar(color, index) {
     headlight.visible = state.nightMode;
   }
 
-  addBox(.15, .025, 3.2, MATERIALS.white, 0, .89, -.12, group);
-  addBox(.16, .02, 1.4, MATERIALS.white, 0, .76, 1.52, group);
-  for (const side of [-1, 1]) {
-    addBox(.09, .34, .85, bodyMaterial, side * 1.13, .47, 2.4, group);
-    addBox(.08, .45, .8, bodyMaterial, side * 1.03, 1.11, -2, group);
-    addBox(.36, .12, .26, bodyMaterial, side * .87, 1.05, .7, group);
-    addBox(.08, .27, .07, MATERIALS.black, side * .75, .92, .7, group);
+  if (!state.graphicsBeta) {
+    addBox(.15, .025, 3.2, MATERIALS.white, 0, .89, -.12, group);
+    addBox(.16, .02, 1.4, MATERIALS.white, 0, .76, 1.52, group);
+    for (const side of [-1, 1]) {
+      addBox(.09, .34, .85, bodyMaterial, side * 1.13, .47, 2.4, group);
+      addBox(.08, .45, .8, bodyMaterial, side * 1.03, 1.11, -2, group);
+      addBox(.36, .12, .26, bodyMaterial, side * .87, 1.05, .7, group);
+      addBox(.08, .27, .07, MATERIALS.black, side * .75, .92, .7, group);
+    }
   }
 
   // Sombra falsa (disco escuro semitransparente sob o carro).
@@ -191,7 +118,8 @@ export function createCar(color, index) {
     index === 0 ? state.playerNumber : F1_DRIVERS_2026[index - 1].number,
     1.1, .6, "#162119", "#f5f7e8"
   );
-  numberPanel.position.set(0, 1.15, -2.4);
+  numberPanel.position.set(0, 1.15, state.graphicsBeta ? -2.42 : -2.4);
+  if (state.graphicsBeta) numberPanel.scale.set(.55, .45, 1);
   numberPanel.rotation.y = Math.PI;
   group.add(numberPanel);
 

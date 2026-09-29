@@ -35,16 +35,6 @@ test("experiência 2.0 mantém entrada e texturas próprias", async () => {
     assert.ok(asset.length > 100_000, `${filename}: textura beta ausente ou pequena demais`);
     assert.deepEqual([...asset.subarray(0, 2)], [0xff, 0xd8], `${filename}: JPEG inválido`);
   }
-
-  for (const filename of ["cloud-sprite.png", "tree-billboard.png"]) {
-    const asset = await readFile(new URL("../public/assets/beta/" + filename, import.meta.url));
-    assert.ok(asset.length > 100_000, `${filename}: asset beta ausente ou pequeno demais`);
-    assert.deepEqual(
-      [...asset.subarray(0, 8)],
-      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
-      `${filename}: PNG inválido`,
-    );
-  }
 });
 
 function pointInPolygon(x, z, polygon) {

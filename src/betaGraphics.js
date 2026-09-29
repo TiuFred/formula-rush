@@ -1,111 +1,11 @@
-// Camada visual exclusiva do Formula Rush 2.0. Tudo neste módulo é
-// deliberadamente opcional para que a experiência 1.0 permaneça intacta.
-
+// Estruturas de autódromo exclusivas da experiência 2.0.
 import * as THREE from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { state } from "./state.js";
 import { TRACK_LENGTH } from "./constants.js";
-import { addBox, makeMaterial } from "./materials.js";
-import { alignedFootprintClearanceAt, asphaltClearanceAt, trackHalfWidthAt } from "./track.js";
-
-const cloudDrift = [];
-
-function configureTexture(texture, color = true) {
-  if (color) texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = Math.min(8, state.renderer.capabilities.getMaxAnisotropy());
-  return texture;
-}
-
-/** Iluminação de imagem procedural para reflexos da pintura, halo e metais. */
-export function setupBetaEnvironment() {
-  const generator = new THREE.PMREMGenerator(state.renderer);
-  generator.compileEquirectangularShader();
-  const room = new RoomEnvironment();
-  state.betaEnvironment = generator.fromScene(room, .035).texture;
-  state.scene.environment = state.betaEnvironment;
-  room.dispose();
-  generator.dispose();
-}
-
-function setInstance(mesh, index, dummy, x, y, z, sx, sy, sz, rotation = 0, color = null) {
-  dummy.position.set(x, y, z);
-  dummy.rotation.set(0, rotation, 0);
-  dummy.scale.set(sx, sy, sz);
-  dummy.updateMatrix();
-  mesh.setMatrixAt(index, dummy.matrix);
-  if (color) mesh.setColorAt(index, color);
-}
-
-/** Nuvens e vegetação fotográfica em planos cruzados, exclusivos de Interlagos 2.0. */
-export function buildBetaAtmosphere(groundHeightAt, rng) {
-  const loader = new THREE.TextureLoader();
-  const cloudTexture = configureTexture(loader.load("./assets/beta/cloud-sprite.png"));
-  const cloudMaterial = new THREE.SpriteMaterial({
-    map: cloudTexture,
-    color: "#f4f7f8",
-    transparent: true,
-    opacity: .82,
-    depthWrite: false,
-    fog: true,
-  });
-  cloudDrift.length = 0;
-  for (let i = 0; i < 22; i++) {
-    const angle = rng() * Math.PI * 2;
-    const radius = 360 + rng() * 680;
-    const cloud = new THREE.Sprite(cloudMaterial);
-    cloud.position.set(Math.cos(angle) * radius, 135 + rng() * 150, Math.sin(angle) * radius);
-    const width = 95 + rng() * 145;
-    cloud.scale.set(width, width * (.28 + rng() * .09), 1);
-    cloud.userData.originX = cloud.position.x;
-    cloud.userData.originZ = cloud.position.z;
-    cloud.userData.speed = .7 + rng() * 1.15;
-    cloud.userData.phase = rng() * Math.PI * 2;
-    state.scene.add(cloud);
-    cloudDrift.push(cloud);
-  }
-
-  const treeTexture = configureTexture(loader.load("./assets/beta/tree-billboard.png"));
-  const treeMaterial = new THREE.MeshStandardMaterial({
-    map: treeTexture,
-    alphaTest: .32,
-    transparent: true,
-    side: THREE.DoubleSide,
-    roughness: 1,
-    metalness: 0,
-    vertexColors: true,
-  });
-  const count = 190;
-  const geometry = new THREE.PlaneGeometry(9, 12);
-  geometry.translate(0, 6, 0);
-  const treesA = new THREE.InstancedMesh(geometry, treeMaterial, count);
-  const treesB = new THREE.InstancedMesh(geometry, treeMaterial, count);
-  const dummy = new THREE.Object3D();
-  const tint = new THREE.Color();
-  let placed = 0;
-  let attempts = 0;
-  while (placed < count && attempts++ < count * 10) {
-    const s = rng() * TRACK_LENGTH;
-    const side = rng() > .5 ? 1 : -1;
-    const lane = side * (trackHalfWidthAt(s) + 28 + rng() * 115);
-    const p = state.track.at(s, lane).p;
-    if (asphaltClearanceAt(state.track, p.x, p.z) < 22) continue;
-    const base = groundHeightAt(p.x, p.z) - .15;
-    const scale = .72 + rng() * .75;
-    const rotation = rng() * Math.PI;
-    tint.setHSL(.27 + rng() * .045, .34 + rng() * .17, .62 + rng() * .12);
-    setInstance(treesA, placed, dummy, p.x, base, p.z, scale, scale, scale, rotation, tint);
-    setInstance(treesB, placed, dummy, p.x, base, p.z, scale, scale, scale, rotation + Math.PI / 2, tint);
-    placed++;
-  }
-  for (const trees of [treesA, treesB]) {
-    trees.count = placed;
-    trees.instanceMatrix.needsUpdate = true;
-    if (trees.instanceColor) trees.instanceColor.needsUpdate = true;
-    trees.castShadow = true;
-    trees.receiveShadow = false;
-    state.scene.add(trees);
-  }
-}
+import { addBox, makeMaterial, makeTextPanel } from "./materials.js";
+import { alignedFootprintClearanceAt } from "./track.js";
+export { setupBetaEnvironment, buildBetaAtmosphere } from "./betaNature.js";
+import { buildInterlagosStands, addPitCanopy } from "./interlagosStructures.js";
 
 function addAligned(s, lane, width, height, depth, material, yOffset = 0) {
   const frame = state.track.at(s, lane);
@@ -119,8 +19,8 @@ function makeFenceTexture() {
   canvas.width = canvas.height = 128;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, 128, 128);
-  ctx.strokeStyle = "#9da6a5";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#515c62";
+  ctx.lineWidth = .75;
   for (let i = -128; i < 256; i += 14) {
     ctx.beginPath();
     ctx.moveTo(i, 0);
@@ -133,12 +33,53 @@ function makeFenceTexture() {
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2.4, 1);
+  texture.repeat.set(5, 1.5);
   return texture;
 }
 
 /** Detalhes de autódromo: alambrado, marcas de frenagem, público e câmeras. */
 export function buildBetaTrackDetails(rng) {
+  const pitAligned = (s, lane, ...args) => addAligned(s, -lane, ...args);
+  const concrete = makeMaterial("#babcb7", { roughness: .92 });
+  const glass = makeMaterial("#344c5b", { metalness: .65, roughness: .2 });
+  const garage = makeMaterial("#292f34", { roughness: .9 });
+  const pitRoad = makeMaterial("#5b6062", { roughness: .93 });
+  const paint = makeMaterial("#e4dba9");
+  const trim = makeMaterial("#2d5750", { roughness: .6 });
+  // Módulos abertos de boxes, piso superior envidraçado e cobertura leve.
+  for (let s = TRACK_LENGTH - 245; s < TRACK_LENGTH + 195; s += 20) {
+    if (alignedFootprintClearanceAt(state.track, s, -30, 17, 20) < 2) continue;
+    pitAligned(s, 30, 15, .3, 20, concrete, -.2);
+    pitAligned(s, 37, .4, 6.8, 20, concrete);
+    pitAligned(s, 30, 15, .28, 20, concrete, 3.9);
+    pitAligned(s, 22.7, .12, 2.1, 19.2, glass, 4.3);
+    addPitCanopy(s, -30);
+    if (alignedFootprintClearanceAt(state.track, s, -16, 10, 20) > .5) {
+      pitAligned(s, 16, 10, .025, 20, pitRoad, .12);
+      pitAligned(s, 20.5, .12, .03, 20, paint, .15);
+    }
+    pitAligned(s, 22.4, .3, .34, 20, trim, 3.7);
+    for (const delta of [-9.7, 0, 9.7]) {
+      pitAligned(s + delta, 22.9, .35, 6.8, .25, concrete);
+      pitAligned(s + delta, 30, 14, 3.9, .15, garage);
+    }
+    pitAligned(s, 35, .1, 3.6, 19.3, garage);
+  }
+
+  // Centro operacional envidraçado junto à extremidade do complexo de boxes.
+  if (alignedFootprintClearanceAt(state.track, -275, -32, 18, 30) >= 3) {
+    pitAligned(-275, 32, 18, 4, 30, concrete);
+    for (let floor = 0; floor < 3; floor++) {
+      pitAligned(-275, 32, 18, 2.5, 30, glass, 4 + floor * 2.8);
+      pitAligned(-275, 32, 18.4, .2, 30.3, concrete, 6.5 + floor * 2.8);
+    }
+    const sign = makeTextPanel("AUTÓDROMO JOSÉ CARLOS PACE", 22, 1.2, "#173c35", "#f0ebd9");
+    const frame = state.track.at(-275, -22.7);
+    sign.position.copy(frame.p); sign.position.y += 4;
+    sign.rotation.y = frame.yaw - Math.PI / 2;
+    state.scene.add(sign);
+  }
+
   const fence = new THREE.MeshStandardMaterial({
     map: makeFenceTexture(),
     transparent: true,
@@ -170,38 +111,7 @@ export function buildBetaTrackDetails(rng) {
     }
   }
 
-  // Pessoas simples, porém numerosas, dão escala às arquibancadas existentes.
-  const bodyMaterial = makeMaterial("#ffffff", { roughness: .9, vertexColors: true });
-  const headMaterial = makeMaterial("#c9926c", { roughness: 1, vertexColors: true });
-  const maxPeople = 600;
-  const bodies = new THREE.InstancedMesh(new THREE.CapsuleGeometry(.13, .38, 3, 5), bodyMaterial, maxPeople);
-  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(.14, 6, 4), headMaterial, maxPeople);
-  const dummy = new THREE.Object3D();
-  const shirt = new THREE.Color();
-  const skin = new THREE.Color();
-  const stations = [90, 160, 230, TRACK_LENGTH - 409, TRACK_LENGTH - 339, TRACK_LENGTH - 269, TRACK_LENGTH - 199, TRACK_LENGTH - 129];
-  let person = 0;
-  for (const s0 of stations) {
-    for (let row = 0; row < 5; row++) {
-      for (let col = 0; col < 15 && person < maxPeople; col++) {
-        if (rng() < .14) continue;
-        const frame = state.track.at(s0 - 23 + col * 3.25, -29 - row * 3);
-        const y = frame.p.y + row * 1.25 + 2.05;
-        shirt.setHSL(rng(), .58, .48 + rng() * .18);
-        skin.setHSL(.055 + rng() * .045, .33 + rng() * .25, .48 + rng() * .3);
-        setInstance(bodies, person, dummy, frame.p.x, y, frame.p.z, 1, 1, 1, frame.yaw, shirt);
-        setInstance(heads, person, dummy, frame.p.x, y + .44, frame.p.z, 1, 1, 1, frame.yaw, skin);
-        person++;
-      }
-    }
-  }
-  for (const mesh of [bodies, heads]) {
-    mesh.count = person;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.castShadow = true;
-    state.scene.add(mesh);
-  }
+  buildInterlagosStands(rng);
 
   const cameraMaterial = makeMaterial("#22282b", { metalness: .65, roughness: .3 });
   for (const s of [420, 1340, 2460, 3480]) {
@@ -210,12 +120,5 @@ export function buildBetaTrackDetails(rng) {
     addAligned(s, lane, .15, 4.3, .15, post);
     const camera = addAligned(s, lane, .65, .35, .9, cameraMaterial, 4.05);
     camera.rotation.y += side * .35;
-  }
-}
-
-export function updateBetaAtmosphere(time) {
-  for (const cloud of cloudDrift) {
-    cloud.position.x = cloud.userData.originX + Math.sin(time * .012 * cloud.userData.speed + cloud.userData.phase) * 34;
-    cloud.position.z = cloud.userData.originZ + Math.cos(time * .009 * cloud.userData.speed + cloud.userData.phase) * 18;
   }
 }

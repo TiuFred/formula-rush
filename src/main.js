@@ -34,6 +34,7 @@ let circuitLoadSequence = 0;
 let animationStarted = false;
 let championshipColorDraft = state.selectedColor;
 let championshipLapsDraft = state.lapCountSetting;
+let cameraBeforeBeta = 0;
 
 /** Largada estilo F1: 5 luzes vermelhas acendem uma a uma a cada
  * LIGHT_INTERVAL segundos e, com as 5 acesas, ficam paradas por um tempo
@@ -296,6 +297,8 @@ async function startGraphicsBeta() {
   const button = byId("startBeta");
   button.disabled = true;
   button.classList.add("loading");
+  cameraBeforeBeta = state.cameraMode;
+  state.cameraMode = 1;
   state.graphicsBeta = true;
   state.championship = null;
   state.timeTrial = true;
@@ -312,6 +315,7 @@ async function startGraphicsBeta() {
   button.disabled = false;
   button.classList.remove("loading");
   if (!loaded || !state.graphicsBeta) {
+    state.cameraMode = cameraBeforeBeta;
     state.graphicsBeta = false;
     state.timeTrial = false;
     syncToggleVisual("timeTrial", false);
@@ -337,6 +341,7 @@ async function returnToMenu() {
   state.championship = null;
 
   if (state.graphicsBeta) {
+    state.cameraMode = cameraBeforeBeta;
     state.graphicsBeta = false;
     state.timeTrial = false;
     state.qualifyingEnabled = false;

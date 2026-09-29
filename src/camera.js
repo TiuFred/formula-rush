@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { state } from "./state.js";
 import { worldScale } from "./scene.js";
+import { updateOnboardCamera } from "./onboardCamera.js";
 
 /** Alvo de "olhar para" da câmera (suavizado entre frames). */
 const lookTarget = new THREE.Vector3();
@@ -12,6 +13,12 @@ const lookTarget = new THREE.Vector3();
 /** Atualiza a câmera para o frame atual. Chamar uma vez por frame com o `dt` real (não fixo). */
 export function updateCamera(dt) {
   const camera = state.camera;
+
+  if (state.graphicsBeta && !["menu", "landing"].includes(state.gameState)) {
+    updateOnboardCamera(camera, state.player);
+    return;
+  }
+  camera.up.set(0, 1, 0);
 
   if (state.gameState === "menu" || state.gameState === "landing") {
     state.player.group.visible = true;
@@ -33,17 +40,17 @@ export function updateCamera(dt) {
   const heading = car.yaw - car.slip * .35;
   const forward = new THREE.Vector3(Math.sin(heading), frame.t.y, Math.cos(heading)).normalize();
 
-  const chaseDistance = state.graphicsBeta ? -10.6 : -11.8;
-  const desiredPos = car.group.position.clone().addScaledVector(forward, cockpit ? .45 : chaseDistance);
-  desiredPos.y += cockpit ? 1.32 : state.graphicsBeta ? 4.45 : 5.3;
+  const chaseDistance = state.graphicsBeta ? -8.9 : -11.8;
+  const desiredPos = car.group.position.clone().addScaledVector(forward, cockpit ? (state.graphicsBeta ? .14 : .45) : chaseDistance);
+  desiredPos.y += cockpit ? (state.graphicsBeta ? 1.55 : 1.32) : state.graphicsBeta ? 3.35 : 5.3;
 
   const desiredLook = car.group.position.clone().addScaledVector(forward, cockpit ? 50 : 26);
-  desiredLook.y += cockpit ? 1.2 : state.graphicsBeta ? .82 : 1.1;
+  desiredLook.y += cockpit ? 1.2 : state.graphicsBeta ? .65 : 1.1;
 
-  car.group.visible = !cockpit;
+  car.group.visible = !cockpit || state.graphicsBeta;
 
   if (car.cameraInitialized) {
-    camera.position.lerp(desiredPos, 1 - Math.exp(-dt * (cockpit ? 22 : 8)));
+    camera.position.lerp(desiredPos, 1 - Math.exp(-dt * (cockpit ? 22 : state.graphicsBeta ? 16 : 8)));
     lookTarget.lerp(desiredLook, 1 - Math.exp(-dt * 10));
   } else {
     camera.position.copy(desiredPos);

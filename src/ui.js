@@ -211,6 +211,7 @@ export function setupMenuUI() {
   };
 
   byId("cameraMode").onclick = () => {
+    if (state.graphicsBeta) return;
     state.cameraMode = 1 - state.cameraMode;
     if (state.player) state.player.cameraInitialized = false;
     showNotice(state.cameraMode ? "CÂMERA A BORDO" : "CÂMERA EXTERNA");

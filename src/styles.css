@@ -360,6 +360,33 @@ body.beta-racing .hud {
   text-shadow: 0 2px 8px #00151ddd;
 }
 
+body.beta-racing .itembox,
+body.beta-racing #cameraMode,
+body.beta-racing .driftbar,
+body.beta-racing #driftLabel {
+  display: none;
+}
+
+body.beta-racing .lap-telemetry {
+  background: #111b25df;
+  border-color: #ffffff24;
+  bottom: 28px;
+}
+
+body.beta-racing .speedbox {
+  margin-left: auto;
+}
+
+body.beta-racing #recover {
+  margin-left: auto;
+}
+
+body.beta-racing .hud {
+  background: linear-gradient(90deg, #111b25d9, #111b2500 70%);
+  padding: 10px 14px;
+  border-radius: 4px;
+}
+
 .startmeta {
   font-size: 11px;
   letter-spacing: 1px;

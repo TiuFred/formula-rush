@@ -10,8 +10,6 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { state } from "./state.js";
 import {
@@ -32,8 +30,10 @@ import {
   buildBetaAtmosphere,
   buildBetaTrackDetails,
   setupBetaEnvironment,
-  updateBetaAtmosphere,
 } from "./betaGraphics.js";
+import { BETA_SUN_DIRECTION, makeBetaGroundMaterial } from "./betaNature.js";
+import { updateBetaCockpit } from "./betaCockpit.js";
+import { detailSurface, makeRubberLineMaterial } from "./betaSurfaceMaterials.js";
 
 /** Escala dos elementos "de mundo" (terreno, dispersão de árvores/morros,
  * névoa, órbita da câmera do menu) em relação ao comprimento de referência
@@ -48,6 +48,7 @@ function buildRibbonMesh(leftOffsetFn, rightOffsetFn, material, yOffset = .02) {
   const track = state.track;
   const positions = [];
   const uvs = [];
+  const edges = [];
   const indices = [];
   for (let i = 0; i <= track.N; i++) {
     const frame = track.at(i * track.step);
@@ -57,6 +58,7 @@ function buildRibbonMesh(leftOffsetFn, rightOffsetFn, material, yOffset = .02) {
       const yOff = Array.isArray(yOffset) ? yOffset[edgeIdx] : yOffset;
       positions.push(p.x, p.y + yOff, p.z);
       uvs.push(offset / 5, (i * track.step) / 5);
+      edges.push(edgeIdx);
     });
     if (i < track.N) {
       const base = i * 2;
@@ -66,6 +68,7 @@ function buildRibbonMesh(leftOffsetFn, rightOffsetFn, material, yOffset = .02) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute("ribbonEdge", new THREE.Float32BufferAttribute(edges, 1));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return addMesh(geometry, material);
@@ -107,10 +110,12 @@ export function addAlignedBox(s, lane, w, h, d, material, yOffset = 0) {
 }
 
 /** Gera uma textura de asfalto ruidosa (PRNG determinístico) e aplica ao material da pista. */
-function generateAsphaltTexture(renderer, groundMaterial) {
+function generateAsphaltTexture(renderer) {
   if (MATERIALS.road.map) MATERIALS.road.map.dispose(); // textura de uma troca de circuito anterior
   MATERIALS.road.map = null;
   MATERIALS.road.bumpMap = null;
+  MATERIALS.road.onBeforeCompile = () => {};
+  MATERIALS.road.customProgramCacheKey = () => "classic-road";
 
   if (state.graphicsBeta) {
     const loader = new THREE.TextureLoader();
@@ -121,20 +126,15 @@ function generateAsphaltTexture(renderer, groundMaterial) {
       texture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
       return texture;
     };
-    const asphalt = configure(loader.load("./assets/beta/asphalt-albedo.jpg"), 1, 1);
-    const grass = configure(loader.load("./assets/beta/grass-albedo.jpg"), 95, 95);
+    const asphalt = configure(loader.load("./assets/beta/asphalt-albedo.jpg"), 2, 2);
     MATERIALS.road.map = asphalt;
     MATERIALS.road.bumpMap = asphalt;
-    MATERIALS.road.bumpScale = .055;
-    MATERIALS.road.color.set("#d8d8d5");
+    MATERIALS.road.bumpScale = .008;
+    MATERIALS.road.color.set("#aeb2b5");
     MATERIALS.road.roughness = .9;
     MATERIALS.road.metalness = 0;
+    detailSurface(MATERIALS.road, "road");
     MATERIALS.road.needsUpdate = true;
-    groundMaterial.map = grass;
-    groundMaterial.bumpMap = grass;
-    groundMaterial.bumpScale = .16;
-    groundMaterial.roughness = 1;
-    groundMaterial.needsUpdate = true;
     return;
   }
 
@@ -186,7 +186,9 @@ function buildVertexColoredMesh(positions, colors) {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
-  return addMesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true }));
+  return addMesh(geometry, state.graphicsBeta
+    ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .88, side: THREE.DoubleSide })
+    : new THREE.MeshBasicMaterial({ vertexColors: true }));
 }
 
 /** Meio-fios (curbs) coloridos nas curvas — omitidos nos trechos retos. */
@@ -195,7 +197,7 @@ function buildCurbsMesh() {
   const colors = [];
   for (let s = 0; s < TRACK_LENGTH; s += 2) {
     if (Math.abs(wrapAngle(state.track.at(s + 7).yaw - state.track.at(s - 7).yaw)) < .012) continue;
-    const palette = state.graphicsBeta ? ["#f2f0e8", "#b91f2e"] : ["#d9e8d6", "#d3e93e", "#268d64"];
+    const palette = state.graphicsBeta ? ["#ece7d6", "#c7b63e", "#386448"] : ["#d9e8d6", "#d3e93e", "#268d64"];
     const color = new THREE.Color(palette[Math.floor(s / 4) % palette.length]);
     for (const side of [-1, 1]) {
       const inner = (x) => side * (trackHalfWidthAt(x) + .1);
@@ -203,7 +205,8 @@ function buildCurbsMesh() {
       pushCurbQuad(positions, colors, s, Math.min(s + 2, TRACK_LENGTH), side > 0 ? inner : outer, side > 0 ? outer : inner, color, .13);
     }
   }
-  buildVertexColoredMesh(positions, colors);
+  const curbs = buildVertexColoredMesh(positions, colors);
+  if (state.graphicsBeta) detailSurface(curbs.material, "paint");
 }
 
 /** Linha de trajetória ideal (racing line), colorida por severidade da curva à frente. */
@@ -310,7 +313,8 @@ function buildTrackDecorations() {
   const startFrame = state.track.at(20);
   namePanel.position.copy(startFrame.p);
   namePanel.position.y += 8;
-  namePanel.position.z -= .1;
+  if (state.graphicsBeta) namePanel.position.addScaledVector(startFrame.t, -.42);
+  else namePanel.position.z -= .1;
   namePanel.rotation.y = startFrame.yaw + Math.PI;
   state.scene.add(namePanel);
 
@@ -318,14 +322,14 @@ function buildTrackDecorations() {
   // boxes (`SCENERY.pitBoxSpacing`) é 20 m nos autódromos grandes; Mônaco tem
   // uma reta dos boxes curta e usa boxes bem mais juntos (as dimensões ao
   // longo da pista escalam junto, `k`).
-  if (SCENERY.pitBuilding) {
+  if (SCENERY.pitBuilding && !state.graphicsBeta) {
     const spacing = SCENERY.pitBoxSpacing;
     const k = spacing / 20;
     for (let i = 0; i < 23; i++) {
       const s = TRACK_LENGTH + (i - 12.25) * spacing;
       addAlignedBox(s, 24, 7, .08, 18 * k, MATERIALS.road, .06);
       addAlignedBox(s, 22.1, .18, .12, 8 * k, MATERIALS.white, .15);
-      addAlignedBox(s, 26, 6, 1.5, 16 * k, gridPaint, 5.4);
+      if (!state.graphicsBeta) addAlignedBox(s, 26, 6, 1.5, 16 * k, gridPaint, 5.4);
       const numberFrame = state.track.at(s, 22);
       const numberPanel = makeTextPanel(String(i + 1).padStart(2, "0"), 3, .8);
       numberPanel.position.copy(numberFrame.p);
@@ -335,7 +339,7 @@ function buildTrackDecorations() {
     }
   }
 
-  if (SCENERY.grandstands) {
+  if (SCENERY.grandstands && !state.graphicsBeta) {
     // Arquibancadas: assentos instanciados (720 assentos, 5 cores alternadas).
     // As 8 estações são relativas ao comprimento da pista (perto do início E
     // do fim da volta — que, no traçado circular, é a mesma linha de largada).
@@ -363,7 +367,7 @@ function buildTrackDecorations() {
   }
 
   // Manchas de grama pintada perto de algumas curvas (detalhe visual extra).
-  for (const s of APEX_GRASS_PATCHES) {
+  for (const s of state.graphicsBeta ? [] : APEX_GRASS_PATCHES) {
     for (let i = -3; i <= 3; i++) {
       const station = s + i * 2.5;
       const asphalt = trackHalfWidthAt(station);
@@ -381,7 +385,7 @@ function mergeStaticMeshesByMaterial() {
   const groups = new Map();
   state.scene.updateMatrixWorld(true);
   state.scene.traverse((mesh) => {
-    if (mesh.isMesh && !mesh.isInstancedMesh && !Array.isArray(mesh.material) && !mesh.material.map) {
+    if (mesh.isMesh && !mesh.isInstancedMesh && !Array.isArray(mesh.material) && !mesh.material.map && !mesh.userData.keepSeparate) {
       let list = groups.get(mesh.material);
       if (!list) groups.set(mesh.material, (list = []));
       list.push(mesh);
@@ -877,11 +881,11 @@ export function resizeRenderer() {
 /** Mantém a janela de sombras do beta concentrada ao redor do carro. */
 export function updateBetaGraphics() {
   if (!state.graphicsBeta || !state.betaSun || !state.player) return;
+  updateBetaCockpit(state.player, state.raceTime, state.clockTime);
   const target = state.player.group.position;
-  state.betaSun.position.set(target.x - 58, target.y + 92, target.z - 38);
+  state.betaSun.position.copy(target).addScaledVector(BETA_SUN_DIRECTION, 125);
   state.betaSun.target.position.copy(target);
   state.betaSun.target.updateMatrixWorld();
-  updateBetaAtmosphere(state.clockTime);
 }
 
 /**
@@ -904,7 +908,7 @@ export function buildScene() {
   // Ardenas. Noturna: céu quase negro (nunca preto puro — cidade/estádio ao
   // redor sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
   // "queimar" o preto do céu na distância como a névoa diurna faria.
-  const daySky = state.graphicsBeta ? "#83b7d2" : street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
+  const daySky = state.graphicsBeta ? "#b4c6d1" : street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
   state.scene.background = new THREE.Color(night ? "#050810" : daySky);
   state.scene.fog = new THREE.Fog(
     night ? "#050810" : daySky,
@@ -912,7 +916,10 @@ export function buildScene() {
     (night ? 1000 : forest ? 1500 : woodland ? 1400 : 1900) * scale
   );
   state.camera = new THREE.PerspectiveCamera(60, 1, .2, 2500 * Math.max(1, scale));
-  state.composer?.dispose();
+  if (state.composer) {
+    for (const pass of state.composer.passes) pass.dispose?.();
+    state.composer.dispose();
+  }
   state.composer = null;
   state.renderer?.dispose();
   state.renderer = new THREE.WebGLRenderer({
@@ -923,7 +930,7 @@ export function buildScene() {
   state.renderer.setPixelRatio(Math.min(devicePixelRatio, state.graphicsBeta ? 1.5 : 1.7));
   state.renderer.outputColorSpace = THREE.SRGBColorSpace;
   state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  state.renderer.toneMappingExposure = state.graphicsBeta ? 1.08 : night ? .95 : 1.15;
+  state.renderer.toneMappingExposure = state.graphicsBeta ? .85 : night ? .95 : 1.15;
   state.renderer.shadowMap.enabled = state.graphicsBeta;
   state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   if (state.graphicsBeta) setupBetaEnvironment();
@@ -931,8 +938,8 @@ export function buildScene() {
   // De noite, o "sol" vira luar (bem mais fraco e frio) — a pista em si é
   // iluminada por holofotes emissivos (ver buildFloodlights abaixo), não
   // por luzes dinâmicas de verdade (custaria caro com 23 carros na cena).
-  state.scene.add(new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#52613d" : "#556c39", state.graphicsBeta ? 1.35 : night ? .55 : 2.6));
-  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : state.graphicsBeta ? "#fff1cf" : "#fff2d1", state.graphicsBeta ? 3.4 : night ? .4 : 2.5);
+  state.scene.add(new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#52613d" : "#556c39", state.graphicsBeta ? .6 : night ? .55 : 2.6));
+  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : state.graphicsBeta ? "#fff1cf" : "#fff2d1", state.graphicsBeta ? 2.7 : night ? .4 : 2.5);
   sun.position.set(-300, 700, 100);
   state.scene.add(sun);
   state.scene.add(sun.target);
@@ -940,44 +947,30 @@ export function buildScene() {
   if (state.graphicsBeta) {
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = sun.shadow.camera.bottom = -58;
-    sun.shadow.camera.right = sun.shadow.camera.top = 58;
+    sun.shadow.camera.left = sun.shadow.camera.bottom = -48;
+    sun.shadow.camera.right = sun.shadow.camera.top = 48;
     sun.shadow.camera.near = 8;
     sun.shadow.camera.far = 220;
     sun.shadow.bias = -.00035;
-    sun.shadow.normalBias = .035;
+    sun.shadow.normalBias = .018;
     state.betaSun = sun;
 
-    const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(1500, 32, 18),
-      new THREE.ShaderMaterial({
-        side: THREE.BackSide,
-        depthWrite: false,
-        uniforms: {
-          topColor: { value: new THREE.Color("#327dac") },
-          horizonColor: { value: new THREE.Color("#d6e4e4") },
-          groundColor: { value: new THREE.Color("#9eb09a") },
-        },
-        vertexShader: "varying vec3 vWorld; void main(){ vec4 world=modelMatrix*vec4(position,1.0); vWorld=normalize(world.xyz); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
-        fragmentShader: "varying vec3 vWorld; uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 groundColor; void main(){ float h=clamp(vWorld.y, -1.0, 1.0); vec3 c=h>0.0?mix(horizonColor,topColor,pow(h,.55)):mix(horizonColor,groundColor,min(1.0,-h*3.0)); gl_FragColor=vec4(c,1.0); }",
-      }),
-    );
-    sky.frustumCulled = false;
-    state.scene.add(sky);
+
   }
 
   // Materiais por ambiente. Autódromo ("park", o visual original): gramado
   // + faixa verde de escape. Rua ("street"): tudo pavimento, sem grama. Floresta:
   // gramado mais denso e escapes de asfalto.
-  const groundMaterial = street ? makeMaterial("#7d786c") : forest ? makeMaterial("#4c7449")
+  const groundMaterial = state.graphicsBeta ? makeBetaGroundMaterial() : street ? makeMaterial("#7d786c") : forest ? makeMaterial("#4c7449")
     : tropical ? makeMaterial("#5c9647") : woodland ? makeMaterial("#6b8f40") : speedway ? makeMaterial("#79a552")
       : desert ? makeMaterial("#b99a61") : alpine ? makeMaterial("#67924e") : MATERIALS.grass;
-  const runoffMaterial = street ? makeMaterial("#666a6d") : forest || desert ? makeMaterial("#626b6a") : MATERIALS.green;
+  const runoffMaterial = state.graphicsBeta ? makeMaterial("#536952") : street ? makeMaterial("#666a6d") : forest || desert ? makeMaterial("#626b6a") : MATERIALS.green;
   const sidewalkMaterial = makeMaterial("#8e8a7f");
-  const wallMaterial = street ? makeMaterial("#ece9e0") : speedway ? makeMaterial("#dcdcd6") : MATERIALS.barrier;
+  const wallMaterial = state.graphicsBeta ? makeMaterial("#cfccc3", { roughness: .95 }) : street ? makeMaterial("#ece9e0") : speedway ? makeMaterial("#dcdcd6") : MATERIALS.barrier;
   // As duas laterais usam a mesma ordem de vértices; DoubleSide garante que
   // a face voltada para a pista permaneça visível nos dois lados.
   wallMaterial.side = THREE.DoubleSide;
+  if (state.graphicsBeta) detailSurface(wallMaterial, "concrete");
 
   // Porto de Mônaco (só rua com `harbor`): quadriláteros de água na margem
   // ESQUERDA dos trechos indicados (a Port Hercule fica dentro da grande
@@ -1103,12 +1096,7 @@ export function buildScene() {
   buildRibbonMesh(outerEdge(-1), outerEdge(1), runoffMaterial, -.2);
   buildRibbonMesh((s) => -trackHalfWidthAt(s), trackHalfWidthAt, MATERIALS.road, .1);
   if (state.graphicsBeta) {
-    const rubber = makeMaterial("#151719", {
-      roughness: .72,
-      transparent: true,
-      opacity: .34,
-      depthWrite: false,
-    });
+    const rubber = makeRubberLineMaterial();
     const grooveBias = (s) => {
       const turn = wrapAngle(state.track.at(s + 58).yaw - state.track.at(s + 18).yaw);
       return -Math.sign(turn) * Math.min(1.35, Math.abs(turn) * 2.1);
@@ -1153,7 +1141,7 @@ export function buildScene() {
 
   // Estrutura de telhado dos boxes/arquibancadas (23 vãos, mesmo espaçamento
   // dos boxes de largada — ver SCENERY.pitBoxSpacing).
-  if (SCENERY.pitBuilding) {
+  if (SCENERY.pitBuilding && !state.graphicsBeta) {
     const spacing = SCENERY.pitBoxSpacing;
     const k = spacing / 20;
     for (let i = 0; i < 23; i++) {
@@ -1166,8 +1154,8 @@ export function buildScene() {
 
   // Paredes de fundo das arquibancadas (faixas coloridas em camadas), nas
   // extremidades reta dos boxes / área de largada (mesmas estações dos assentos).
-  if (SCENERY.grandstands) {
-    const wallColors = [makeMaterial("#c4d93e"), makeMaterial("#429b92"), makeMaterial("#eef1dc")];
+  if (SCENERY.grandstands && !state.graphicsBeta) {
+    const wallColors = (state.graphicsBeta ? ["#aaa9a0", "#999c94", "#c0bfb5"] : ["#c4d93e", "#429b92", "#eef1dc"]).map(c => makeMaterial(c));
     for (const s of GRANDSTAND_STATIONS()) {
       for (let i = 0; i < 5; i++) {
         addAlignedBox(s, -29 - i * 3, 3, 1.5, 56, wallColors[i % 3], i * 1.25);
@@ -1194,7 +1182,9 @@ export function buildScene() {
   let seed = 17;
   const rng = () => (seed = (seed * 16807) % 2147483647, (seed - 1) / 2147483646);
 
-  if (street) {
+  if (state.graphicsBeta) {
+    buildBetaAtmosphere(groundHeightAt, rng, inWater);
+  } else if (street) {
     buildCityBlocks(rng, groundHeightAt, inWater, waterY);
   } else if (forest) {
     buildForest(rng, scale, groundHeightAt);
@@ -1224,13 +1214,10 @@ export function buildScene() {
   if (SCENERY.stadium) buildHardRockStadium(groundHeightAt, SCENERY.stadium);
   if (SCENERY.yasHotelStation != null) buildYasHotel(SCENERY.yasHotelStation);
 
-  if (SCENERY.skyline) buildSkyline(rng, scale, SCENERY.skyline, night);
+  if (SCENERY.skyline && !state.graphicsBeta) buildSkyline(rng, scale, SCENERY.skyline, night);
   if (SCENERY.banners) buildBanners(SCENERY.banners);
 
-  if (state.graphicsBeta) {
-    buildBetaAtmosphere(groundHeightAt, rng);
-    buildBetaTrackDetails(rng);
-  }
+  if (state.graphicsBeta) buildBetaTrackDetails(rng);
 
   // Fundo distante. Autódromo: "morros" de caixas atrás da largada. Rua:
   // paredões rochosos e altos (Mônaco é espremida contra a montanha).
@@ -1254,7 +1241,7 @@ export function buildScene() {
       const dune = addMesh(new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), duneMaterials[i % 3], Math.cos(angle) * radius, -18, Math.sin(angle) * radius);
       dune.scale.set(120 + rng() * 130, 22 + rng() * 38, 90 + rng() * 110);
     }
-  } else if (tropical) {
+  } else if (tropical && !state.graphicsBeta) {
     const hillMaterials = [makeMaterial("#4b7d45"), makeMaterial("#3f6f3f"), makeMaterial("#5a8a4a")];
     for (let i = 0; i < 40; i++) {
       const angle = rng() * Math.PI * 2;
@@ -1263,7 +1250,7 @@ export function buildScene() {
       const hill = addMesh(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillMaterials[i % 3], Math.cos(angle) * radius, -12, Math.sin(angle) * radius);
       hill.scale.set(r, 30 + rng() * 55, r);
     }
-  } else if (!woodland && !speedway) {
+  } else if (!woodland && !speedway && !state.graphicsBeta) {
     const massifColors = street ? ["#a39a89", "#8b8373"] : ["#91a9a9", "#7b9699"];
     for (let i = 0; i < (street ? 90 : 65); i++) {
       const x = (rng() - .5) * 1900 * scale;
@@ -1282,17 +1269,9 @@ export function buildScene() {
     const composer = new EffectComposer(state.renderer);
     composer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     composer.addPass(new RenderPass(state.scene, state.camera));
-    const ssao = new SSAOPass(state.scene, state.camera, 1, 1);
-    ssao.kernelRadius = 7;
-    ssao.minDistance = .0025;
-    ssao.maxDistance = .075;
-    composer.addPass(ssao);
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), .22, .55, .82));
-    composer.addPass(new ShaderPass({
-      uniforms: { tDiffuse: { value: null } },
-      vertexShader: "varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
-      fragmentShader: "uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec3 c=texture2D(tDiffuse,vUv).rgb; c=(c-.5)*1.055+.5; float l=dot(c,vec3(.2126,.7152,.0722)); c=mix(vec3(l),c,1.08); float d=distance(vUv,vec2(.5)); c*=1.0-smoothstep(.34,.78,d)*.24; gl_FragColor=vec4(c,1.0); }",
-    }));
+    composer.renderTarget1.samples = 4;
+    composer.renderTarget2.samples = 4;
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), .08, .35, 1.2));
     composer.addPass(new OutputPass());
     state.composer = composer;
   }
