@@ -1,4 +1,4 @@
-@import"https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600;700;800&display=swap";
+@import "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600;700;800&display=swap";
 
 :root {
   font-family: Barlow, Arial, sans-serif;
@@ -6,31 +6,31 @@
   background: #101514;
   font-synthesis: none;
   --lime: #d5fc51;
-  --muted: #8e9994
+  --muted: #8e9994;
 }
 
 * {
-  box-sizing: border-box
+  box-sizing: border-box;
 }
 
 body {
-  margin: 0
+  margin: 0;
 }
 
 button,
 a {
-  -webkit-tap-highlight-color: transparent
+  -webkit-tap-highlight-color: transparent;
 }
 
 button {
   font: inherit;
-  cursor: pointer
+  cursor: pointer;
 }
 
 button:focus-visible,
 a:focus-visible {
   outline: 3px solid #d5fc51;
-  outline-offset: 4px
+  outline-offset: 4px;
 }
 
 header {
@@ -39,7 +39,7 @@ header {
   align-items: center;
   justify-content: space-between;
   padding: 0 40px;
-  border-bottom: 1px solid #ffffff14
+  border-bottom: 1px solid #ffffff14;
 }
 
 .brand {
@@ -53,11 +53,11 @@ header {
   font-style: italic;
   background: none;
   border: 0;
-  padding: 0
+  padding: 0;
 }
 
 .brand b {
-  color: var(--lime)
+  color: var(--lime);
 }
 
 .brandmark {
@@ -68,24 +68,24 @@ header {
   transform: skew(-14deg);
   margin-right: 21px;
   border-bottom: 5px solid var(--lime);
-  padding-right: 6px
+  padding-right: 6px;
 }
 
 .brandmark span {
-  color: var(--lime)
+  color: var(--lime);
 }
 
 .edition {
   font-size: 12px;
   letter-spacing: 3px;
-  color: #acb4ad
+  color: #acb4ad;
 }
 
 .edition span {
   border: 1px solid #74816b;
   padding: 5px 8px;
   margin-left: 8px;
-  letter-spacing: 1px
+  letter-spacing: 1px;
 }
 
 .iconbtn {
@@ -96,7 +96,7 @@ header {
   min-height: 38px;
   padding: 8px 12px;
   font-size: 12px;
-  font-weight: 700
+  font-weight: 700;
 }
 
 main {
@@ -105,7 +105,7 @@ main {
   max-width: 1800px;
   margin: auto;
   padding: 24px 30px;
-  gap: 26px
+  gap: 26px;
 }
 
 .game {
@@ -116,7 +116,7 @@ main {
   overflow: hidden;
   background: #839995;
   border-radius: 8px;
-  border: 1px solid #ffffff16
+  border: 1px solid #ffffff16;
 }
 
 #race {
@@ -128,7 +128,7 @@ main {
   width: 100%;
   height: 100%;
   display: block;
-  touch-action: none
+  touch-action: none;
 }
 
 .game:has(.start:not(.hidden)):after {
@@ -139,7 +139,9 @@ main {
   bottom: 0;
   left: 0;
   pointer-events: none;
-  background: linear-gradient(90deg, #081614c4, transparent 85%), linear-gradient(0deg, #081614a0, transparent 30%)
+  background:
+    linear-gradient(90deg, #081614c4, transparent 85%),
+    linear-gradient(0deg, #081614a0, transparent 30%);
 }
 
 .tracklabel {
@@ -153,14 +155,14 @@ main {
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 1px;
-  text-shadow: 0 1px 6px #000
+  text-shadow: 0 1px 6px #000;
 }
 
 .live-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--lime)
+  background: var(--lime);
 }
 
 .tracklabel small {
@@ -169,7 +171,7 @@ main {
   letter-spacing: 1px;
   color: #e2e7df;
   border-left: 1px solid #ffffff50;
-  padding-left: 12px
+  padding-left: 12px;
 }
 
 .start {
@@ -177,36 +179,39 @@ main {
   z-index: 2;
   left: 6%;
   top: 26%;
-  right: 5%
+  right: 5%;
 }
 
 .eyebrow {
   font-size: 12px;
   letter-spacing: 2px;
   font-weight: 700;
-  color: var(--lime)
+  color: var(--lime);
 }
 
 h1 {
-  font-family: Barlow Condensed, Impact, sans-serif;
+  font-family:
+    Barlow Condensed,
+    Impact,
+    sans-serif;
   font-size: clamp(48px, 5.1vw, 84px);
   font-weight: 800;
   text-transform: uppercase;
-  line-height: .98;
+  line-height: 0.98;
   letter-spacing: -1px;
-  margin: 21px 0
+  margin: 21px 0;
 }
 
 h1 em {
   color: var(--lime);
-  font-style: italic
+  font-style: italic;
 }
 
 .start p {
   font-size: 17px;
   color: #d6ded5;
   line-height: 1.7;
-  margin: 24px 0 30px
+  margin: 24px 0 30px;
 }
 
 .primary {
@@ -216,34 +221,34 @@ h1 em {
   font-weight: 800;
   padding: 19px 24px;
   color: #19230c;
-  letter-spacing: .6px;
+  letter-spacing: 0.6px;
   font-size: 14px;
   min-width: 240px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 25px
+  gap: 25px;
 }
 
 .primary:hover {
-  background: #e4ff8c
+  background: #e4ff8c;
 }
 
 .primary span {
   font-size: 23px;
-  line-height: 1
+  line-height: 1;
 }
 
 .startmeta {
   font-size: 11px;
   letter-spacing: 1px;
   color: #c2cfc5;
-  margin-top: 21px
+  margin-top: 21px;
 }
 
 .startmeta span {
   margin: 0 9px;
-  color: var(--lime)
+  color: var(--lime);
 }
 
 .stage-bottom {
@@ -256,13 +261,13 @@ h1 em {
   justify-content: space-between;
   font-size: 10px;
   letter-spacing: 2px;
-  color: #c1cfc7
+  color: #c1cfc7;
 }
 
 .colors {
   display: flex;
   gap: 12px;
-  margin: 16px 0
+  margin: 16px 0;
 }
 
 .swatch {
@@ -271,22 +276,22 @@ h1 em {
   border-radius: 50%;
   background: var(--c);
   border: 4px solid #101514;
-  outline: 1px solid transparent
+  outline: 1px solid transparent;
 }
 
 .swatch.selected {
-  outline-color: var(--c)
+  outline-color: var(--c);
 }
 
 .inspired {
   font-size: 11px;
   color: #808e85;
   line-height: 1.6;
-  margin-top: 24px
+  margin-top: 24px;
 }
 
 .inspired a {
-  color: #a7b78d
+  color: #a7b78d;
 }
 
 footer {
@@ -295,12 +300,12 @@ footer {
   justify-content: space-between;
   font-size: 10px;
   color: #84948b;
-  letter-spacing: .8px;
-  gap: 20px
+  letter-spacing: 0.8px;
+  gap: 20px;
 }
 
-footer>span {
-  white-space: nowrap
+footer > span {
+  white-space: nowrap;
 }
 
 footer i {
@@ -309,7 +314,7 @@ footer i {
   background: var(--lime);
   display: inline-block;
   border-radius: 50%;
-  margin-right: 7px
+  margin-right: 7px;
 }
 
 kbd {
@@ -320,15 +325,15 @@ kbd {
   padding: 3px 5px;
   color: #dae3da;
   margin: 0 5px 0 10px;
-  white-space: nowrap
+  white-space: nowrap;
 }
 
 .mobilehint {
-  display: none
+  display: none;
 }
 
 .hidden {
-  display: none !important
+  display: none !important;
 }
 
 .hud {
@@ -340,31 +345,31 @@ kbd {
   gap: 30px;
   align-items: center;
   z-index: 3;
-  text-shadow: 0 2px 5px #000
+  text-shadow: 0 2px 5px #000;
 }
 
 .hud small {
   display: block;
   font-size: 10px;
-  letter-spacing: 1px
+  letter-spacing: 1px;
 }
 
 .hud strong {
   font-size: 33px;
-  font-style: italic
+  font-style: italic;
 }
 
 .hud strong span {
   font-size: 17px;
-  color: #c4cec6
+  color: #c4cec6;
 }
 
 .hud .iconbtn {
-  margin-left: auto
+  margin-left: auto;
 }
 
 .hud #timer {
-  font-size: 25px
+  font-size: 25px;
 }
 
 .instruments {
@@ -375,7 +380,7 @@ kbd {
   right: 27px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end
+  align-items: flex-end;
 }
 
 .itembox {
@@ -383,13 +388,13 @@ kbd {
   background: #101b19cf;
   padding: 13px;
   border-radius: 8px;
-  min-width: 178px
+  min-width: 178px;
 }
 
 .itembox small {
   font-size: 10px;
   letter-spacing: 1px;
-  color: #adbdaf
+  color: #adbdaf;
 }
 
 .itembox button {
@@ -400,29 +405,32 @@ kbd {
   background: none;
   border: 0;
   padding: 8px 0 0;
-  font-size: 11px
+  font-size: 11px;
 }
 
 #itemIcon {
   font-size: 30px;
-  color: var(--lime)
+  color: var(--lime);
 }
 
 .speedbox {
   text-align: right;
-  text-shadow: 0 2px 3px #000
+  text-shadow: 0 2px 3px #000;
 }
 
-.speedbox>strong {
-  font-family: Barlow Condensed, Impact, sans-serif;
+.speedbox > strong {
+  font-family:
+    Barlow Condensed,
+    Impact,
+    sans-serif;
   font-size: 68px;
-  font-style: italic
+  font-style: italic;
 }
 
-.speedbox>span {
+.speedbox > span {
   display: block;
   font-size: 11px;
-  letter-spacing: 2px
+  letter-spacing: 2px;
 }
 
 /* Indicador de DRS ativo (ver player.js/bots.js, computeDrsActive em physics.js). */
@@ -436,12 +444,12 @@ kbd {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 1px;
-  animation: drsPulse .5s infinite alternate;
+  animation: drsPulse 0.5s infinite alternate;
 }
 
 @keyframes drsPulse {
   to {
-    opacity: .55;
+    opacity: 0.55;
   }
 }
 
@@ -457,19 +465,19 @@ kbd {
   background: #ffffff35;
   border-radius: 5px;
   margin: 13px 0 7px;
-  overflow: hidden
+  overflow: hidden;
 }
 
 .driftbar i {
   display: block;
   height: 100%;
   background: var(--lime);
-  width: 0
+  width: 0;
 }
 
 .speedbox small {
   font-size: 9px;
-  letter-spacing: .6px
+  letter-spacing: 0.6px;
 }
 
 .countdown {
@@ -484,7 +492,7 @@ kbd {
   align-items: center;
   justify-content: center;
   gap: 20px;
-  pointer-events: none
+  pointer-events: none;
 }
 
 /* Largada estilo F1: 5 luzes vermelhas (ver main.js/animate) — acendem uma
@@ -510,7 +518,9 @@ kbd {
 
 .light.lit {
   background: #ff2e2e;
-  box-shadow: 0 0 18px 6px #ff2e2eb0, inset 0 0 8px #ff8a8a;
+  box-shadow:
+    0 0 18px 6px #ff2e2eb0,
+    inset 0 0 8px #ff8a8a;
 }
 
 @media (max-width: 640px) {
@@ -535,14 +545,14 @@ kbd {
   background: #12201ad9;
   font-size: 14px;
   opacity: 0;
-  transition: opacity .2s;
+  transition: opacity 0.2s;
   z-index: 4;
   text-align: center;
-  white-space: nowrap
+  white-space: nowrap;
 }
 
 .notice.show {
-  opacity: 1
+  opacity: 1;
 }
 
 .modal {
@@ -558,24 +568,27 @@ kbd {
   display: grid;
   place-items: center;
   padding: 25px;
-  text-align: center
+  text-align: center;
 }
 
 .modal h2 {
-  font-family: Barlow Condensed, Impact, sans-serif;
+  font-family:
+    Barlow Condensed,
+    Impact,
+    sans-serif;
   font-size: 50px;
   text-transform: uppercase;
   line-height: 1.05;
-  margin: 15px 0
+  margin: 15px 0;
 }
 
 .modal .primary {
-  margin: 18px auto 10px
+  margin: 18px auto 10px;
 }
 
 .modal p {
   font-size: 14px;
-  color: #b6c5ba
+  color: #b6c5ba;
 }
 
 .secondary {
@@ -586,7 +599,7 @@ kbd {
   background: none;
   border: 0;
   font-size: 12px;
-  font-weight: 700
+  font-weight: 700;
 }
 
 .standing {
@@ -595,11 +608,11 @@ kbd {
   justify-content: space-between;
   padding: 6px 12px;
   border-bottom: 1px solid #ffffff12;
-  font-size: 12px
+  font-size: 12px;
 }
 
 .standing.you {
-  color: var(--lime)
+  color: var(--lime);
 }
 
 .touch {
@@ -610,12 +623,12 @@ kbd {
   left: 12px;
   right: 12px;
   justify-content: space-between;
-  gap: 8px
+  gap: 8px;
 }
 
-.touch>div {
+.touch > div {
   display: flex;
-  gap: 6px
+  gap: 6px;
 }
 
 .touch button {
@@ -629,262 +642,262 @@ kbd {
   -webkit-user-select: none;
   user-select: none;
   font-size: 11px;
-  font-weight: 800
+  font-weight: 800;
 }
 
 .touch .gaskey {
   background: #d5fc51db;
   color: #19230c;
-  padding: 0 12px
+  padding: 0 12px;
 }
 
 .touch .driftkey {
-  color: var(--lime)
+  color: var(--lime);
 }
 
-@media(min-width:1600px) {
+@media (min-width: 1600px) {
   main {
-    grid-template-columns: minmax(0, 1fr) 370px
+    grid-template-columns: minmax(0, 1fr) 370px;
   }
 
   aside {
-    padding: 12px
+    padding: 12px;
   }
 }
 
-@media(max-width:1100px) {
+@media (max-width: 1100px) {
   header {
-    padding: 0 22px
+    padding: 0 22px;
   }
 
   main {
     padding: 18px;
     gap: 18px;
-    grid-template-columns: minmax(0, 1fr) 265px
+    grid-template-columns: minmax(0, 1fr) 265px;
   }
 
   .game {
-    min-height: 660px
+    min-height: 660px;
   }
 
   .edition {
-    display: none
+    display: none;
   }
 
   h1 {
-    font-size: 58px
+    font-size: 58px;
   }
 
-  footer>div {
-    font-size: 9px
+  footer > div {
+    font-size: 9px;
   }
 
-  footer>span:first-child {
-    display: none
+  footer > span:first-child {
+    display: none;
   }
 }
 
-@media(pointer:coarse) {
+@media (pointer: coarse) {
   .touch:not(.hidden) {
-    display: flex
+    display: flex;
   }
 
   .instruments {
-    bottom: 85px
+    bottom: 85px;
   }
 
   .mobilehint {
-    display: block
+    display: block;
   }
 
-  footer>div {
-    display: none
+  footer > div {
+    display: none;
   }
 
   /* A "embreagem" da largada é feita soltando a tecla ESPAÇO (ver
      player.js/resolveLaunch) — não existe em touch, então a dica some. */
   .countdown-hint {
-    display: none
+    display: none;
   }
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px) {
   header {
     height: 66px;
-    padding: 0 17px
+    padding: 0 17px;
   }
 
   .brand {
-    font-size: 15px
+    font-size: 15px;
   }
 
   .brandmark {
-    font-size: 27px
+    font-size: 27px;
   }
 
   main {
     display: flex;
     flex-direction: column;
     padding: 10px;
-    gap: 24px
+    gap: 24px;
   }
 
   .game {
     height: 72dvh;
     min-height: 570px;
-    max-height: 780px
+    max-height: 780px;
   }
 
   .start {
     top: 20%;
-    left: 7%
+    left: 7%;
   }
 
   h1 {
     font-size: 57px;
-    margin: 10px 0
+    margin: 10px 0;
   }
 
   .start p {
     font-size: 15px;
-    margin: 10px 0 16px
+    margin: 10px 0 16px;
   }
 
   .landing-secondary {
-    margin-top: 0
+    margin-top: 0;
   }
 
   .startmeta {
-    margin-top: 10px
+    margin-top: 10px;
   }
 
   .tracklabel {
     left: 18px;
     top: 20px;
-    font-size: 12px
+    font-size: 12px;
   }
 
   .tracklabel small {
-    font-size: 9px
+    font-size: 9px;
   }
 
   .stage-bottom {
     font-size: 8px;
     left: 18px;
-    right: 18px
+    right: 18px;
   }
 
   .stage-bottom span:last-child {
-    display: none
+    display: none;
   }
 
   aside {
-    padding: 0 12px
+    padding: 0 12px;
   }
 
   aside h2 {
-    font-size: 30px
+    font-size: 30px;
   }
 
   aside h2 br {
-    display: none
+    display: none;
   }
 
   .circuit-card canvas {
-    height: 125px
+    height: 125px;
   }
 
   .rules {
-    display: none
+    display: none;
   }
 
   .inspired {
-    margin: 10px 0
+    margin: 10px 0;
   }
 
   footer {
     padding: 15px 22px;
-    font-size: 9px
+    font-size: 9px;
   }
 
   .hud {
     left: 18px;
     right: 18px;
-    gap: 22px
+    gap: 22px;
   }
 
   .instruments {
     left: 17px;
-    right: 17px
+    right: 17px;
   }
 
-  .speedbox>strong {
-    font-size: 52px
+  .speedbox > strong {
+    font-size: 52px;
   }
 
   .itembox {
     min-width: 140px;
-    padding: 9px
+    padding: 9px;
   }
 
   .itembox kbd {
-    display: none
+    display: none;
   }
 
   .hud strong {
-    font-size: 28px
+    font-size: 28px;
   }
 
   .hud #timer {
-    font-size: 21px
+    font-size: 21px;
   }
 
   .startmeta {
-    font-size: 9px
+    font-size: 9px;
   }
 }
 
-@media(max-height:570px)and (orientation:landscape) {
+@media (max-height: 570px) and (orientation: landscape) {
   .hud {
-    top: 40px
+    top: 40px;
   }
 
   .tracklabel {
-    top: 12px
+    top: 12px;
   }
 
   .instruments {
-    bottom: 80px
+    bottom: 80px;
   }
 
-  .speedbox>strong {
-    font-size: 40px
+  .speedbox > strong {
+    font-size: 40px;
   }
 
   .modal h2 {
-    font-size: 30px
+    font-size: 30px;
   }
 
   .standing {
-    padding: 2px 10px
+    padding: 2px 10px;
   }
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px) {
   .hud {
-    gap: 12px
+    gap: 12px;
   }
 
   .hud .iconbtn {
-    padding: 6px 10px
+    padding: 6px 10px;
   }
 
   .hud #recover {
-    margin-left: auto
+    margin-left: auto;
   }
 
   .hud #pause {
-    margin-left: 0
+    margin-left: 0;
   }
 }
 
@@ -893,13 +906,13 @@ kbd {
   gap: 9px;
   margin: -8px 0 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #ffffff18
+  border-bottom: 1px solid #ffffff18;
 }
 
-.config-block>label:first-child {
+.config-block > label:first-child {
   font-size: 12px;
   letter-spacing: 1px;
-  color: #aab4af
+  color: #aab4af;
 }
 
 .config-block select {
@@ -910,44 +923,44 @@ kbd {
   border-radius: 4px;
   font: inherit;
   font-size: 15px;
-  padding: 10px
+  padding: 10px;
 }
 
 .config-block .check {
   display: flex;
   align-items: center;
   font-size: 13px;
-  gap: 8px
+  gap: 8px;
 }
 
 .config-block input {
   accent-color: var(--lime);
   width: 16px;
-  height: 16px
+  height: 16px;
 }
 
 .config-block small {
   font-size: 12px;
   line-height: 1.4;
-  color: #96a199
+  color: #96a199;
 }
 
 .gear {
   display: inline-flex;
   flex-direction: column;
   margin-right: 16px;
-  vertical-align: baseline
+  vertical-align: baseline;
 }
 
 .gear b {
   font-size: 30px;
   color: var(--lime);
-  font-style: italic
+  font-style: italic;
 }
 
 .gear span {
   font-size: 9px;
-  letter-spacing: 1px
+  letter-spacing: 1px;
 }
 
 /* Barra do replay cinematográfico (ver replay.js) — mesmo estilo de
@@ -993,7 +1006,7 @@ kbd {
   color: #14200f;
   font-weight: 800;
   font-size: 11px;
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
   white-space: nowrap;
 }
 
@@ -1080,7 +1093,7 @@ kbd {
 .replay-hud-name {
   color: #fff;
   font-size: 13px;
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
 }
 
 .replay-hud-item {
@@ -1107,7 +1120,7 @@ kbd {
   background: #58dfff;
   color: #0c2027;
   font-size: 11px;
-  animation: drsPulse .5s infinite alternate;
+  animation: drsPulse 0.5s infinite alternate;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1170,7 +1183,7 @@ kbd {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
-  animation: warningPulse .7s infinite alternate
+  animation: warningPulse 0.7s infinite alternate;
 }
 
 /* Aviso de bandeira amarela (ver triggerYellowFlag/yellowFlagCapAt em
@@ -1190,14 +1203,14 @@ kbd {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
-  animation: warningPulse .7s infinite alternate
+  animation: warningPulse 0.7s infinite alternate;
 }
 
 /* Dica da "embreagem" na largada (ver player.js/resolveLaunch). */
 .countdown-hint {
   font-size: 13px;
   font-weight: 800;
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
   color: #fff;
   text-shadow: 0 4px 14px #000a;
   pointer-events: none;
@@ -1218,14 +1231,14 @@ kbd {
   right: 0;
   height: 3px;
   background: #1e2921;
-  z-index: 4
+  z-index: 4;
 }
 
 .race-progress i {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--lime)
+  background: var(--lime);
 }
 
 #driftFlash {
@@ -1238,151 +1251,151 @@ kbd {
   z-index: 1;
   opacity: 0;
   box-shadow: inset 0 0 65px 9px #6fe9ff;
-  transition: opacity .2s
+  transition: opacity 0.2s;
 }
 
 #driftFlash.active {
-  opacity: .6
+  opacity: 0.6;
 }
 
 #cameraMode {
   font-size: 10px;
-  margin-left: auto
+  margin-left: auto;
 }
 
 .hud #recover,
 .hud #pause {
-  margin-left: 0
+  margin-left: 0;
 }
 
 .hud {
-  gap: 20px
+  gap: 20px;
 }
 
 .touch button:active,
 .touch button.pressed {
   background: #d5fc51;
-  color: #1e2515
+  color: #1e2515;
 }
 
 .itembox button:disabled {
-  opacity: .65;
-  cursor: default
+  opacity: 0.65;
+  cursor: default;
 }
 
 .itembox button:not(:disabled) {
   width: 100%;
-  color: #e2ff73
+  color: #e2ff73;
 }
 
 .itembox:has(button:not(:disabled)) {
   border-color: #b8d950;
-  box-shadow: 0 0 15px #c7ef481b
+  box-shadow: 0 0 15px #c7ef481b;
 }
 
 body.racing .config-block {
-  pointer-events: none
+  pointer-events: none;
 }
 
 aside {
   max-height: calc(100dvh - 160px);
   overflow: auto;
   scrollbar-width: thin;
-  scrollbar-color: #4a5c3f transparent
+  scrollbar-color: #4a5c3f transparent;
 }
 
 @keyframes warningPulse {
   to {
-    opacity: .6
+    opacity: 0.6;
   }
 }
 
-@media(prefers-reduced-motion:reduce) {
+@media (prefers-reduced-motion: reduce) {
   .attack-warning {
-    animation: none
+    animation: none;
   }
 
   #driftFlash {
-    transition: none
+    transition: none;
   }
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px) {
   aside {
     max-height: none;
-    overflow: visible
+    overflow: visible;
   }
 
   .hud {
-    gap: 10px
+    gap: 10px;
   }
 
   .hud strong {
-    font-size: 25px
+    font-size: 25px;
   }
 
   .hud #timer {
-    font-size: 18px
+    font-size: 18px;
   }
 
   .hud small {
-    font-size: 9px
+    font-size: 9px;
   }
 
   .hud .iconbtn {
     padding: 6px;
-    min-height: 34px
+    min-height: 34px;
   }
 
   #cameraMode {
-    font-size: 8px
+    font-size: 8px;
   }
 
   .gear {
-    margin-right: 8px
+    margin-right: 8px;
   }
 
   .gear b {
-    font-size: 23px
+    font-size: 23px;
   }
 
   .attack-warning {
     top: 117px;
-    font-size: 10px
+    font-size: 10px;
   }
 
   #miniMap {
     top: 165px !important;
     width: 114px !important;
     height: 89px !important;
-    right: 12px !important
+    right: 12px !important;
   }
 
   .notice {
     top: 125px;
-    font-size: 12px
+    font-size: 12px;
   }
 
   .config-block select {
-    font-size: 16px
+    font-size: 16px;
   }
 
   .instruments {
-    z-index: 4
+    z-index: 4;
   }
 
   .itembox {
-    min-height: 78px
+    min-height: 78px;
   }
 
   .itembox button {
-    min-height: 45px
+    min-height: 45px;
   }
 }
 
 .lap-picker {
   display: flex;
-  gap: 8px
+  gap: 8px;
 }
 
 .lap-picker button {
@@ -1391,7 +1404,7 @@ aside {
   color: #e3ff8c;
   border: 1px solid #617344;
   border-radius: 4px;
-  font-size: 23px
+  font-size: 23px;
 }
 
 .lap-picker input {
@@ -1402,13 +1415,15 @@ aside {
   border: 1px solid #617344;
   border-radius: 4px;
   color: #fff;
-  font: 700 20px Barlow, Arial;
-  padding: 8px
+  font:
+    700 20px Barlow,
+    Arial;
+  padding: 8px;
 }
 
 .lap-picker button:disabled {
-  opacity: .4;
-  cursor: default
+  opacity: 0.4;
+  cursor: default;
 }
 
 .lap-telemetry {
@@ -1424,30 +1439,30 @@ aside {
   gap: 9px 18px;
   z-index: 4;
   min-width: 208px;
-  font-variant-numeric: tabular-nums
+  font-variant-numeric: tabular-nums;
 }
 
-.lap-telemetry>div:first-child {
-  grid-column: 1/-1
+.lap-telemetry > div:first-child {
+  grid-column: 1/-1;
 }
 
 .lap-telemetry small {
   display: block;
   font-size: 10px;
   letter-spacing: 1px;
-  color: #bccabd
+  color: #bccabd;
 }
 
 .lap-telemetry b {
   display: block;
   font-size: 15px;
   font-weight: 600;
-  margin-top: 3px
+  margin-top: 3px;
 }
 
-.lap-telemetry>div:first-child b {
+.lap-telemetry > div:first-child b {
   font-size: 22px;
-  color: #e3ff80
+  color: #e3ff80;
 }
 
 /* Ritmo (RITMO): comparação em tempo real com a melhor volta, ver ui.js.
@@ -1463,11 +1478,11 @@ aside {
 }
 
 .pace.ahead {
-  color: #b6ff50
+  color: #b6ff50;
 }
 
 .pace.behind {
-  color: #ff8a6b
+  color: #ff8a6b;
 }
 
 /* Setores (S1/S2/S3): mesma lógica de "linha inteira" do RITMO. Cada caixa
@@ -1495,7 +1510,7 @@ aside {
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: .3px;
+  letter-spacing: 0.3px;
 }
 
 .sector-box.done {
@@ -1512,7 +1527,7 @@ aside {
 .hud-gap strong {
   font-size: 20px;
   font-style: italic;
-  color: #e3ff80
+  color: #e3ff80;
 }
 
 .lap-telemetry button {
@@ -1524,23 +1539,23 @@ aside {
   color: #defb90;
   text-align: left;
   font-size: 11px;
-  font-weight: 700
+  font-weight: 700;
 }
 
 .times-modal {
-  z-index: 10
+  z-index: 10;
 }
 
-.times-modal>div {
-  width: min(420px, 100%)
+.times-modal > div {
+  width: min(420px, 100%);
 }
 
 .times-modal h2 {
-  font-size: 38px
+  font-size: 38px;
 }
 
 .times-modal label {
-  font-size: 13px
+  font-size: 13px;
 }
 
 .times-modal select {
@@ -1551,21 +1566,21 @@ aside {
   border-radius: 4px;
   background: #213224;
   color: #fff;
-  font: inherit
+  font: inherit;
 }
 
 .timing-scroll {
   max-height: min(40dvh, 310px);
   overflow: auto;
   border: 1px solid #ffffff25;
-  border-radius: 4px
+  border-radius: 4px;
 }
 
 .timing-scroll table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  font-variant-numeric: tabular-nums
+  font-variant-numeric: tabular-nums;
 }
 
 .timing-scroll th {
@@ -1573,155 +1588,155 @@ aside {
   top: 0;
   background: #203026;
   font-size: 12px;
-  color: #bed0bc
+  color: #bed0bc;
 }
 
 .timing-scroll th,
 .timing-scroll td {
   padding: 10px 8px;
   border-bottom: 1px solid #ffffff15;
-  text-align: right
+  text-align: right;
 }
 
 .timing-scroll th:first-child,
 .timing-scroll td:first-child {
-  text-align: left
+  text-align: left;
 }
 
 .timing-scroll tr.fastest {
-  color: #dbff76
+  color: #dbff76;
 }
 
 .timing-scroll tr.invalid {
   color: #ff8a6b;
   text-decoration: line-through;
-  opacity: .75
+  opacity: 0.75;
 }
 
 #timingSummary {
   font-size: 13px;
   margin-bottom: 12px;
-  color: #d9e8cc
+  color: #d9e8cc;
 }
 
 #timesPanel .primary {
-  padding: 13px 24px
+  padding: 13px 24px;
 }
 
 .standing span:last-child {
-  font-variant-numeric: tabular-nums
+  font-variant-numeric: tabular-nums;
 }
 
 .tracklabel small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 380px
+  max-width: 380px;
 }
 
-#finish>div {
+#finish > div {
   max-height: 100%;
-  overflow: auto
+  overflow: auto;
 }
 
 #finish h2 {
-  font-size: 42px
+  font-size: 42px;
 }
 
 #startLapCount {
   margin: 0;
-  color: inherit
+  color: inherit;
 }
 
-.startmeta>span {
-  color: var(--lime)
+.startmeta > span {
+  color: var(--lime);
 }
 
 .config-block {
-  padding-bottom: 12px
+  padding-bottom: 12px;
 }
 
-.config-block>label {
+.config-block > label {
   font-size: 12px;
   color: #aab4af;
-  letter-spacing: 1px
+  letter-spacing: 1px;
 }
 
 .config-block .check {
   letter-spacing: 0;
-  color: #f4f5ef
+  color: #f4f5ef;
 }
 
 .config-block small {
-  font-size: 12px
+  font-size: 12px;
 }
 
 body.racing #difficulty,
 body.racing #lapCount {
-  pointer-events: none
+  pointer-events: none;
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px) {
   .lap-telemetry {
     left: 14px;
     bottom: 181px;
     min-width: 174px;
     padding: 9px;
-    gap: 6px 12px
+    gap: 6px 12px;
   }
 
   .lap-telemetry b {
-    font-size: 12px
+    font-size: 12px;
   }
 
-  .lap-telemetry>div:first-child b {
-    font-size: 18px
+  .lap-telemetry > div:first-child b {
+    font-size: 18px;
   }
 
   .lap-telemetry small {
-    font-size: 9px
+    font-size: 9px;
   }
 
   .lap-telemetry kbd {
-    display: none
+    display: none;
   }
 
   .lap-telemetry button {
-    min-height: 30px
+    min-height: 30px;
   }
 
   .tracklabel small {
-    max-width: calc(100vw - 170px)
+    max-width: calc(100vw - 170px);
   }
 
   .times-modal {
-    padding: 15px
+    padding: 15px;
   }
 
   .times-modal h2 {
     font-size: 29px;
-    margin: 9px 0
+    margin: 9px 0;
   }
 
   .times-modal select {
-    font-size: 16px
+    font-size: 16px;
   }
 
   .timing-scroll {
-    max-height: 33dvh
+    max-height: 33dvh;
   }
 
   .timing-scroll th,
   .timing-scroll td {
-    padding: 8px
+    padding: 8px;
   }
 
   .config-block {
-    margin-top: 0
+    margin-top: 0;
   }
 }
 
-@media(max-height:600px)and (orientation:landscape) {
+@media (max-height: 600px) and (orientation: landscape) {
   .lap-telemetry {
     left: 18px;
     bottom: 175px;
@@ -1729,29 +1744,29 @@ body.racing #lapCount {
     align-items: center;
     min-width: 0;
     padding: 7px;
-    gap: 10px
+    gap: 10px;
   }
 
-  .lap-telemetry>div:first-child b {
-    font-size: 15px
+  .lap-telemetry > div:first-child b {
+    font-size: 15px;
   }
 
   .lap-telemetry button {
     border: 0;
-    padding: 5px
+    padding: 5px;
   }
 
   .times-modal h2 {
-    font-size: 25px
+    font-size: 25px;
   }
 
   .timing-scroll {
-    max-height: 28dvh
+    max-height: 28dvh;
   }
 
   #timesPanel .primary {
     margin: 8px auto;
-    padding: 8px 24px
+    padding: 8px 24px;
   }
 }
 /* Campos de nome/número do piloto (adicionados nesta reconstrução). */
@@ -1777,7 +1792,9 @@ body.racing #lapCount {
   border: 1px solid #617344;
   border-radius: 4px;
   color: #fff;
-  font: 700 16px Barlow, Arial;
+  font:
+    700 16px Barlow,
+    Arial;
   padding: 8px 10px;
   text-align: center;
 }
@@ -1804,12 +1821,18 @@ body.racing #lapCount {
   border: 1px solid #58664b;
   border-radius: 4px;
   padding: 10px 8px;
-  font: 700 14px/1.1 "Barlow Condensed", Impact, sans-serif;
-  letter-spacing: .4px;
+  font:
+    700 14px/1.1 "Barlow Condensed",
+    Impact,
+    sans-serif;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   text-align: center;
   cursor: pointer;
-  transition: background .15s, color .15s, border-color .15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .option-btn:hover {
@@ -1839,10 +1862,15 @@ body.racing #lapCount {
   border-radius: 4px;
   padding: 10px 12px;
   color: #cfd8cd;
-  font: 600 13px Barlow, Arial, sans-serif;
+  font:
+    600 13px Barlow,
+    Arial,
+    sans-serif;
   cursor: pointer;
   text-align: left;
-  transition: border-color .15s, color .15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .toggle-btn:hover {
@@ -1861,7 +1889,7 @@ body.racing #lapCount {
   border-radius: 10px;
   background: #3c4a38;
   position: relative;
-  transition: background .15s;
+  transition: background 0.15s;
 }
 
 .toggle-btn .switch::after {
@@ -1873,7 +1901,9 @@ body.racing #lapCount {
   height: 14px;
   border-radius: 50%;
   background: #cfd8cd;
-  transition: transform .15s, background .15s;
+  transition:
+    transform 0.15s,
+    background 0.15s;
 }
 
 .toggle-btn[aria-pressed="true"] {
@@ -1924,7 +1954,7 @@ body.racing #lapCount {
 
 #leaderboardStatus {
   font-weight: 700;
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
   color: #96a199;
 }
 
@@ -2019,7 +2049,7 @@ body.racing #lapCount {
   margin: 4px 0 0;
   color: #c5d0c5;
   font-size: 13px;
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
   padding: 10px 4px;
   text-align: left;
 }
@@ -2037,7 +2067,10 @@ body.racing #lapCount {
   background: none;
   border: 0;
   color: #c5d0c5;
-  font: 700 13px "Barlow Condensed", Impact, sans-serif;
+  font:
+    700 13px "Barlow Condensed",
+    Impact,
+    sans-serif;
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 8px 0;

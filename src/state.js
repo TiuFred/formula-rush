@@ -41,7 +41,7 @@ export const state = {
   playerName: "Você",
   /** Número exibido no carro do jogador (editável no menu). */
   playerNumber: "07",
-  /** Circuito ativo: "interlagos" | "monza" | "indianapolis". */
+  /** Circuito ativo: "interlagos" | "monza" | "indianapolis" | "monaco" | "spa". */
   circuitId: "interlagos",
   /** Contra-relógio: corrida solo, sem bots e sem itens. */
   timeTrial: false,

@@ -5,7 +5,7 @@
 
 import { state } from "./state.js";
 import { CHAMPIONSHIP_CALENDAR } from "./constants.js";
-import { applyCircuitProfile } from "./circuits.js";
+import { CIRCUITS, applyCircuitProfile } from "./circuits.js";
 import { byId, setVisible, tickNotice, showNotice } from "./dom.js";
 import { buildTrackModel } from "./track.js";
 import { buildScene, resizeRenderer } from "./scene.js";
@@ -27,6 +27,11 @@ let qualifyingGridOrder = null;
 /** Nº de voltas que o jogador realmente escolheu, guardado enquanto a
  * sessão de classificação (sempre 1 volta) está rolando. */
 let qualifyingTargetLaps = null;
+
+/** Impede que respostas antigas de `fetch` sobrescrevam a pista mais nova. */
+let circuitLoadController = null;
+let circuitLoadSequence = 0;
+let animationStarted = false;
 
 /** Largada estilo F1: 5 luzes vermelhas acendem uma a uma a cada
  * LIGHT_INTERVAL segundos e, com as 5 acesas, ficam paradas por um tempo
@@ -396,28 +401,43 @@ function animate(now) {
  * estiver rodando. Chamado na inicialização e ao trocar de circuito no menu.
  */
 async function loadCircuit(circuitId) {
-  const isFirstLoad = !state.track;
+  const loadSequence = ++circuitLoadSequence;
+  circuitLoadController?.abort();
+  circuitLoadController = new AbortController();
+  const { signal } = circuitLoadController;
   try {
     byId("startRace").disabled = true;
-    const circuit = applyCircuitProfile(circuitId);
-    state.circuitId = circuitId;
+    const circuit = CIRCUITS[circuitId];
+    if (!circuit) throw new Error("Circuito desconhecido: " + circuitId);
     byId("startRace").textContent = "PREPARANDO " + circuit.label.toUpperCase() + "…";
 
-    const geoRes = await fetch(circuit.geojsonPath);
+    const [geoRes, elevationRes] = await Promise.all([
+      fetch(circuit.geojsonPath, { signal }),
+      fetch(circuit.elevationPath, { signal }),
+    ]);
     if (!geoRes.ok) throw new Error("Pista indisponível");
-    const elevationRes = await fetch(circuit.elevationPath);
     if (!elevationRes.ok) throw new Error("Elevação indisponível");
+    const [geoJson, elevationJson] = await Promise.all([geoRes.json(), elevationRes.json()]);
+    if (signal.aborted || loadSequence !== circuitLoadSequence) return;
 
-    if (!isFirstLoad) disposeObject3D(state.scene); // limpa a cena do circuito anterior
-    state.track = buildTrackModel(await geoRes.json(), await elevationRes.json());
+    const hadTrack = Boolean(state.track);
+    applyCircuitProfile(circuitId);
+    state.circuitId = circuitId;
+    if (hadTrack) disposeObject3D(state.scene); // limpa a cena do circuito anterior
+    state.track = buildTrackModel(geoJson, elevationJson);
     buildScene();
     setupGrid();
     updateCircuitInfoUI(circuit);
 
     byId("startRace").disabled = false;
+    byId("startRace").onclick = startRace;
     byId("startRace").innerHTML = 'COMEÇAR CORRIDA <span>↗</span>';
-    if (isFirstLoad) requestAnimationFrame(animate);
+    if (!animationStarted) {
+      animationStarted = true;
+      requestAnimationFrame(animate);
+    }
   } catch (err) {
+    if (err?.name === "AbortError" || loadSequence !== circuitLoadSequence) return;
     console.error(err);
     byId("startRace").textContent = "RECARREGAR";
     byId("startRace").disabled = false;

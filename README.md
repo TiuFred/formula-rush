@@ -1,7 +1,7 @@
-# Formula Rush — Interlagos
+# Formula Rush — Grand Prix Arcade
 
-Corrida arcade 3D (three.js) com **três circuitos reais** (Interlagos,
-Monza e o oval da Indy 500 em Indianápolis) — drift, miniturbo, itens
+Corrida arcade 3D (three.js) com **cinco circuitos** (Interlagos, Monza,
+o oval da Indy 500 em Indianápolis, Mônaco e Spa-Francorchamps) — drift, miniturbo, itens
 (turbo/míssil/óleo/escudo), 22 bots com IA usando os pilotos e cores reais
 da F1 2026, câmera externa/cockpit, minimapa, cronometragem de voltas,
 contra-relógio solo com regra de limites de pista, uma tela de título
@@ -34,10 +34,20 @@ npm run build      # gera a pasta dist/
 npm run preview    # serve a pasta dist/ localmente, para conferir o build
 ```
 
+Antes de enviar mudanças, rode a barreira completa de qualidade:
+
+```bash
+npm run check      # lint + testes + formatação + build de produção
+```
+
+Os testes usam o runner nativo do Node (`node --test`). O SDK do Supabase é
+carregado sob demanda, somente ao abrir ou gravar o ranking; Three.js fica em
+um chunk próprio e cacheável.
+
 ## Estrutura do projeto
 
 ```
-formula-rush-interlagos/
+formula-rush/
 ├── index.html                 # HTML da página (mesma UI da versão original)
 ├── package.json
 ├── vite.config.js
@@ -47,11 +57,15 @@ formula-rush-interlagos/
 │   ├── monza.geojson          # traçado real de Monza, mesma fonte
 │   ├── monza-elevation.json   # ver docs/AUDITORIA.md § 3.2
 │   ├── indianapolis.geojson       # oval real da Indy 500 (geometria calculada, ver docs/AUDITORIA.md)
-│   └── indianapolis-elevation.json
+│   ├── indianapolis-elevation.json
+│   ├── monaco.geojson             # traçado de Mônaco
+│   ├── monaco-elevation.json
+│   ├── spa.geojson                # traçado de Spa-Francorchamps
+│   └── spa-elevation.json
 ├── src/
 │   ├── main.js                # ponto de entrada: inicialização + loop principal
 │   ├── constants.js           # constantes do jogo (tabelas de pista trocáveis + grid da F1 2026)
-│   ├── circuits.js             # registro de circuitos (Interlagos, Monza, Indianápolis)
+│   ├── circuits.js             # registro e perfis dos cinco circuitos
 │   ├── leaderboard.js           # ranking de melhores voltas: online (Supabase) com fallback local
 │   ├── supabaseClient.js       # client Supabase do ranking online (null se não configurado)
 │   ├── state.js                # estado mutável central (compartilhado entre os módulos)
@@ -86,18 +100,19 @@ formula-rush-interlagos/
 
 ## Controles
 
-| Ação | Teclado | Toque |
-|---|---|---|
-| Acelerar / Frear | `↑` `↓` (ou `W` `S`) | botões na tela |
-| Direção | `←` `→` (ou `A` `D`) | botões na tela |
-| Drift | `Shift` | botão "DRIFT" |
-| Usar item | `Espaço` | toque no item no HUD |
-| Trocar câmera | `C` | botão "CÂMERA" |
-| Reposicionar na pista | `R` | botão "↺" |
-| Pausar | `P` / `Esc` | botão "Ⅱ" |
-| Tempos de volta | `T` | botão "VER TEMPOS" |
+| Ação                  | Teclado              | Toque                |
+| --------------------- | -------------------- | -------------------- |
+| Acelerar / Frear      | `↑` `↓` (ou `W` `S`) | botões na tela       |
+| Direção               | `←` `→` (ou `A` `D`) | botões na tela       |
+| Drift                 | `Shift`              | botão "DRIFT"        |
+| Usar item             | `Espaço`             | toque no item no HUD |
+| Trocar câmera         | `C`                  | botão "CÂMERA"       |
+| Reposicionar na pista | `R`                  | botão "↺"            |
+| Pausar                | `P` / `Esc`          | botão "Ⅱ"            |
+| Tempos de volta       | `T`                  | botão "VER TEMPOS"   |
 
 ## Contra-relógio e limites de pista
+
 Marque "Contra-relógio" no menu para correr sozinho, sem bots e sem caixas
 de item — só você contra o cronômetro, sem limite de voltas. Quando quiser
 parar, pause (`P`/`Esc`) e clique em "ENCERRAR CONTRA-RELÓGIO" para ver seus
@@ -111,6 +126,7 @@ enquanto ela estiver inválida, e o painel de tempos marca voltas inválidas
 com ⚠️.
 
 ## Ranking (online + local)
+
 O botão "RANKING ONLINE" (tela de título) ou "VER RANKING DESTA PISTA"
 (menu) mostra as melhores voltas por circuito, uma entrada por nome
 digitado em "SEU PILOTO".
@@ -132,13 +148,21 @@ local — nada quebra. Ver `docs/AUDITORIA.md` § 13.3 e § 15.3 para mais
 detalhes (inclusive a limitação conhecida: como o jogo é 100% client-side,
 não há validação de corrida no servidor — é um ranking "por honestidade").
 
+O SQL rejeita circuitos desconhecidos, nomes vazios e tempos fora de 20 s a
+15 min. A interface nunca interpreta nomes como HTML. Essas barreiras impedem
+entradas inválidas e injeção de conteúdo, mas não transformam um jogo estático
+em um sistema antifraude: validação competitiva exigiria um servidor
+autoritativo para a corrida.
+
 ## Circuitos
+
 O seletor "CIRCUITO" no menu troca a qualquer momento entre Interlagos,
 Monza e o oval da Indy 500 (o traçado, o mapa e a órbita da câmera
 atualizam na hora). Os campos "SEU PILOTO" (nome e número) mudam o que
 aparece no seu carro, na classificação final e no painel de tempos.
 
 ## Grid de 23 carros: os 22 pilotos da F1 2026
+
 Os 22 bots usam os nomes, números e cores reais dos carros da temporada de
 F1 2026 (11 equipes, incluindo a estreia da Cadillac) — companheiros de
 equipe compartilham a cor do carro, como na F1 de verdade. Ver

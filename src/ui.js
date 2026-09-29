@@ -5,7 +5,7 @@
 
 import { state } from "./state.js";
 import { TRACK_LENGTH, ITEM_DEFS, DRIVER_COLORS } from "./constants.js";
-import { byId, setVisible, showNotice } from "./dom.js";
+import { byId, setVisible, showNotice, textElement } from "./dom.js";
 import { clamp, progressDelta } from "./mathUtils.js";
 import { sectorNameAt } from "./track.js";
 import { driftLevel } from "./items.js";
@@ -70,16 +70,20 @@ export async function renderLeaderboard() {
   if (state.circuitId !== circuitAtRequest) return; // usuário trocou de circuito enquanto isso carregava
 
   byId("leaderboardStatus").textContent = online
-    ? "RANKING ONLINE · GLOBAL ENTRE JOGADORES"
+    ? "RANKING ONLINE · GLOBAL · TEMPOS NÃO VERIFICADOS"
     : "RANKING LOCAL · SALVO SÓ NESTE NAVEGADOR";
   byId("leaderboardStatus").classList.toggle("online", online);
-  byId("leaderboardRows").innerHTML = entries
-    .map(
-      (entry, i) =>
-        '<div class="standing"><b>' + String(i + 1).padStart(2, "0") + "</b><span>" +
-        entry.name + "</span><span>" + formatLapTime(entry.time) + "</span></div>"
-    )
-    .join("");
+  const rows = entries.map((entry, i) => {
+    const row = document.createElement("div");
+    row.className = "standing";
+    row.append(
+      textElement("b", String(i + 1).padStart(2, "0")),
+      textElement("span", entry.name),
+      textElement("span", formatLapTime(entry.time)),
+    );
+    return row;
+  });
+  byId("leaderboardRows").replaceChildren(...rows);
   setVisible("leaderboardEmpty", entries.length === 0);
 }
 
@@ -239,20 +243,22 @@ function updateMiniStandings(standings, player) {
   const playerIndex = standings.indexOf(player);
   const start = clamp(playerIndex - 2, 0, standings.length - windowSize);
 
-  byId("miniStandings").innerHTML = standings
-    .slice(start, start + windowSize)
-    .map((d, i) => {
-      const pos = start + i + 1;
-      const gap = pos === 1 ? "LÍDER" : "−" + Math.max(0, Math.round(leaderProgress - d.progress)) + " m";
-      return (
-        '<div class="mini-standing' + (d === player ? " you" : "") + '">' +
-        "<b>" + String(pos).padStart(2, "0") + "</b>" +
-        '<i style="--c:' + d.color + '"></i>' +
-        "<span>" + d.name + "</span>" +
-        "<small>" + gap + "</small></div>"
-      );
-    })
-    .join("");
+  const rows = standings.slice(start, start + windowSize).map((d, i) => {
+    const pos = start + i + 1;
+    const gap = pos === 1 ? "LÍDER" : "−" + Math.max(0, Math.round(leaderProgress - d.progress)) + " m";
+    const row = document.createElement("div");
+    row.className = "mini-standing" + (d === player ? " you" : "");
+    const color = document.createElement("i");
+    color.style.setProperty("--c", d.color);
+    row.append(
+      textElement("b", String(pos).padStart(2, "0")),
+      color,
+      textElement("span", d.name),
+      textElement("small", gap),
+    );
+    return row;
+  });
+  byId("miniStandings").replaceChildren(...rows);
 }
 
 /** Atualiza todo o HUD (chamado por main.js a cada ~0.09s durante a corrida). */

@@ -12,7 +12,7 @@ import * as THREE from "three";
 import { state } from "./state.js";
 import { TRACK_LENGTH, DIFFICULTIES, DRIFT_BOOST_BY_LEVEL } from "./constants.js";
 import { clamp, wrapAngle, progressDelta } from "./mathUtils.js";
-import { trackHalfWidthAt, cornerWideningAt } from "./track.js";
+import { cornerWideningAt } from "./track.js";
 import { advanceLapTracking, computeDrsActive, yellowFlagCapAt, triggerYellowFlag } from "./physics.js";
 import { driftLevel } from "./items.js";
 import { engineAudio, beep } from "./audio.js";

@@ -1,4 +1,4 @@
-// IA e física dos 7 carros adversários. Cada bot, a cada poucas décimas de
+// IA e física dos 22 carros adversários. Cada bot, a cada poucas décimas de
 // segundo (conforme a dificuldade), decide uma "faixa alvo" (avoidLane)
 // olhando a curva à frente, outros carros, manchas de óleo e caixas de item;
 // depois persegue essa faixa suavemente enquanto ajusta a velocidade-alvo

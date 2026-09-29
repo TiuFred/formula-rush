@@ -10,8 +10,6 @@
 // A anon key é uma credencial PÚBLICA por design do Supabase — protegida por
 // Row Level Security no banco, não por ficar em segredo no bundle do cliente.
 
-import { createClient } from "@supabase/supabase-js";
-
 // `?? {}`: fora do Vite (ex.: um script Node avulso importando src/ direto
 // para smoke-test) import.meta.env não existe — sem isso, o import deste
 // módulo quebraria mesmo quando ninguém usa o ranking online.
@@ -19,15 +17,28 @@ const env = import.meta.env ?? {};
 const url = env.VITE_SUPABASE_URL;
 const anonKey = env.VITE_SUPABASE_ANON_KEY;
 
-const client = url && anonKey ? createClient(url, anonKey) : null;
+let clientPromise = null;
 
-if (!client) {
+if (!url || !anonKey) {
   console.info(
     "[leaderboard] VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY não configuradas — ranking online desativado, usando só o local. Ver docs/leaderboard-schema.sql."
   );
 }
 
-/** Retorna o client Supabase configurado, ou `null` se o ranking online não foi configurado. */
-export function getSupabaseClient() {
-  return client;
+/**
+ * Retorna o client configurado, ou `null`. O SDK só é baixado quando o
+ * ranking é realmente usado, reduzindo o JavaScript inicial do jogo.
+ */
+export async function getSupabaseClient() {
+  if (!url || !anonKey) return null;
+  if (!clientPromise) {
+    clientPromise = import("@supabase/supabase-js")
+      .then(({ createClient }) => createClient(url, anonKey))
+      .catch((error) => {
+        console.warn("[leaderboard] SDK do Supabase indisponível; usando ranking local:", error);
+        clientPromise = null;
+        return null;
+      });
+  }
+  return clientPromise;
 }

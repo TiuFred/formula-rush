@@ -3,7 +3,7 @@
 // formatação de tempos e o painel "Tempos de volta" (UI).
 
 import { state } from "./state.js";
-import { byId, setVisible } from "./dom.js";
+import { byId, setVisible, textElement } from "./dom.js";
 import { togglePause } from "./input.js";
 import { wireOptionGroup } from "./ui.js";
 
@@ -131,10 +131,14 @@ export function openTimesPanel() {
   state.timesPanelOpen = true;
 
   selectedDriverId = 0;
-  byId("timingDriver").innerHTML = state.drivers
-    .map((d, i) => '<button type="button" class="option-btn' + (i === 0 ? " selected" : "") +
-      '" data-value="' + d.id + '" aria-pressed="' + (i === 0) + '">' + d.name + "</button>")
-    .join("");
+  const driverButtons = state.drivers.map((driver, i) => {
+    const button = textElement("button", driver.name, "option-btn" + (i === 0 ? " selected" : ""));
+    button.type = "button";
+    button.dataset.value = String(driver.id);
+    button.setAttribute("aria-pressed", String(i === 0));
+    return button;
+  });
+  byId("timingDriver").replaceChildren(...driverButtons);
   wireOptionGroup("timingDriver", (value) => {
     selectedDriverId = Number(value);
     renderLapTimesTable();

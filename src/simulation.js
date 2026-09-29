@@ -14,7 +14,7 @@ import { updateBot } from "./bots.js";
 import { resolveCarCollisions } from "./physics.js";
 import { grantItem, applyHit } from "./items.js";
 import { addMesh, disposeObject3D } from "./materials.js";
-import { byId, setVisible } from "./dom.js";
+import { byId, setVisible, textElement } from "./dom.js";
 import { formatLapTime } from "./timing.js";
 import { engineAudio } from "./audio.js";
 import { CIRCUITS } from "./circuits.js";
@@ -247,14 +247,22 @@ export function showResults() {
     ...state.finishOrder,
     ...state.drivers.filter((d) => !d.finish).sort((a, b) => b.progress - a.progress),
   ];
-  byId("standings").innerHTML = standings
-    .map((d, i) =>
-      '<div class="standing ' + (d === state.player ? "you" : "") + '"><b>' + String(i + 1).padStart(2, "0") +
-      "</b><span>" + d.name + "</span><span>" +
-      (d.finish ? formatLapTime(d.finish) : d.completedLaps + "/" + state.lapCountRace + " VOLTAS") +
-      "</span></div>"
-    )
-    .join("");
+  const resultRows = standings.map((driver, i) => {
+    const row = document.createElement("div");
+    row.className = "standing " + (driver === state.player ? "you" : "");
+    row.append(
+      textElement("b", String(i + 1).padStart(2, "0")),
+      textElement("span", driver.name),
+      textElement(
+        "span",
+        driver.finish
+          ? formatLapTime(driver.finish)
+          : driver.completedLaps + "/" + state.lapCountRace + " VOLTAS",
+      ),
+    );
+    return row;
+  });
+  byId("standings").replaceChildren(...resultRows);
 
   // Modo campeonato (ver main.js/startChampionship): soma os pontos desta
   // corrida (posição = índice em `standings`, já ordenado) ao total da
@@ -272,12 +280,17 @@ export function showResults() {
       ? "Campeonato encerrado!"
       : "Corrida " + (champ.round + 1) + "/" + champ.calendar.length + " concluída";
     const champOrder = [...state.drivers].sort((a, b) => (champ.points[b.id] ?? 0) - (champ.points[a.id] ?? 0));
-    byId("championshipRows").innerHTML = champOrder
-      .map((d, i) =>
-        '<div class="standing ' + (d === state.player ? "you" : "") + '"><b>' + String(i + 1).padStart(2, "0") +
-        "</b><span>" + d.name + "</span><span>" + (champ.points[d.id] ?? 0) + " PTS</span></div>"
-      )
-      .join("");
+    const championshipRows = champOrder.map((driver, i) => {
+      const row = document.createElement("div");
+      row.className = "standing " + (driver === state.player ? "you" : "");
+      row.append(
+        textElement("b", String(i + 1).padStart(2, "0")),
+        textElement("span", driver.name),
+        textElement("span", (champ.points[driver.id] ?? 0) + " PTS"),
+      );
+      return row;
+    });
+    byId("championshipRows").replaceChildren(...championshipRows);
     setVisible("championshipStandings", true);
     setVisible("nextRound", !isLastRound);
     setVisible("again", isLastRound);

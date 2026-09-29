@@ -165,7 +165,7 @@ const RELEASE_LANE_GAP = 2.7;
  * como "em contato" quando realmente se afastarem, não em toda
  * micro-flutuação do gap.
  */
-export function resolveCarCollisions(dt) {
+export function resolveCarCollisions(_dt) {
   const drivers = state.drivers;
   const nowTouching = drivers.map(() => new Set());
 

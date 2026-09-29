@@ -3,6 +3,14 @@
 /** Atalho para document.getElementById. */
 export const byId = (id) => document.getElementById(id);
 
+/** Cria um elemento cujo conteúdo é sempre texto, nunca HTML interpretável. */
+export function textElement(tagName, text, className = "") {
+  const element = document.createElement(tagName);
+  element.textContent = String(text);
+  if (className) element.className = className;
+  return element;
+}
+
 /**
  * Mostra (`visible = true`, padrão) ou oculta (`visible = false`) um elemento
  * pelo id, através da classe CSS "hidden" (ver assets/styles.css).

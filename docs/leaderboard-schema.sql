@@ -14,7 +14,11 @@
 -- piore o tempo de outra pessoa e centraliza a regra "só grava se for
 -- recorde" num único lugar (o banco), em vez de confiar só no cliente.
 --
--- Limitação conhecida (documentada, não escondida): como é um jogo 100%
+-- Hardening: a função aceita apenas os cinco circuitos conhecidos, nomes não
+-- vazios, tempos entre 20 s e 15 min, remove caracteres de controle e não
+-- herda permissões públicas implícitas. A UI também trata nomes só como texto.
+--
+-- Limitação estrutural: como é um jogo 100%
 -- client-side sem validação server-side da corrida em si, a chave "anon"
 -- (pública por natureza no Supabase) permite que alguém tecnicamente chame
 -- submit_lap_time() diretamente com um tempo forjado, sem ter jogado. Não
@@ -30,6 +34,10 @@ create table if not exists public.leaderboard_entries (
 );
 
 alter table public.leaderboard_entries enable row level security;
+
+-- Revoga permissões que possam ter sido concedidas numa execução/configuração
+-- anterior. Clientes só recebem SELECT novamente no fim deste arquivo.
+revoke all on table public.leaderboard_entries from public, anon, authenticated;
 
 -- Qualquer um pode LER o ranking (é público por natureza).
 drop policy if exists "leaderboard_public_read" on public.leaderboard_entries;
@@ -49,17 +57,30 @@ create or replace function public.submit_lap_time(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $$
 begin
-  if p_time_ms is null or p_time_ms <= 0 or p_time_ms > 3600000 then
-    return; -- tempo inválido (0, negativo ou acima de 1h) — ignora silenciosamente
+  if trim(coalesce(p_circuit_id, '')) not in
+    ('interlagos', 'monza', 'indianapolis', 'monaco', 'spa') then
+    raise exception 'circuito inválido';
+  end if;
+
+  if p_time_ms is null or p_time_ms < 20000 or p_time_ms > 900000 then
+    raise exception 'tempo fora dos limites';
+  end if;
+
+  p_player_name := left(
+    trim(regexp_replace(coalesce(p_player_name, 'Piloto'), '[[:cntrl:]]', ' ', 'g')),
+    16
+  );
+  if p_player_name = '' then
+    p_player_name := 'Piloto';
   end if;
 
   insert into public.leaderboard_entries (circuit_id, player_name, time_ms, updated_at)
   values (
-    left(trim(p_circuit_id), 32),
-    left(trim(coalesce(p_player_name, 'Piloto')), 16),
+    trim(p_circuit_id),
+    p_player_name,
     p_time_ms,
     now()
   )
@@ -69,5 +90,8 @@ begin
 end;
 $$;
 
+revoke all on function public.submit_lap_time(text, text, integer) from public;
 grant execute on function public.submit_lap_time(text, text, integer) to anon;
+grant execute on function public.submit_lap_time(text, text, integer) to authenticated;
 grant select on public.leaderboard_entries to anon;
+grant select on public.leaderboard_entries to authenticated;
