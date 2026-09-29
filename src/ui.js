@@ -14,7 +14,8 @@ import { drawTrackMap } from "./minimap.js";
 import { engineAudio, syncEngineAudioEnabled } from "./audio.js";
 import { setPlayerIdentity, setupGrid } from "./car.js";
 import { getLeaderboard } from "./leaderboard.js";
-import { resizeRenderer } from "./scene.js";
+import { resizeRenderer, buildScene } from "./scene.js";
+import { disposeObject3D } from "./materials.js";
 
 /**
  * Liga um grupo de botões de escolha única (`.option-btn` dentro do
@@ -166,6 +167,22 @@ export function setupMenuUI() {
     state.qualifyingEnabled = on;
     if (on && byId("timeTrial").getAttribute("aria-pressed") === "true") byId("timeTrial").click();
   }, state.qualifyingEnabled);
+
+  // Corrida noturna: céu/holofotes/faróis são montados dentro de
+  // buildScene() (ver scene.js), então trocar o modo com a pista já
+  // carregada precisa reconstruir a cena inteira (mesmo custo de trocar de
+  // circuito) — sem isso, o efeito só apareceria na PRÓXIMA vez que o
+  // circuito fosse trocado, não na corrida seguinte.
+  wireToggle("nightMode", (on) => {
+    if (state.gameState !== "menu") return;
+    state.nightMode = on;
+    if (state.track) {
+      disposeObject3D(state.scene);
+      buildScene();
+      setupGrid();
+      resizeRenderer();
+    }
+  }, state.nightMode);
 
   byId("playerName").onchange = (e) => {
     const name = e.target.value.trim().slice(0, 16) || "Você";

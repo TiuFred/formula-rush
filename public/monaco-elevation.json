@@ -1,0 +1,5 @@
+{
+  "_readme": "Placeholder documentado (ver docs/AUDITORIA.md). Com 'samples' vazio, o jogo usa automaticamente o perfil de reserva definido em src/circuits.js (subida real de Sainte Devote até o Casino, descida pelo túnel até a piscina), uma aproximação razoável do desnível real do circuito de rua sem depender de uma amostragem SRTM ponto a ponto.",
+  "source": "Circuit de Monaco (bacinger/f1-circuits, MIT)",
+  "samples": []
+}

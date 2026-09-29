@@ -16,6 +16,12 @@ export function setTrackLength(v) { TRACK_LENGTH = v; }
 /** Número de pilotos em uma corrida normal (jogador + 22 bots). No contra-relógio, só 1. */
 export const DRIVER_COUNT = 23;
 
+/** Pontuação por posição no modo campeonato (ver main.js), sistema atual da F1: só o top 10 pontua. */
+export const CHAMPIONSHIP_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+/** Calendário fixo do modo campeonato (ver main.js/startChampionship) — os 5 circuitos, nessa ordem. */
+export const CHAMPIONSHIP_CALENDAR = ["interlagos", "monza", "spa", "monaco", "indianapolis"];
+
 /**
  * Nomes de setor/curva do circuito ATIVO, por distância (m) percorrida na
  * volta. Formato: [distanciaInicioDoSetor, nome].

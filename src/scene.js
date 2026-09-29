@@ -148,6 +148,30 @@ function buildRacingLineMesh() {
 }
 
 /**
+ * Torres de holofote ao longo da pista, só na corrida noturna — alternando
+ * de lado a cada ~70m. O "cabeçote" usa MeshBasicMaterial (sempre "aceso",
+ * não depende de luz de cena) em vez de uma luz dinâmica de verdade: com 23
+ * carros já na cena, dezenas de THREE.Light reais custariam caro demais
+ * pra um efeito que é só decorativo.
+ */
+function buildFloodlights() {
+  const lampMaterial = new THREE.MeshBasicMaterial({ color: "#fff6d8" });
+  for (let s = 0; s < TRACK_LENGTH; s += 70) {
+    const side = Math.floor(s / 70) % 2 ? -1 : 1;
+    const offset = side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + 9);
+    const frame = state.track.at(s, offset);
+    const tower = new THREE.Group();
+    tower.position.copy(frame.p);
+    tower.rotation.y = frame.yaw;
+    state.scene.add(tower);
+    addMesh(new THREE.CylinderGeometry(.35, .5, 16, 6), MATERIALS.metal, 0, 8, 0, tower);
+    for (let i = -1; i <= 1; i++) {
+      addBox(1.6, 1, .3, lampMaterial, i * 1.8, 16, -side * .6, tower);
+    }
+  }
+}
+
+/**
  * Elementos decorativos adicionais: zebras de escape, placas de distância,
  * placas com nome de curva, placa com o nome do circuito, grid de largada
  * numerado e arquibancadas (assentos instanciados). As listas de curvas
@@ -304,9 +328,13 @@ export function resizeRenderer() {
  */
 export function buildScene() {
   const scale = worldScale();
+  const night = state.nightMode;
   state.scene = new THREE.Scene();
-  state.scene.background = new THREE.Color("#a9c8c7");
-  state.scene.fog = new THREE.Fog("#a9c8c7", 700 * scale, 1900 * scale);
+  // Noturna: céu quase negro (nunca preto puro — cidade/estádio ao redor
+  // sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
+  // "queimar" o preto do céu na distância como a névoa diurna faria.
+  state.scene.background = new THREE.Color(night ? "#050810" : "#a9c8c7");
+  state.scene.fog = new THREE.Fog(night ? "#050810" : "#a9c8c7", (night ? 260 : 700) * scale, (night ? 1000 : 1900) * scale);
   state.camera = new THREE.PerspectiveCamera(60, 1, .2, 2500 * Math.max(1, scale));
   state.renderer = new THREE.WebGLRenderer({
     canvas: byId("race"),
@@ -316,10 +344,13 @@ export function buildScene() {
   state.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
   state.renderer.outputColorSpace = THREE.SRGBColorSpace;
   state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  state.renderer.toneMappingExposure = 1.15;
+  state.renderer.toneMappingExposure = night ? .95 : 1.15;
 
-  state.scene.add(new THREE.HemisphereLight("#d7f0ff", "#556c39", 2.6));
-  const sun = new THREE.DirectionalLight("#fff2d1", 2.5);
+  // De noite, o "sol" vira luar (bem mais fraco e frio) — a pista em si é
+  // iluminada por holofotes emissivos (ver buildFloodlights abaixo), não
+  // por luzes dinâmicas de verdade (custaria caro com 23 carros na cena).
+  state.scene.add(new THREE.HemisphereLight("#d7f0ff", "#556c39", night ? .55 : 2.6));
+  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : "#fff2d1", night ? .4 : 2.5);
   sun.position.set(-300, 700, 100);
   state.scene.add(sun);
 
@@ -367,6 +398,8 @@ export function buildScene() {
       }
     }
   }
+
+  if (night) buildFloodlights();
 
   // Grid quadriculado (xadrez) próximo à linha de largada.
   for (let col = 0; col < 2; col++) {

@@ -49,6 +49,13 @@ export const state = {
   qualifyingEnabled: false,
   /** `true` durante a sessão de classificação em si (1 volta, sem itens) — ver main.js. */
   qualifying: false,
+  /** Corrida noturna: céu escuro, holofotes na pista, faróis nos carros (ver scene.js/car.js). */
+  nightMode: false,
+  /** `null` fora do modo campeonato. Durante ele: `{calendar, round, points}` —
+   * `calendar` é a lista fixa de circuitos (ver CHAMPIONSHIP_CALENDAR em
+   * constants.js), `round` o índice da corrida atual (0-based), `points`
+   * um mapa `id do piloto -> pontos acumulados`. Ver main.js/startChampionship. */
+  championship: null,
 
   // --- Replay cinematográfico (ver replay.js) --------------------------
   /** Snapshots `{t, pos, quat}` do carro do jogador durante a corrida atual,

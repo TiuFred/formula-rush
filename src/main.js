@@ -4,6 +4,7 @@
 // passo fixo (120 Hz), câmera, HUD e renderização.
 
 import { state } from "./state.js";
+import { CHAMPIONSHIP_CALENDAR } from "./constants.js";
 import { applyCircuitProfile } from "./circuits.js";
 import { byId, setVisible, tickNotice, showNotice } from "./dom.js";
 import { buildTrackModel } from "./track.js";
@@ -118,6 +119,13 @@ function startRace() {
     : state.timeTrial
       ? "CONTRA-RELÓGIO · SEM LIMITE DE VOLTAS"
       : state.lapCountRace + " VOLTAS · CORRIDA ARCADE";
+  // "CAMPEONATO · CORRIDA X/5" no rótulo do circuito — não em #raceStatus:
+  // esse é sobrescrito a cada ~90ms por updateHud() (ui.js) com o nome do
+  // setor atual, então qualquer texto posto ali some quase instantaneamente.
+  // #circuitName só é tocado aqui e em updateCircuitInfoUI(), então fica.
+  if (state.championship) {
+    byId("circuitName").textContent += " · CAMPEONATO " + (state.championship.round + 1) + "/" + state.championship.calendar.length;
+  }
   if (state.soundOn) syncEngineAudioEnabled(state.soundOn);
   resizeRenderer();
 }
@@ -146,6 +154,33 @@ function finishQualifying() {
   state.qualifying = false;
   const pole = state.drivers[order[0]];
   if (pole) showNotice((pole.isHuman ? "VOCÊ" : pole.name.toUpperCase()) + " NA POLE POSITION!");
+  startRace();
+}
+
+/**
+ * Inicia o modo campeonato: calendário fixo (ver CHAMPIONSHIP_CALENDAR em
+ * constants.js — os 5 circuitos, 1 corrida cada), pontuação estilo F1
+ * acumulada corrida a corrida (ver showResults em simulation.js, que
+ * calcula os pontos e mostra a classificação do campeonato). Pula a tela
+ * de configuração de propósito — usa os ajustes atuais de
+ * dificuldade/voltas/assistência, só desliga contra-relógio/classificação
+ * (não fazem sentido dentro de uma temporada com pontuação).
+ */
+async function startChampionship() {
+  state.championship = { calendar: CHAMPIONSHIP_CALENDAR, round: 0, points: {} };
+  state.timeTrial = false;
+  state.qualifyingEnabled = false;
+  state.qualifying = false;
+  await loadCircuit(state.championship.calendar[0]);
+  startRace();
+}
+
+/** Avança pra próxima corrida do campeonato (botão "PRÓXIMA CORRIDA" na tela de resultado). */
+async function advanceChampionship() {
+  const champ = state.championship;
+  if (!champ) return;
+  champ.round++;
+  await loadCircuit(champ.calendar[champ.round]);
   startRace();
 }
 
@@ -184,6 +219,9 @@ function returnToMenu() {
     state.qualifying = false;
   }
   qualifyingGridOrder = null;
+  // Saiu pra configuração no meio do campeonato: abandona a temporada (não
+  // dá pra "pausar" um campeonato pra correr uma avulsa e voltar depois).
+  state.championship = null;
   state.gameState = "menu";
   state.timesPanelOpen = false;
   state.wasRacingBeforeTimes = false;
@@ -232,7 +270,15 @@ function wireLifecycleButtons() {
     if (state.gameState === "race") recoverCar();
   };
   byId("startRace").onclick = startRace;
-  byId("again").onclick = startRace;
+  // "CORRER DE NOVO" é sempre uma corrida avulsa — sair do campeonato por
+  // aqui é intencional (o botão certo pra continuar a temporada é
+  // "PRÓXIMA CORRIDA", só visível durante ela — ver showResults em simulation.js).
+  byId("again").onclick = () => {
+    state.championship = null;
+    startRace();
+  };
+  byId("nextRound").onclick = advanceChampionship;
+  byId("startChampionship").onclick = startChampionship;
   byId("back").onclick = returnToMenu;
   byId("exit").onclick = returnToMenu;
   byId("pause").onclick = togglePause;

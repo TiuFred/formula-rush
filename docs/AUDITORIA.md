@@ -1136,3 +1136,85 @@ miniturbo ULTRA inteiro, generoso demais pra uma mecânica de bônus opcional)
 — reduzido pra `.35`, uma vantagem sutil. A largada queimada (`car.stun`)
 subiu de `.8` pra `1` e ganhou um corte imediato de velocidade
 (`car.speed *= .8`), tornando o erro um pouco mais punitivo (sem exagerar).
+
+## 23. Bug real do quali: bots empilhados na mesma posição
+
+A seção 22 corrigiu a posição de largada da classificação trocando a
+condição de `state.timeTrial` pra `state.timeTrial || state.qualifying`
+em `setupGrid` — só que essa condição vale pro `order.forEach` INTEIRO,
+não só pro jogador. Resultado: TODOS os 23 carros (jogador + 22 bots)
+recebiam exatamente `progress = -10, lane = 0` — empilhados no mesmo
+ponto, já que `state.qualifying` é uma flag global, não por carro.
+Colisão fica desligada na classificação (seção 19), então isso não
+"batia" visualmente, mas os bots (que continuam correndo a própria volta
+por trás dos panos, ocultos, pra formar o grid depois) começavam sua
+IA/decisão de faixa todos a partir do mesmo ponto exato, o que é
+claramente incorreto mesmo sem crash. Corrigido pra só o JOGADOR usar a
+posição solo (`car.isHuman` na condição); os bots continuam na matemática
+de fileira normal, cada um na sua posição de sempre.
+
+## 24. Mônaco e Spa-Francorchamps, corrida noturna, modo campeonato
+
+Pacote grande, três frentes.
+
+**Dois circuitos novos** (`circuits.js`/`public/*.geojson`): traçados reais
+de `bacinger/f1-circuits` (`mc-1929.geojson` = Circuito de Monaco, 3.337 km;
+`be-1925.geojson` = Spa-Francorchamps, 7.004 km) — a mesma fonte MIT já
+usada pros outros 3 circuitos. `buildTrackModel` (track.js) reescala a
+curva pra bater exatamente com `TRACK_LENGTH` configurado, então o
+comprimento real do traçado bruto não precisa ser perfeito. Os arquivos
+`*-elevation.json` são o mesmo placeholder com `samples: []` que
+Monza/Indianápolis já usam — sem isso, o perfil de elevação vem só da
+tabela `elevationSamples` escrita à mão em `circuits.js` (curvas
+famosas/desnível estilizados a partir de conhecimento real dos dois
+traçados — subida forte de Monaco até o Casino Square, subida de Eau
+Rouge/Raidillon em Spa —, não amostragem SRTM ponto a ponto; mesma
+ressalva que Monza já tinha). Testado no navegador: os dois carregam sem
+erro, mostram nome/km/curvas/direção corretos, e o carro começa no setor
+esperado pra cada um.
+
+**Corrida noturna** (`scene.js`/`car.js`/`state.nightMode`): um toggle na
+configuração, aplicável a QUALQUER circuito (não uma "versão" separada de
+cada um) — céu e névoa escuros, sol vira luar fraco, e a pista continua
+visível/jogável por torres de holofote com cabeçote emissivo
+(`MeshBasicMaterial`, sempre "aceso" sem depender de luz de cena) a cada
+~70m, mais faróis nos carros (mesma técnica). Nenhuma luz dinâmica de
+verdade foi adicionada — com 23 carros já na cena, dezenas de
+`THREE.Light` custariam caro demais pra um efeito puramente decorativo.
+Como a cena 3D é montada uma vez por circuito (`buildScene`, chamada por
+`loadCircuit`), ligar o toggle com uma pista já carregada precisa
+reconstruir a cena inteira (`disposeObject3D` + `buildScene` de novo) —
+mesmo custo de trocar de circuito, só sem re-buscar o GeoJSON. Testado no
+navegador: céu escuro, torres de holofote visíveis ao longo da pista,
+minimapa/HUD/largada (as 5 luzes) funcionando normalmente, sem erros no
+console.
+
+**Modo campeonato** (`main.js`/`simulation.js`/`state.championship`):
+calendário fixo de 5 corridas (`CHAMPIONSHIP_CALENDAR` em constants.js —
+os 5 circuitos, 1 corrida cada), pontuação real da F1 (`CHAMPIONSHIP_POINTS`,
+25-18-15-12-10-8-6-4-2-1) acumulada corrida a corrida num mapa
+`id do piloto -> pontos`. Um botão novo na tela de abertura
+("MODO CAMPEONATO") pula direto pra 1ª corrida (sem passar pela
+configuração — contra-relógio/classificação são desligados de propósito,
+não fazem sentido dentro de uma temporada pontuada). Ao terminar cada
+corrida, `showResults()` (simulation.js) soma os pontos e troca a tela de
+resultado normal pela classificação do campeonato + botão
+"PRÓXIMA CORRIDA" (troca "CORRER DE NOVO"/"CONFIGURAR CORRIDA", que
+abandonariam a temporada de propósito — sair por ali limpa
+`state.championship`, e isso é intencional: não dá pra "pausar" o
+campeonato pra correr uma avulsa e retomar depois). Pego e corrigido
+durante o teste: o rótulo "CAMPEONATO · CORRIDA X/5" foi escrito primeiro
+em `#raceStatus`, que `updateHud()` (ui.js) sobrescreve a cada ~90ms com o
+nome do setor atual — o texto sumia quase instantaneamente. Movido pro
+`#circuitName` (só tocado na largada e na troca de circuito), onde
+realmente fica visível.
+
+Testado no navegador: iniciar o campeonato carrega Interlagos e começa a
+corrida corretamente, com "INTERLAGOS · CAMPEONATO 1/5" persistente no
+rótulo, sem erros no console. A soma de pontos/avanço de corrida em si
+(`showResults`/`advanceChampionship`) foi validada por revisão de código
+(matemática simples sobre `standings`, já teimosamente exercitada pelo
+resto do jogo) — completar uma corrida inteira dirigindo de verdade não
+foi possível neste ciclo de testes automatizados (o foco do navegador
+alternava sozinho durante a automação, pausando a corrida repetidamente),
+então esse elo específico merece uma segunda checada jogando manualmente.

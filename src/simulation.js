@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 import { state } from "./state.js";
-import { TRACK_LENGTH, ITEM_BOX_POSITIONS, ITEM_DEFS, DIFFICULTIES } from "./constants.js";
+import { TRACK_LENGTH, ITEM_BOX_POSITIONS, ITEM_DEFS, DIFFICULTIES, CHAMPIONSHIP_POINTS } from "./constants.js";
 import { clamp, progressDelta } from "./mathUtils.js";
 import { updatePlayerPhysics } from "./player.js";
 import { updateBot } from "./bots.js";
@@ -255,4 +255,35 @@ export function showResults() {
       "</span></div>"
     )
     .join("");
+
+  // Modo campeonato (ver main.js/startChampionship): soma os pontos desta
+  // corrida (posição = índice em `standings`, já ordenado) ao total da
+  // temporada, e troca a tela de resultado normal pela classificação do
+  // campeonato + botão "PRÓXIMA CORRIDA" (em vez de "CORRER DE
+  // NOVO"/"CONFIGURAR CORRIDA", que abandonariam a temporada de propósito
+  // — ver wireLifecycleButtons/returnToMenu em main.js).
+  const champ = state.championship;
+  if (champ) {
+    standings.forEach((d, i) => {
+      champ.points[d.id] = (champ.points[d.id] ?? 0) + (CHAMPIONSHIP_POINTS[i] ?? 0);
+    });
+    const isLastRound = champ.round >= champ.calendar.length - 1;
+    byId("resultTitle").textContent = isLastRound
+      ? "Campeonato encerrado!"
+      : "Corrida " + (champ.round + 1) + "/" + champ.calendar.length + " concluída";
+    const champOrder = [...state.drivers].sort((a, b) => (champ.points[b.id] ?? 0) - (champ.points[a.id] ?? 0));
+    byId("championshipRows").innerHTML = champOrder
+      .map((d, i) =>
+        '<div class="standing ' + (d === state.player ? "you" : "") + '"><b>' + String(i + 1).padStart(2, "0") +
+        "</b><span>" + d.name + "</span><span>" + (champ.points[d.id] ?? 0) + " PTS</span></div>"
+      )
+      .join("");
+    setVisible("championshipStandings", true);
+    setVisible("nextRound", !isLastRound);
+    setVisible("again", isLastRound);
+  } else {
+    setVisible("championshipStandings", false);
+    setVisible("nextRound", false);
+    setVisible("again", true);
+  }
 }

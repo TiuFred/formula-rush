@@ -165,6 +165,135 @@ export const CIRCUITS = {
     // Num oval, as duas retas praticamente inteiras valem como zona de DRS.
     drsZones: [[3650, 950], [2050, 2950]],
   },
+
+  monaco: {
+    id: "monaco",
+    label: "Mônaco",
+    subtitle: "MC / MONTE CARLO",
+    fullName: "CIRCUIT DE MONACO",
+    geojsonPath: "./monaco.geojson",
+    elevationPath: "./monaco-elevation.json",
+    km: "3,337",
+    turns: 19,
+    direction: "HORÁRIO",
+    trackLength: 3337,
+    // Circuito de rua real (traçado geográfico de bacinger/f1-circuits) —
+    // distâncias das curvas famosas são proporções estimadas ao longo da
+    // volta (mesma ressalva já feita pra Monza em docs/AUDITORIA.md), não
+    // medição por telemetria.
+    sectorNames: [
+      [0, "Reta dos Boxes"], [150, "Sainte Devote · T1"], [400, "Subida Beau Rivage"],
+      [650, "Massenet · T3"], [800, "Casino Square · T4"], [1000, "Mirabeau · T5"],
+      [1150, "Grand Hotel Hairpin · T6"], [1300, "Portier · T8"], [1450, "Túnel"],
+      [1900, "Nouvelle Chicane · T10-11"], [2100, "Tabac · T12"], [2300, "Piscina · T13-16"],
+      [2750, "La Rascasse · T18"], [2950, "Antony Noghès · T19"],
+    ],
+    // Circuito de rua notoriamente estreito — bem mais apertado que os
+    // outros, sobretudo nas chicanes (Piscina, Nouvelle Chicane) e na
+    // Rascasse/Grand Hotel Hairpin.
+    widthSamples: [
+      [0, 8.5], [140, 7.8], [380, 8], [630, 7.6], [790, 7], [990, 6.8],
+      [1140, 6], [1290, 6.8], [1450, 7.2], [1880, 6], [2090, 6.4],
+      [2280, 6], [2740, 6.2], [2940, 7], [3337, 8.5],
+    ],
+    // Rua asfaltada com camber leve, sem banking de autódromo de verdade.
+    bankingSamples: [[0, 0], [1450, .01], [1900, -.015], [2300, .01], [3337, 0]],
+    // A característica mais marcante de Monte Carlo pra um circuito de rua:
+    // sobe forte da largada (beira do porto) até o Casino Square (ponto
+    // mais alto do traçado) e desce de novo até o túnel/piscina, na beira
+    // d'água. Perfil estilizado a partir do desnível real conhecido do
+    // circuito (~42 m), não uma amostragem SRTM ponto a ponto.
+    elevationSamples: [
+      [0, 5], [150, 6], [400, 18], [650, 30], [800, 42], [1000, 33],
+      [1150, 24], [1300, 12], [1450, 6], [1900, 5], [2300, 4],
+      [2750, 5], [2950, 5], [3337, 5],
+    ],
+    cornerWideningTable: function monacoCornerWidening(_s, _side) {
+      return [
+        [0, 4], [150, 10], [650, 6], [800, 8], [1000, 9], [1150, 16],
+        [1300, 9], [1900, 12], [2100, 8], [2300, 11], [2750, 14],
+        [2950, 8], [3337, 4],
+      ];
+    },
+    itemBoxPositions: [500, 900, 1600, 2000, 2500, 3100],
+    cornerNameSigns: [
+      [150, "SAINTE DEVOTE"], [800, "CASINO"], [1150, "GRAND HOTEL HAIRPIN"],
+      [1450, "TÚNEL"], [1900, "NOUVELLE CHICANE"], [2300, "PISCINA"],
+      [2750, "LA RASCASSE"],
+    ],
+    distanceBoardStations: [],
+    // Rua real: sem zebras de autódromo nem grama — é tudo asfalto e muro.
+    zebraZones: [],
+    apexGrassPatches: [],
+    trackNamePanelText: "MONACO",
+    // Só existe uma zona de DRS de verdade em Monaco: a reta dos boxes.
+    drsZones: [[3050, 130]],
+  },
+
+  spa: {
+    id: "spa",
+    label: "Spa-Francorchamps",
+    subtitle: "BE / ARDENAS",
+    fullName: "CIRCUIT DE SPA-FRANCORCHAMPS",
+    geojsonPath: "./spa.geojson",
+    elevationPath: "./spa-elevation.json",
+    km: "7,004",
+    turns: 20,
+    direction: "HORÁRIO",
+    trackLength: 7004,
+    // Traçado geográfico real (bacinger/f1-circuits); distâncias das curvas
+    // famosas são proporções estimadas ao longo da volta, mesma ressalva
+    // já feita pra Monza/Mônaco.
+    sectorNames: [
+      [0, "Reta Principal"], [350, "La Source · T1"], [700, "Eau Rouge"],
+      [850, "Raidillon"], [1450, "Reta Kemmel"], [2100, "Les Combes · T5-7"],
+      [2500, "Malmedy · T8"], [2750, "Bruxelles · T9"], [3600, "Pouhon · T10-11"],
+      [4300, "Fagnes · T12-13"], [5100, "Stavelot · T14-15"], [5700, "Blanchimont · T16"],
+      [6500, "Bus Stop · T17-20"],
+    ],
+    // Autódromo moderno, largo e rápido — mais largo que Interlagos na
+    // maior parte da volta, afunilando só na Source e no Bus Stop.
+    widthSamples: [
+      [0, 12], [330, 9], [700, 11], [1450, 12], [2080, 9.5], [2500, 10.5],
+      [3600, 12], [4300, 11], [5100, 11], [5700, 12], [6480, 9], [7004, 12],
+    ],
+    // Eau Rouge/Raidillon e Blanchimont/Pouhon têm banking real perceptível
+    // (parte do que torna essas curvas tomáveis em alta velocidade).
+    bankingSamples: [
+      [0, 0], [700, .02], [850, .05], [1450, 0], [3600, .03],
+      [5700, .04], [6480, 0], [7004, 0],
+    ],
+    // A marca registrada de Spa: ~100 m de desnível total, esculpido nas
+    // colinas das Ardenas. Subida forte logo depois da Source (Eau
+    // Rouge/Raidillon, o trecho mais famoso do calendário), pico perto de
+    // Les Combes, descida longa até Pouhon/Stavelot, subida de novo até o
+    // Bus Stop. Perfil estilizado a partir do desnível real conhecido do
+    // circuito, não uma amostragem SRTM ponto a ponto.
+    elevationSamples: [
+      [0, 30], [350, 20], [700, 14], [850, 45], [1450, 52], [2100, 50],
+      [2500, 38], [2750, 25], [3600, 10], [4300, 15], [5100, 20],
+      [5700, 30], [6500, 35], [7004, 30],
+    ],
+    cornerWideningTable: function spaCornerWidening(_s, _side) {
+      return [
+        [0, 5], [350, 14], [850, 8], [2080, 13], [2500, 9], [2750, 10],
+        [3600, 7], [5100, 9], [6480, 13], [7004, 5],
+      ];
+    },
+    itemBoxPositions: [500, 1100, 1700, 2300, 3000, 3900, 4700, 5500, 6200],
+    cornerNameSigns: [
+      [350, "LA SOURCE"], [700, "EAU ROUGE"], [850, "RAIDILLON"],
+      [2100, "LES COMBES"], [2750, "BRUXELLES"], [3600, "POUHON"],
+      [5100, "STAVELOT"], [5700, "BLANCHIMONT"], [6500, "BUS STOP"],
+    ],
+    distanceBoardStations: [400, 1500, 3700, 5800],
+    zebraZones: [[700, 950, 1], [3550, 3700, -1], [6450, 6600, 1]],
+    apexGrassPatches: [850, 3600, 5700],
+    trackNamePanelText: "SPA-FRANCORCHAMPS",
+    // DRS real de Spa: reta principal (antes da Source) e reta de Kemmel
+    // (depois de Raidillon).
+    drsZones: [[6800, 250], [950, 1450]],
+  },
 };
 
 /**

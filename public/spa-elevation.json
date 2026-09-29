@@ -1,0 +1,5 @@
+{
+  "_readme": "Placeholder documentado (ver docs/AUDITORIA.md). Com 'samples' vazio, o jogo usa automaticamente o perfil de reserva definido em src/circuits.js (a subida forte de Eau Rouge/Raidillon logo após a La Source, e o desnível real do circuito nas Ardenas), uma aproximação razoável sem depender de uma amostragem SRTM ponto a ponto.",
+  "source": "Circuit de Spa-Francorchamps (bacinger/f1-circuits, MIT)",
+  "samples": []
+}

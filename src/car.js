@@ -62,6 +62,18 @@ export function createCar(color, index) {
   flame.rotation.x = -Math.PI / 2;
   flame.visible = false;
 
+  // Faróis (só aparecem na corrida noturna — ver scene.js/state.nightMode):
+  // MeshBasicMaterial, glow "sempre aceso" que não depende de luz de cena,
+  // igual às torres de holofote — barato mesmo com 23 carros na pista.
+  for (const side of [-1, 1]) {
+    const headlight = addMesh(
+      new THREE.SphereGeometry(.09, 6, 6),
+      new THREE.MeshBasicMaterial({ color: "#fff9d6" }),
+      side * .55, .5, 2.35, group
+    );
+    headlight.visible = state.nightMode;
+  }
+
   addBox(.15, .025, 3.2, MATERIALS.white, 0, .89, -.12, group);
   addBox(.16, .02, 1.4, MATERIALS.white, 0, .76, 1.52, group);
   for (const side of [-1, 1]) {
@@ -251,18 +263,23 @@ export function setupGrid(gridOrder = null) {
 
   order.forEach((identityIndex, slot) => {
     const car = cars[identityIndex];
-    if (state.timeTrial || state.qualifying) {
-      // Sozinho na pista de verdade (contra-relógio E classificação — ver
-      // seção 19 do AUDITORIA): parte centralizado, logo antes da linha de
-      // largada. Sem isso, a classificação usava a mesma matemática de
-      // fileira de grid da corrida normal — e como ainda não existe grid
-      // definido na 1ª classificação, o `order` padrão colocava o jogador
-      // no ÚLTIMO slot (ex.: 22 de 23), ou seja, ~100m atrás da linha
-      // (dentro do 3º setor) em vez de bem perto dela. Isso fazia a única
-      // volta cronometrada da classificação incluir um trecho enorme de
-      // "arrancada do zero" ANTES mesmo de cruzar a linha pela 1ª vez — o
-      // cronômetro da volta já estava correndo havia bem mais tempo do que
-      // devia quando o carro finalmente chegava lá.
+    if (state.timeTrial || (state.qualifying && car.isHuman)) {
+      // Sozinho na pista de verdade (contra-relógio E o JOGADOR na
+      // classificação — ver seção 19 do AUDITORIA): parte centralizado,
+      // logo antes da linha de largada. Sem isso, a classificação usava a
+      // mesma matemática de fileira de grid da corrida normal pro jogador
+      // — e como ainda não existe grid definido na 1ª classificação, o
+      // `order` padrão colocava o jogador no ÚLTIMO slot (ex.: 22 de 23),
+      // ou seja, ~100m atrás da linha (dentro do 3º setor) em vez de bem
+      // perto dela. Isso fazia a única volta cronometrada da classificação
+      // incluir um trecho enorme de "arrancada do zero" ANTES mesmo de
+      // cruzar a linha pela 1ª vez.
+      //
+      // Importante: só o JOGADOR usa essa posição solo — os bots (ocultos
+      // durante a classificação, ver startRace) continuam na matemática de
+      // fileira normal por `slot`, senão os 22 ficariam todos empilhados
+      // EXATAMENTE na mesma posição/faixa (já que `state.qualifying` é
+      // global, não por carro), o que bagunçava a IA deles logo de saída.
       car.progress = -10;
       car.lane = 0;
     } else {
