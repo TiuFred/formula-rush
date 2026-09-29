@@ -14,6 +14,7 @@ import {
   isKnownCircuitId,
   isPlausibleLapTime,
   normalizePlayerName,
+  normalizePlayerNumber,
 } from "../src/validation.js";
 
 test("utilitários matemáticos respeitam limites e pista circular", () => {
@@ -57,6 +58,9 @@ test("identidade e entradas de ranking são normalizadas", () => {
   assert.equal(normalizePlayerName(""), "Piloto");
   assert.equal(normalizePlayerName("__proto__"), "Piloto");
   assert.equal(Array.from(normalizePlayerName("12345678901234567")).length, 16);
+  assert.equal(normalizePlayerNumber(" #42 "), "42");
+  assert.equal(normalizePlayerNumber("7A1"), "71");
+  assert.equal(normalizePlayerNumber("sem número"), "07");
   assert.equal(isKnownCircuitId("spa"), true);
   assert.equal(isKnownCircuitId("atalho"), false);
   assert.equal(isPlausibleLapTime(20), true);

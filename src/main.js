@@ -4,18 +4,18 @@
 // passo fixo (120 Hz), câmera, HUD e renderização.
 
 import { state } from "./state.js";
-import { CHAMPIONSHIP_CALENDAR } from "./constants.js";
+import { CHAMPIONSHIP_CALENDAR, DRIVER_COLORS } from "./constants.js";
 import { CIRCUITS, applyCircuitProfile } from "./circuits.js";
 import { byId, setVisible, tickNotice, showNotice } from "./dom.js";
 import { buildTrackModel } from "./track.js";
 import { buildScene, resizeRenderer } from "./scene.js";
-import { setupGrid, applyRenderInterpolation } from "./car.js";
+import { setupGrid, applyRenderInterpolation, setPlayerIdentity } from "./car.js";
 import { setupItemBoxes, advanceSimulation, endTimeTrial } from "./simulation.js";
 import { updateCamera } from "./camera.js";
 import { startReplay, stopReplay, updateReplay, seekReplay, toggleReplayPlayPause, cycleReplayCamera } from "./replay.js";
-import { updateHud, setupMenuUI, updateLapCountUI, updateCircuitInfoUI, wireOptionGroup, openLeaderboardPanel, closeLeaderboardPanel } from "./ui.js";
+import { updateHud, setupMenuUI, updateLapCountUI, updateCircuitInfoUI, wireOptionGroup, openLeaderboardPanel, closeLeaderboardPanel, selectPlayerColor } from "./ui.js";
 import { attachInputHandlers, resetKeys, togglePause } from "./input.js";
-import { openTimesPanel, closeTimesPanel } from "./timing.js";
+import { openTimesPanel, closeTimesPanel, clampLapCount } from "./timing.js";
 import { recoverCar } from "./player.js";
 import { useItem } from "./items.js";
 import { engineAudio, beep, syncEngineAudioEnabled } from "./audio.js";
@@ -32,6 +32,8 @@ let qualifyingTargetLaps = null;
 let circuitLoadController = null;
 let circuitLoadSequence = 0;
 let animationStarted = false;
+let championshipColorDraft = state.selectedColor;
+let championshipLapsDraft = state.lapCountSetting;
 
 /** Largada estilo F1: 5 luzes vermelhas acendem uma a uma a cada
  * LIGHT_INTERVAL segundos e, com as 5 acesas, ficam paradas por um tempo
@@ -105,6 +107,7 @@ function startRace() {
   document.body.classList.add("racing");
   setVisible("game");
   setVisible("aside", false);
+  setVisible("championshipSetup", false);
   setVisible("start", false);
   setVisible("stageBottom", false);
   setVisible("finish", false);
@@ -162,22 +165,78 @@ function finishQualifying() {
   startRace();
 }
 
-/**
- * Inicia o modo campeonato: calendário fixo (ver CHAMPIONSHIP_CALENDAR em
- * constants.js — os 5 circuitos, 1 corrida cada), pontuação estilo F1
- * acumulada corrida a corrida (ver showResults em simulation.js, que
- * calcula os pontos e mostra a classificação do campeonato). Pula a tela
- * de configuração de propósito — usa os ajustes atuais de
- * dificuldade/voltas/assistência, só desliga contra-relógio/classificação
- * (não fazem sentido dentro de uma temporada com pontuação).
- */
-async function startChampionship() {
+function updateChampionshipLapCount(value) {
+  championshipLapsDraft = clampLapCount(value);
+  byId("championshipLapCount").value = championshipLapsDraft;
+  byId("fewerChampionshipLaps").disabled = championshipLapsDraft === 1;
+  byId("moreChampionshipLaps").disabled = championshipLapsDraft === 20;
+  byId("championshipDistanceInfo").textContent =
+    championshipLapsDraft + (championshipLapsDraft === 1 ? " volta" : " voltas") +
+    " por etapa · " + CHAMPIONSHIP_CALENDAR.length + " grandes prêmios";
+}
+
+function syncChampionshipColorDraft() {
+  byId("championshipColors").querySelectorAll(".swatch").forEach((swatch) => {
+    const selected = swatch.dataset.color === championshipColorDraft;
+    swatch.classList.toggle("selected", selected);
+    swatch.setAttribute("aria-pressed", selected);
+  });
+}
+
+/** Abre a inscrição da temporada sem alterar a configuração atual até confirmar. */
+function openChampionshipSetup() {
+  state.gameState = "championship-setup";
+  championshipColorDraft = state.selectedColor;
+  byId("championshipPlayerName").value = state.playerName;
+  byId("championshipPlayerNumber").value = state.playerNumber;
+  updateChampionshipLapCount(state.lapCountSetting);
+  syncChampionshipColorDraft();
+  document.body.classList.add("configuring");
+  setVisible("game", false);
+  setVisible("aside", false);
+  setVisible("championshipSetup");
+  byId("championshipPlayerName").focus();
+}
+
+function closeChampionshipSetup() {
+  if (state.gameState !== "championship-setup") return;
+  state.gameState = "landing";
+  document.body.classList.remove("configuring");
+  setVisible("championshipSetup", false);
+  setVisible("game");
+  setVisible("start");
+  setVisible("stageBottom");
+}
+
+/** Confirma a inscrição e inicia a primeira das cinco etapas. */
+async function startChampionship(event) {
+  event?.preventDefault();
+  setPlayerIdentity(
+    byId("championshipPlayerName").value,
+    byId("championshipPlayerNumber").value,
+  );
+  selectPlayerColor(championshipColorDraft);
+  updateLapCountUI(championshipLapsDraft);
+  byId("playerName").value = state.playerName;
+  byId("playerNumber").value = state.playerNumber;
+  byId("championshipPlayerName").value = state.playerName;
+  byId("championshipPlayerNumber").value = state.playerNumber;
+
   state.championship = { calendar: CHAMPIONSHIP_CALENDAR, round: 0, points: {} };
   state.timeTrial = false;
   state.qualifyingEnabled = false;
   state.qualifying = false;
+  for (const id of ["timeTrial", "qualifying"]) {
+    if (byId(id).getAttribute("aria-pressed") === "true") byId(id).click();
+  }
+
+  const submit = byId("confirmChampionship");
+  submit.disabled = true;
+  submit.textContent = "PREPARANDO INTERLAGOS…";
   await loadCircuit(state.championship.calendar[0]);
   startRace();
+  submit.disabled = false;
+  submit.innerHTML = 'COMEÇAR TEMPORADA <span>↗</span>';
 }
 
 /** Avança pra próxima corrida do campeonato (botão "PRÓXIMA CORRIDA" na tela de resultado). */
@@ -199,11 +258,16 @@ function goToConfigStep() {
   state.gameState = "menu";
   document.body.classList.add("configuring");
   setVisible("game", false);
+  setVisible("championshipSetup", false);
   setVisible("aside");
 }
 
 /** Passo 1: volta da configuração para a tela de abertura (só faz sentido a partir do passo 2). */
 function backToLandingStep() {
+  if (state.gameState === "championship-setup") {
+    closeChampionshipSetup();
+    return;
+  }
   if (state.gameState !== "menu") return;
   state.gameState = "landing";
   document.body.classList.remove("configuring");
@@ -283,7 +347,12 @@ function wireLifecycleButtons() {
     startRace();
   };
   byId("nextRound").onclick = advanceChampionship;
-  byId("startChampionship").onclick = startChampionship;
+  byId("startChampionship").onclick = openChampionshipSetup;
+  byId("backFromChampionship").onclick = closeChampionshipSetup;
+  byId("championshipForm").onsubmit = startChampionship;
+  byId("championshipLapCount").onchange = (event) => updateChampionshipLapCount(event.target.value);
+  byId("fewerChampionshipLaps").onclick = () => updateChampionshipLapCount(championshipLapsDraft - 1);
+  byId("moreChampionshipLaps").onclick = () => updateChampionshipLapCount(championshipLapsDraft + 1);
   byId("back").onclick = returnToMenu;
   byId("exit").onclick = returnToMenu;
   byId("pause").onclick = togglePause;
@@ -386,7 +455,7 @@ function animate(now) {
   }
 
   hudAccumulator += dt;
-  if (hudAccumulator > .09 && state.gameState !== "menu" && state.gameState !== "landing") {
+  if (hudAccumulator > .09 && !["menu", "landing", "championship-setup"].includes(state.gameState)) {
     updateHud();
     hudAccumulator = 0;
   }
@@ -448,6 +517,20 @@ async function loadCircuit(circuitId) {
 }
 
 setupMenuUI();
+DRIVER_COLORS.forEach((color) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "swatch";
+  button.dataset.color = color;
+  button.style.setProperty("--c", color);
+  button.setAttribute("aria-label", "Cor " + color);
+  button.onclick = () => {
+    if (state.gameState !== "championship-setup") return;
+    championshipColorDraft = color;
+    syncChampionshipColorDraft();
+  };
+  byId("championshipColors").append(button);
+});
 wireLifecycleButtons();
 attachInputHandlers();
 loadCircuit(state.circuitId);

@@ -23,6 +23,12 @@ export function normalizePlayerName(value, fallback = "Piloto") {
   return ["__proto__", "prototype", "constructor"].includes(limited.toLowerCase()) ? fallback : limited;
 }
 
+/** Normaliza o número do carro para um ou dois algarismos. */
+export function normalizePlayerNumber(value, fallback = "07") {
+  const digits = String(value ?? "").replace(/\D/g, "").slice(0, 2);
+  return digits || fallback;
+}
+
 export function isKnownCircuitId(value) {
   return CIRCUIT_IDS.includes(value);
 }

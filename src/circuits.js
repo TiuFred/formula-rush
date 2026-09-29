@@ -30,6 +30,11 @@ function bankingFromApexes(length, apexes, span = 45) {
   return out;
 }
 
+/** Acrescenta `extraPerSide` à meia-largura sem alterar as estações. */
+function widenAsphalt(samples, extraPerSide) {
+  return samples.map(([s, halfWidth]) => [s, halfWidth + extraPerSide]);
+}
+
 export const CIRCUITS = {
   interlagos: {
     id: "interlagos",
@@ -53,11 +58,12 @@ export const CIRCUITS = {
       [3170, "Junção · T12"], [3300, "Café · T13"], [3550, "Subida dos Boxes · T14"],
       [3970, "Arquibancadas · T15"],
     ],
-    widthSamples: [
+    // +0,65 m por lado: mais tolerante sem descaracterizar o traçado.
+    widthSamples: widenAsphalt([
       [0, 7.5], [260, 7.5], [460, 6.8], [900, 6.5], [1420, 6.4], [1820, 6.7],
       [2100, 6.2], [2400, 6], [2700, 6], [3040, 6.3], [3260, 6.4], [3590, 6.7],
       [3980, 7.5], [4309, 7.5],
-    ],
+    ], .65),
     bankingSamples: [
       [0, 0], [250, .015], [340, .035], [410, -.025], [560, .04], [820, 0],
       [1280, 0], [1410, .025], [1650, 0], [1990, -.04], [2110, -.04],
@@ -135,7 +141,7 @@ export const CIRCUITS = {
     ],
     // Monza é uma pista bem larga e praticamente plana: perfil simplificado
     // (sem a afinação curva a curva que a Interlagos tem).
-    widthSamples: [[0, 7], [5793, 7]],
+    widthSamples: widenAsphalt([[0, 7], [5793, 7]], .65),
     bankingSamples: [[0, 0], [5793, 0]],
     elevationSamples: [
       [0, 2], [1500, 3], [3000, 1], [4300, 4], [5300, 2], [5793, 2],
@@ -192,7 +198,7 @@ export const CIRCUITS = {
       [3420, "Short Chute Sul"], [3621, "Curva 4"],
     ],
     // Indiana é geograficamente muito plana — o oval real não tem desnível.
-    widthSamples: [[0, 9], [4023, 9]],
+    widthSamples: widenAsphalt([[0, 9], [4023, 9]], .75),
     // As 4 curvas reais são banked a 9°12' (~0,16 rad); as retas são planas.
     // Faixas de transição suave na entrada/saída de cada curva.
     bankingSamples: [
@@ -258,13 +264,15 @@ export const CIRCUITS = {
     // Meia-largura: rua de verdade (~10 m de asfalto), bem mais estreita que
     // qualquer autódromo — só alarga um pouco na reta dos boxes e no Grand
     // Hotel Hairpin (a curva mais lenta da F1, precisa de raio pra caber).
-    widthSamples: [
+    // +0,45 m por lado: ganho moderado, preservando a folga entre as duas
+    // pernas muito próximas do Grand Hotel Hairpin.
+    widthSamples: widenAsphalt([
       [0, 6.4], [120, 6.2], [185, 5.4], [260, 5], [480, 5], [700, 5.1], [760, 5.1],
       [860, 5.6], [1000, 5], [1100, 5.2], [1250, 5.6], [1300, 5.1], [1410, 4.8],
       [1470, 5.2], [1790, 5.2], [2000, 4.8], [2030, 4.7], [2150, 4.8], [2200, 5.2],
       [2370, 4.9], [2480, 4.7], [2650, 4.7], [2800, 4.8], [2900, 5.4], [3070, 5.2],
       [3200, 6.2], [3337, 6.4],
-    ],
+    ], .45),
     // Asfalto de rua com camber suave — nada de banking de autódromo.
     bankingSamples: bankingFromApexes(3337, [
       [735, .015], [875, -.02], [1255, .03], [1415, -.02], [2030, .015], [2110, -.015], [2905, -.02],
@@ -277,9 +285,14 @@ export const CIRCUITS = {
       [1105, 37], [1255, 30], [1415, 12], [1480, 7], [1780, 5], [2030, 4],
       [2380, 4], [2650, 4], [2905, 4], [3070, 5], [3337, 5],
     ],
-    // Rua: muros/guard-rails a ~2 m da borda do asfalto, nada de escape em grama.
-    cornerWideningTable: function monacoCornerWidening(_s, _side) {
-      return [[0, 3.4], [3337, 3.4]];
+    // Rua: muros/guard-rails próximos do asfalto. No lado interno do Grand
+    // Hotel Hairpin, as duas pernas ficam a menos de 2 m uma da outra depois
+    // da ampliação; ali o divisor acompanha a borda em vez de atravessar a
+    // outra perna da pista.
+    cornerWideningTable: function monacoCornerWidening(_s, side) {
+      return side < 0
+        ? [[0, 3.4], [1080, 3.4], [1130, .8], [1320, .8], [1380, 3.4], [3337, 3.4]]
+        : [[0, 3.4], [3337, 3.4]];
     },
     // (nada perto da linha: as últimas fileiras do grid ocupam ~120 m antes dela)
     itemBoxPositions: [380, 560, 950, 1600, 1720, 2230, 3110, 3170],
@@ -332,13 +345,13 @@ export const CIRCUITS = {
     ],
     // Autódromo moderno: ~13 m de pista (meia-largura ~6,5), um pouco mais
     // estreito no Eau Rouge/Bus Stop e bem largo na reta dos boxes.
-    widthSamples: [
+    widthSamples: widenAsphalt([
       [0, 7.4], [150, 6.6], [245, 6.4], [330, 6.6], [800, 6.2], [905, 5.9], [1030, 6],
       [1150, 6.4], [1220, 6.8], [2150, 6.8], [2280, 6.2], [2360, 6.2], [2510, 6.4],
       [2895, 6.2], [3000, 6.6], [3155, 6.4], [3680, 6.6], [3900, 6.6], [4030, 6.8],
       [4380, 6.3], [4520, 6.3], [4650, 6.6], [4820, 6.4], [5040, 6.4], [5200, 6.7],
       [6060, 6.5], [6300, 6.7], [6560, 6.1], [6680, 6.1], [6760, 7.2], [7004, 7.4],
-    ],
+    ], .65),
     // Banking real de Eau Rouge/Raidillon, Pouhon, Stavelot e Blanchimont
     // (positivo = curva à esquerda, mesma convenção dos outros circuitos).
     bankingSamples: bankingFromApexes(7004, [

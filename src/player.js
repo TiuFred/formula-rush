@@ -180,7 +180,9 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   // uma curva rente à zebra por 1-2s) — sem isso, ficar raspando no muro
   // por alguns segundos ia comendo a velocidade a cada ~0.5s, o que parecia
   // um bug de colisão "quebrada" mesmo sem um impacto de verdade se repetindo.
-  const wallLimit = updated.halfWidth + cornerWideningAt(car.s, Math.sign(car.lane) || 1) - 1.6;
+  const wallSide = Math.sign(car.lane) || 1;
+  const visualWallOffset = state.track.wallOffsetAt?.(car.s, wallSide);
+  const wallLimit = (visualWallOffset ?? updated.halfWidth + cornerWideningAt(car.s, wallSide)) - 1.6;
   if (updated.dist > wallLimit) {
     car.lane = Math.sign(updated.lane) * (wallLimit - .1);
     const wallFrame = state.track.at(car.s, car.lane);

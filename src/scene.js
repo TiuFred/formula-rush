@@ -12,7 +12,12 @@ import {
   TRACK_LENGTH, CORNER_NAME_SIGNS, DISTANCE_BOARD_STATIONS,
   ZEBRA_ZONES, APEX_GRASS_PATCHES, TRACK_NAME_PANEL_TEXT, SCENERY,
 } from "./constants.js";
-import { trackHalfWidthAt, cornerWideningAt } from "./track.js";
+import {
+  asphaltClearanceAt,
+  createSafeTracksideOffset,
+  trackHalfWidthAt,
+  cornerWideningAt,
+} from "./track.js";
 import { wrapAngle } from "./mathUtils.js";
 import { byId } from "./dom.js";
 import { MATERIALS, makeMaterial, addMesh, addBox, makeTextPanel } from "./materials.js";
@@ -51,6 +56,29 @@ function buildRibbonMesh(leftOffsetFn, rightOffsetFn, material, yOffset = .02) {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return addMesh(geometry, material);
+}
+
+/** Parede vertical contínua que acompanha a curva sem os cortes de caixas longas. */
+function buildTrackWallMesh(side, offsetAt, height, material) {
+  const positions = [];
+  const step = 2;
+  for (let s = 0; s < TRACK_LENGTH; s += step) {
+    const s1 = Math.min(s + step, TRACK_LENGTH);
+    const a = state.track.at(s, side * offsetAt(s, side));
+    const b = state.track.at(s1, side * offsetAt(s1, side));
+    positions.push(
+      a.p.x, a.p.y - .2, a.p.z,
+      b.p.x, b.p.y - .2, b.p.z,
+      b.p.x, b.p.y + height, b.p.z,
+      a.p.x, a.p.y - .2, a.p.z,
+      b.p.x, b.p.y + height, b.p.z,
+      a.p.x, a.p.y + height, a.p.z,
+    );
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  addMesh(geometry, material);
 }
 
 /** Cria uma caixa alinhada ao traçado (posição+orientação) na estação `s`/pista lateral `lane`. */
@@ -158,7 +186,7 @@ function buildFloodlights() {
   const lampMaterial = new THREE.MeshBasicMaterial({ color: "#fff6d8" });
   for (let s = 0; s < TRACK_LENGTH; s += 70) {
     const side = Math.floor(s / 70) % 2 ? -1 : 1;
-    const offset = side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + 9);
+    const offset = side * state.track.tracksideOffsetAt(s, side, 9);
     const frame = state.track.at(s, offset);
     const tower = new THREE.Group();
     tower.position.copy(frame.p);
@@ -187,7 +215,9 @@ function buildTrackDecorations() {
   // Zebras de escape (run-off) em curvas específicas do circuito ativo.
   for (const [start, end, side] of ZEBRA_ZONES) {
     for (let s = start; s < end; s += 8) {
-      const width = cornerWideningAt(s, side) - 3;
+      const safeRunoff = state.track.tracksideOffsetAt(s, side) - trackHalfWidthAt(s);
+      const width = safeRunoff - 3;
+      if (width <= 0) continue;
       addAlignedBox(s, side * (trackHalfWidthAt(s) + 2 + width / 2), width, .08, 8.1, sandBase, -.12);
     }
   }
@@ -276,8 +306,13 @@ function buildTrackDecorations() {
   // Manchas de grama pintada perto de algumas curvas (detalhe visual extra).
   for (const s of APEX_GRASS_PATCHES) {
     for (let i = -3; i <= 3; i++) {
-      const yOffset = trackHalfWidthAt(s) + cornerWideningAt(s, 1) - 1.2;
-      addAlignedBox(s + i * 2.5, yOffset, 1.5, 1.4, 2.2, i % 2 ? MATERIALS.green : sandDark, 0);
+      const station = s + i * 2.5;
+      const asphalt = trackHalfWidthAt(station);
+      const available = state.track.tracksideOffsetAt(station, 1) - asphalt;
+      const width = Math.min(1.5, available - 1);
+      if (width <= 0) continue;
+      const lane = asphalt + .5 + width / 2;
+      addAlignedBox(station, lane, width, 1.4, 2.2, i % 2 ? MATERIALS.green : sandDark, 0);
     }
   }
 }
@@ -355,7 +390,7 @@ function buildStreetLamps() {
   for (let s = 10; s < TRACK_LENGTH; s += 40) {
     if (tunnel && s > tunnel[0] - 10 && s < tunnel[1] + 10) continue;
     const side = Math.floor(s / 40) % 2 ? -1 : 1;
-    const offset = side * (trackHalfWidthAt(s) + cornerWideningAt(s, side) + .8);
+    const offset = side * state.track.tracksideOffsetAt(s, side, .8);
     addAlignedBox(s, offset, .18, 7, .18, poleMaterial, -.2);
     addAlignedBox(s, offset - side * .6, .9, .22, .5, lampMaterial, 6.7);
   }
@@ -372,9 +407,11 @@ function buildTunnel(from, to) {
   const ceilingMaterial = makeMaterial("#2a2c2f");
   const lampMaterial = new THREE.MeshBasicMaterial({ color: "#ffd66b" });
   for (let s = from; s < to; s += 12) {
-    const edge = trackHalfWidthAt(s) + cornerWideningAt(s, 1) + .9;
-    for (const side of [-1, 1]) addAlignedBox(s, side * edge, 1.2, 9, 12.4, wallMaterial, -.2);
-    addAlignedBox(s, 0, edge * 2 + 2.4, 1, 12.4, ceilingMaterial, 7.6);
+    const leftEdge = state.track.tracksideOffsetAt(s, -1, .9);
+    const rightEdge = state.track.tracksideOffsetAt(s, 1, .9);
+    addAlignedBox(s, -leftEdge, 1.2, 9, 12.4, wallMaterial, -.2);
+    addAlignedBox(s, rightEdge, 1.2, 9, 12.4, wallMaterial, -.2);
+    addAlignedBox(s, (rightEdge - leftEdge) / 2, leftEdge + rightEdge + 2.4, 1, 12.4, ceilingMaterial, 7.6);
     if (Math.floor(s / 12) % 2 === 0) addAlignedBox(s, 0, 1.4, .2, 3, lampMaterial, 7.35);
   }
 }
@@ -397,7 +434,7 @@ function buildCityBlocks(rng, groundHeightAt, inWater, waterY) {
     const lateral = trackHalfWidthAt(s) + cornerWideningAt(s, side) + 26 + rng() * rng() * 190;
     const frame = state.track.at(s, side * lateral);
     const { x, z } = frame.p;
-    if (state.track.nearest(x, z).dist < trackHalfWidthAt(s) + 28) continue;
+    if (asphaltClearanceAt(state.track, x, z) < 28) continue;
     if (inWater(x, z)) continue;
     const base = groundHeightAt(x, z);
     if (base < waterY + 1) continue;
@@ -436,7 +473,7 @@ function buildForest(rng, scale, groundHeightAt) {
     const lateral = edge + 5 + rng() * rng() * 260 * Math.max(.6, scale);
     const frame = state.track.at(s, side * lateral);
     const { x, z } = frame.p;
-    if (state.track.nearest(x, z).dist < trackHalfWidthAt(s) + 12) continue;
+    if (asphaltClearanceAt(state.track, x, z) < 12) continue;
     const base = groundHeightAt(x, z) - .3;
     const trunkH = 5 + rng() * 6;
     const crown = 7 + rng() * 6;
@@ -507,7 +544,7 @@ function scatterAlongTrack(rng, count, { near = 4, spread = 200, tightness = 2, 
     const lateral = edge + near + Math.pow(rng(), tightness) * spread;
     const frame = state.track.at(s, side * lateral);
     const { x, z } = frame.p;
-    if (state.track.nearest(x, z).dist < trackHalfWidthAt(s) + clearance) continue;
+    if (asphaltClearanceAt(state.track, x, z) < clearance) continue;
     if (inWater?.(x, z)) continue;
     place(x, z, frame, n++);
   }
@@ -558,7 +595,8 @@ function buildWoodland(rng, scale, groundHeightAt, inWater) {
   const greens = ["#5d8a3c", "#6e9944", "#4f7a35", "#7aa04a"].map((c) => new THREE.Color(c));
   const autumn = ["#c9a23a", "#b8742a", "#a5872f"].map((c) => new THREE.Color(c));
   let n = 0;
-  scatterAlongTrack(rng, MAX, { near: 3, spread: 170 * Math.max(.7, scale), tightness: 2.4, clearance: 6, inWater }, (x, z) => {
+  // 12 m considera também o raio máximo das copas, não apenas o tronco.
+  scatterAlongTrack(rng, MAX, { near: 3, spread: 170 * Math.max(.7, scale), tightness: 2.4, clearance: 12, inWater }, (x, z) => {
     const base = groundHeightAt(x, z) - .3;
     const h = 4 + rng() * 5;
     const r = 3 + rng() * 3.4;
@@ -598,7 +636,7 @@ function buildBanners(cfg) {
   let i = 0;
   for (let s = cfg.from; s <= cfg.to; s += cfg.step, i++) {
     const [bg, fg] = cfg.styles[i % cfg.styles.length];
-    const lane = -(trackHalfWidthAt(s) + cornerWideningAt(s, -1) + 2.5);
+    const lane = -state.track.tracksideOffsetAt(s, -1, 2.5);
     const frame = state.track.at(s, lane);
     const panel = makeTextPanel(cfg.texts[i % cfg.texts.length], 9, 2.4, bg, fg);
     panel.position.copy(frame.p);
@@ -755,6 +793,9 @@ export function buildScene() {
   const runoffMaterial = street ? makeMaterial("#666a6d") : forest ? makeMaterial("#626b6a") : MATERIALS.green;
   const sidewalkMaterial = makeMaterial("#8e8a7f");
   const wallMaterial = street ? makeMaterial("#ece9e0") : speedway ? makeMaterial("#dcdcd6") : MATERIALS.barrier;
+  // As duas laterais usam a mesma ordem de vértices; DoubleSide garante que
+  // a face voltada para a pista permaneça visível nos dois lados.
+  wallMaterial.side = THREE.DoubleSide;
 
   // Porto de Mônaco (só rua com `harbor`): quadriláteros de água na margem
   // ESQUERDA dos trechos indicados (a Port Hercule fica dentro da grande
@@ -839,52 +880,14 @@ export function buildScene() {
     addMesh(geo, new THREE.MeshStandardMaterial({ color: night ? "#0c2238" : SCENERY.waterColor, roughness: .3, metalness: .15 }), 0, waterY, 0);
   }
 
-  // Deslocamento lateral de "borda externa" (largura + alargamento em curva
-  // + padding extra opcional), parametrizado por lado (-1 esquerda / 1 direita).
-  // Nas curvas FECHADAS (hairpins), a borda do lado de DENTRO não pode passar
-  // do raio da curva: um deslocamento lateral maior que o raio "dobra" a faixa
-  // por cima dela mesma e cria lajes de terreno/calçada flutuando a alturas
-  // erradas no meio da curva (era o "bug de elevação" no Grand Hotel Hairpin
-  // de Mônaco e nos hairpins de Spa). Vale pra todos os circuitos — só age
-  // onde a faixa realmente dobraria (Bico de Pato, S do Senna, chicanes de
-  // Monza), o resto da geometria fica igual.
-  const guardInside = true;
-  const insideLimit = (side, s) => {
-    if (!guardInside) return Infinity;
-    const dyaw = wrapAngle(state.track.at(s + 4).yaw - state.track.at(s - 4).yaw);
-    if (-side * dyaw <= 0) return Infinity; // lado de fora da curva
-    return .8 / (Math.abs(dyaw) / 8 + 1e-6); // .8 × raio
-  };
-  // Outro problema parecido: as duas pernas de um hairpin (ou a Beira-Mar e o
-  // Casino, em Mônaco) passam a poucas dezenas de metros uma da outra em
-  // ALTURAS diferentes — calçada + rampa de uma perna avançavam por cima do
-  // asfalto da outra, formando paredões/lajes soltas a 5–10 m do carro. Cada
-  // faixa lateral pára na metade da distância até o outro trecho mais próximo
-  // (amostras a >30 m de percurso mas a <70% disso em linha reta = "outra
-  // perna", não a própria pista seguindo em frente).
-  const clearanceCache = new Map();
-  const legHalfGap = (s) => {
-    if (!guardInside) return Infinity;
-    const key = Math.round(s / 2);
-    if (clearanceCache.has(key)) return clearanceCache.get(key);
-    const p = state.track.at(s).p;
-    let best = Infinity;
-    const samples = state.track.samples;
-    for (let i = 0; i < samples.length; i++) {
-      const arc = Math.abs(((i * state.track.step - s) % TRACK_LENGTH + TRACK_LENGTH * 1.5) % TRACK_LENGTH - TRACK_LENGTH / 2);
-      if (arc <= 30) continue;
-      const d = Math.hypot(samples[i].x - p.x, samples[i].z - p.z);
-      if (d < arc * .7 && d < best) best = d;
-    }
-    const half = best / 2;
-    clearanceCache.set(key, half);
-    return half;
-  };
-  const outerEdge = (side, extra = 0) => (s) => {
-    const wall = trackHalfWidthAt(s) + cornerWideningAt(s, side);
-    const offset = wall + (typeof extra === "function" ? extra(s) : extra);
-    return side * Math.min(offset, Math.max(wall, Math.min(insideLimit(side, s), legHalfGap(s))));
-  };
+  // Todas as bordas externas usam o mesmo resolvedor geométrico. Ele limita
+  // offsets no lado interno de hairpins e entre pernas próximas, impedindo
+  // runoff, terreno e muro de dobrarem por cima de outro trecho de asfalto.
+  const safeTracksideOffset = createSafeTracksideOffset(state.track, TRACK_LENGTH);
+  state.track.wallOffsetAt = (s, side) => safeTracksideOffset(s, side);
+  state.track.tracksideOffsetAt = safeTracksideOffset;
+  const outerEdge = (side, extra = 0) => (s) =>
+    side * safeTracksideOffset(s, side, typeof extra === "function" ? extra(s) : extra);
   const inHarbor = (s) => SCENERY.harbor?.segments.some(([a, b]) => s >= a && s <= b);
 
   if (street) {
@@ -908,14 +911,16 @@ export function buildScene() {
   buildRibbonMesh((s) => trackHalfWidthAt(s) - .23, (s) => trackHalfWidthAt(s) - .04, MATERIALS.line, .12);
   buildCurbsMesh();
 
-  // Guard-rails com postes de suporte a cada 3 segmentos (em rua: muro de
-  // concreto mais alto e contínuo, sem postes).
-  for (let s = 0; s < TRACK_LENGTH; s += 12) {
-    for (const side of [-1, 1]) {
-      const wallOffset = side * (trackHalfWidthAt(s) + cornerWideningAt(s, side));
-      addAlignedBox(s, wallOffset, 1, street ? 1.5 : 1, 12.2, wallMaterial, -.2);
-      if (!street && Math.floor(s / 12) % 3 === 0) {
-        addAlignedBox(s, wallOffset, .15, 3, .15, MATERIALS.metal);
+  // Parede contínua: acompanha a curva ponto a ponto. As antigas caixas de
+  // 12,2 m cortavam o interior de chicanes/hairpins como uma corda e chegavam
+  // a atravessar o asfalto mesmo quando o centro da caixa estava fora dele.
+  for (const side of [-1, 1]) {
+    buildTrackWallMesh(side, safeTracksideOffset, street ? 1.5 : 1, wallMaterial);
+  }
+  if (!street) {
+    for (let s = 0; s < TRACK_LENGTH; s += 36) {
+      for (const side of [-1, 1]) {
+        addAlignedBox(s, side * safeTracksideOffset(s, side), .15, 3, .15, MATERIALS.metal);
       }
     }
   }
@@ -967,9 +972,12 @@ export function buildScene() {
   gantry.position.copy(gantryFrame.p);
   gantry.rotation.y = gantryFrame.yaw;
   state.scene.add(gantry);
-  addBox(.7, 8, .7, MATERIALS.metal, -10, 4, 0, gantry);
-  addBox(.7, 8, .7, MATERIALS.metal, 10, 4, 0, gantry);
-  addBox(21, 2, .7, MATERIALS.black, 0, 8, 0, gantry);
+  // Os postes acompanham a largura real da pista. O antigo ±10 m ficaria
+  // sobre a borda do asfalto de Indianápolis depois da ampliação.
+  const gantryPostOffset = Math.max(10, trackHalfWidthAt(20) + 2);
+  addBox(.7, 8, .7, MATERIALS.metal, -gantryPostOffset, 4, 0, gantry);
+  addBox(.7, 8, .7, MATERIALS.metal, gantryPostOffset, 4, 0, gantry);
+  addBox(gantryPostOffset * 2 + 1, 2, .7, MATERIALS.black, 0, 8, 0, gantry);
   for (let i = 0; i < 5; i++) addBox(.6, .6, .8, MATERIALS.lime, -3 + i * 1.5, 8, 0, gantry);
 
   // PRNG determinístico (Park-Miller) para árvores, prédios e morros de fundo
@@ -994,7 +1002,7 @@ export function buildScene() {
       const x = (rng() - .5) * 1700 * scale;
       const z = (rng() - .5) * 1700 * scale;
       const nearest = state.track.nearest(x, z);
-      if (nearest.dist < 32) continue; // evita árvores em cima da pista
+      if (nearest.dist - nearest.halfWidth < 24) continue; // mantém copa e tronco longe do asfalto
       const baseY = nearest.p.y - 1;
       const trunkHeight = 5 + rng() * 9;
       addMesh(new THREE.CylinderGeometry(.65, .9, trunkHeight, 5), trunkMaterial, x, baseY + trunkHeight / 2, z);

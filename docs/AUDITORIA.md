@@ -1386,3 +1386,51 @@ pontas (validado em Node: nenhuma amostra da pista cai dentro da água em
 Interlagos, Indianápolis nem Mônaco; em Mônaco isso exigiu reduzir a
 profundidade do porto de 300 pra 200 m e parar o trecho antes do hairpin da
 Rascasse, senão as fatias alagavam a subida de Beau Rivage).
+
+## 29. Revisão de largura e corredor livre nas cinco pistas
+
+O asfalto foi ampliado de forma moderada por lado: Interlagos, Monza e Spa
+`+0,65 m`; Indianápolis `+0,75 m`; Mônaco `+0,45 m`. A menor largura total
+passou de 12,0 para 13,3 m em Interlagos, 14,0 para 15,3 m em Monza, 18,0
+para 19,5 m em Indianápolis, 9,4 para 10,3 m em Mônaco e 11,8 para 13,1 m em
+Spa. Muros, linhas brancas, zebras, runoff e elementos que usam a borda da
+pista acompanham automaticamente as novas medidas.
+
+Mônaco recebeu tratamento próprio no lado interno do Grand Hotel Hairpin.
+Ali as duas pernas do asfalto ficam com somente ~1,83 m de espaço entre as
+bordas depois da ampliação; o antigo afastamento uniforme do muro atravessava
+o corredor da perna vizinha. O divisor agora fica a 0,8 m da borda entre
+1130–1320 m, sem tocar nenhum dos dois asfaltos.
+
+Também foram corrigidos elementos de cenário:
+
+- postes do pórtico de largada agora derivam da largura da pista (o antigo
+  `±10 m` encostaria no novo asfalto de Indianápolis);
+- árvores e prédios usam a distância até a borda do asfalto mais próximo,
+  não a largura do trecho que sorteou sua posição;
+- o bosque de Monza passou a reservar 12 m para incluir o raio das copas,
+  em vez de conferir apenas o tronco;
+- zebras de escape e manchas decorativas de ápice agora encolhem ou deixam
+  de ser criadas quando não há corredor lateral seguro.
+
+Um teste geométrico permanente abre os cinco GeoJSONs no próprio motor,
+reconstrói as pistas e verifica largura mínima, separação entre pernas não
+contíguas e a posição dos muros contra **qualquer** trecho de asfalto. Os
+antigos muros feitos de caixas de 12,2 m também foram substituídos por paredes
+contínuas amostradas a cada 2 m: nas chicanes, as caixas formavam uma “corda”
+que cortava a curva e invadia o asfalto apesar de seu centro estar fora dele.
+A menor folga medida em toda a superfície dos novos muros é ~0,51 m, em
+Mônaco. O teste falha automaticamente se uma mudança futura voltar a colocar
+muro ou outra perna sobre o asfalto.
+
+## 30. Inscrição antes do campeonato
+
+O botão de campeonato agora abre uma configuração exclusiva antes da primeira
+etapa. Nome, número, cor do carro e quantidade de voltas são tratados como
+rascunho: voltar para a abertura não altera a configuração atual; confirmar
+aplica os quatro valores a toda a temporada e sincroniza os controles da
+corrida avulsa. O número do carro é normalizado para um ou dois algarismos.
+
+A tela também apresenta visualmente a ordem dos cinco grandes prêmios e usa o
+mesmo limite de 1–20 voltas do restante do jogo. Contra-relógio e classificação
+avulsa continuam sendo desligados ao iniciar a temporada.

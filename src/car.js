@@ -8,7 +8,7 @@ import { state } from "./state.js";
 import { TRACK_LENGTH, F1_DRIVERS_2026, DRIVER_COUNT } from "./constants.js";
 import { MATERIALS, makeMaterial, addMesh, addBox, disposeObject3D, makeTextPanel, redrawTextPanel } from "./materials.js";
 import { resetLapState } from "./timing.js";
-import { normalizePlayerName } from "./validation.js";
+import { normalizePlayerName, normalizePlayerNumber } from "./validation.js";
 
 /**
  * Constrói o grupo three.js do carro (carroceria, rodas, asas, halo, escudo
@@ -225,7 +225,7 @@ export function applyRenderInterpolation(alpha) {
  */
 export function setPlayerIdentity(name, number) {
   state.playerName = normalizePlayerName(name, "Você");
-  state.playerNumber = number || "07";
+  state.playerNumber = normalizePlayerNumber(number);
   const player = state.player;
   if (!player) return;
   player.name = state.playerName;

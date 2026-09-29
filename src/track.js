@@ -24,6 +24,54 @@ export function trackHalfWidthAt(s) {
   return smoothstepLookup(TRACK_WIDTH_SAMPLES, s, TRACK_LENGTH);
 }
 
+/** Distância livre (m) entre um ponto do mundo e a borda mais próxima do asfalto. */
+export function asphaltClearanceAt(track, x, z) {
+  const nearest = track.nearest(x, z);
+  return nearest.dist - nearest.halfWidth;
+}
+
+/**
+ * Cria um resolvedor de borda externa que evita duas falhas geométricas:
+ * offset maior que o raio interno de uma curva e faixa lateral alcançando
+ * outra perna próxima da pista. `extra` serve para runoff/terreno além do muro.
+ */
+export function createSafeTracksideOffset(track, trackLength) {
+  const clearanceCache = new Map();
+  const insideLimit = (side, s) => {
+    const dyaw = Math.atan2(
+      Math.sin(track.at(s + 4).yaw - track.at(s - 4).yaw),
+      Math.cos(track.at(s + 4).yaw - track.at(s - 4).yaw),
+    );
+    if (-side * dyaw <= 0) return Infinity;
+    return .9 / (Math.abs(dyaw) / 8 + 1e-6);
+  };
+  const legHalfGap = (s) => {
+    const key = Math.round(s / 2);
+    if (clearanceCache.has(key)) return clearanceCache.get(key);
+    const p = track.at(s).p;
+    let best = Infinity;
+    for (let i = 0; i < track.samples.length; i++) {
+      const arc = Math.abs(
+        ((i * track.step - s) % trackLength + trackLength * 1.5) % trackLength - trackLength / 2,
+      );
+      if (arc <= 30) continue;
+      const distance = Math.hypot(track.samples[i].x - p.x, track.samples[i].z - p.z);
+      if (distance < arc * .7 && distance < best) best = distance;
+    }
+    const half = best / 2;
+    clearanceCache.set(key, half);
+    return half;
+  };
+
+  return (s, side, extra = 0) => {
+    const asphalt = trackHalfWidthAt(s);
+    const desired = asphalt + cornerWideningAt(s, side) + extra;
+    const geometricLimit = Math.min(insideLimit(side, s), legHalfGap(s)) - .15;
+    // 20 cm é a margem mínima do plano vertical do muro até o asfalto.
+    return Math.max(asphalt + .2, Math.min(desired, geometricLimit));
+  };
+}
+
 /** Inclinação lateral (banking, em radianos) da pista na distância `s`. */
 export function bankingAt(s) {
   return smoothstepLookup(BANKING_SAMPLES, s, TRACK_LENGTH);

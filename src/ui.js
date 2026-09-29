@@ -119,6 +119,18 @@ export function updateCircuitInfoUI(circuit) {
   updateLapCountUI(state.lapCountSetting); // "km · voltas" depende do comprimento da pista
 }
 
+/** Aplica uma cor ao jogador e mantém todos os seletores visuais sincronizados. */
+export function selectPlayerColor(color) {
+  if (!DRIVER_COLORS.includes(color)) return;
+  state.selectedColor = color;
+  document.querySelectorAll(".swatch[data-color]").forEach((swatch) => {
+    const selected = swatch.dataset.color === color;
+    swatch.classList.toggle("selected", selected);
+    swatch.setAttribute("aria-pressed", selected);
+  });
+  if (state.player) state.player.body.color.set(color);
+}
+
 /** Liga toda a interatividade do menu (cores, dificuldade, voltas, assistências, som, câmera). */
 export function setupMenuUI() {
   byId("sound").onclick = async () => {
@@ -209,16 +221,13 @@ export function setupMenuUI() {
     const btn = document.createElement("button");
     btn.className = "swatch" + (color === state.selectedColor ? " selected" : "");
     btn.style.setProperty("--c", color);
+    btn.dataset.color = color;
+    btn.type = "button";
     btn.setAttribute("aria-label", "Cor " + color);
     btn.setAttribute("aria-pressed", color === state.selectedColor);
     btn.onclick = () => {
       if (state.gameState !== "menu") return;
-      state.selectedColor = color;
-      document.querySelectorAll(".swatch").forEach((el) => {
-        el.classList.toggle("selected", el === btn);
-        el.setAttribute("aria-pressed", el === btn);
-      });
-      if (state.player) state.player.body.color.set(color);
+      selectPlayerColor(color);
     };
     byId("colors").append(btn);
   });

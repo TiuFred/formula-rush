@@ -9,7 +9,7 @@ import { DRIVER_COLORS } from "./constants.js";
 
 export const state = {
   // --- Ciclo de vida da corrida --------------------------------------
-  /** "landing" | "menu" | "countdown" | "race" | "paused" | "finished".
+  /** "landing" | "menu" | "championship-setup" | "countdown" | "race" | "paused" | "finished".
    * Fluxo em 3 passos: "landing" é a tela de abertura (passo 1, dentro de
    * #start/#startLanding); "menu" é a configuração de corrida (passo 2,
    * #start/#startConfig + <aside>); "countdown"/"race"/"paused"/"finished"

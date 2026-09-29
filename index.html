@@ -280,6 +280,93 @@
           ><span>ARCADE RACING EXPERIENCE</span>
         </div>
       </section>
+      <section
+        id="championshipSetup"
+        class="championship-setup config-screen hidden"
+        aria-labelledby="championshipSetupTitle"
+      >
+        <button type="button" id="backFromChampionship" class="back-btn">
+          ← VOLTAR
+        </button>
+        <div class="config-inner championship-setup-inner">
+          <div class="eyebrow championship-eyebrow">INSCRIÇÃO DA TEMPORADA</div>
+          <h1 id="championshipSetupTitle" class="config-title">
+            Monte seu piloto
+          </h1>
+          <p class="championship-lead">
+            Sua identidade e a duração escolhida serão mantidas durante os cinco
+            grandes prêmios.
+          </p>
+          <div
+            class="championship-calendar"
+            aria-label="Calendário da temporada"
+          >
+            <span><b>01</b> Brasil</span><i>→</i><span><b>02</b> Itália</span
+            ><i>→</i><span><b>03</b> Bélgica</span><i>→</i
+            ><span><b>04</b> Mônaco</span><i>→</i><span><b>05</b> EUA</span>
+          </div>
+          <form id="championshipForm">
+            <section class="config-block">
+              <span class="config-block-label">SEU PILOTO</span>
+              <div class="player-id-fields">
+                <label for="championshipPlayerName">NOME</label
+                ><input
+                  id="championshipPlayerName"
+                  type="text"
+                  maxlength="16"
+                  value="Você"
+                  autocomplete="nickname"
+                  required
+                /><label for="championshipPlayerNumber">NÚMERO</label
+                ><input
+                  id="championshipPlayerNumber"
+                  type="text"
+                  maxlength="2"
+                  value="07"
+                  inputmode="numeric"
+                  pattern="[0-9]{1,2}"
+                  title="Use um número de um ou dois dígitos"
+                  required
+                />
+              </div>
+              <span class="config-block-label">COR DO CARRO</span>
+              <div id="championshipColors" class="colors"></div>
+            </section>
+            <section class="config-block">
+              <label for="championshipLapCount">VOLTAS POR CORRIDA</label>
+              <div class="lap-picker">
+                <button
+                  id="fewerChampionshipLaps"
+                  type="button"
+                  aria-label="Reduzir voltas"
+                >
+                  −</button
+                ><input
+                  id="championshipLapCount"
+                  type="number"
+                  min="1"
+                  max="20"
+                  step="1"
+                  value="3"
+                  inputmode="numeric"
+                /><button
+                  id="moreChampionshipLaps"
+                  type="button"
+                  aria-label="Adicionar voltas"
+                >
+                  +
+                </button>
+              </div>
+              <small id="championshipDistanceInfo"
+                >3 voltas por etapa · 5 grandes prêmios</small
+              >
+            </section>
+            <button id="confirmChampionship" class="primary config-cta">
+              COMEÇAR TEMPORADA <span>↗</span>
+            </button>
+          </form>
+        </div>
+      </section>
       <aside id="aside" class="hidden config-screen">
         <button type="button" id="backToLanding" class="back-btn">
           ← VOLTAR
