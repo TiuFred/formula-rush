@@ -31,6 +31,27 @@ export function asphaltClearanceAt(track, x, z) {
 }
 
 /**
+ * Menor folga entre a pegada retangular de um objeto alinhado ao traçado e
+ * qualquer trecho do asfalto. Valores negativos indicam uma obstrução.
+ */
+export function alignedFootprintClearanceAt(track, s, lane, width, depth) {
+  const frame = track.at(s, lane);
+  let clearance = Infinity;
+  // Amostrar também o interior das arestas detecta outra perna da pista
+  // cruzando uma placa comprida, mesmo quando seus quatro cantos estão livres.
+  for (let lateralStep = -4; lateralStep <= 4; lateralStep++) {
+    for (let longitudinalStep = -4; longitudinalStep <= 4; longitudinalStep++) {
+      const lateral = (width * lateralStep) / 8;
+      const longitudinal = (depth * longitudinalStep) / 8;
+      const x = frame.p.x + frame.right.x * lateral + frame.t.x * longitudinal;
+      const z = frame.p.z + frame.right.z * lateral + frame.t.z * longitudinal;
+      clearance = Math.min(clearance, asphaltClearanceAt(track, x, z));
+    }
+  }
+  return clearance;
+}
+
+/**
  * Cria um resolvedor de borda externa que evita duas falhas geométricas:
  * offset maior que o raio interno de uma curva e faixa lateral alcançando
  * outra perna próxima da pista. `extra` serve para runoff/terreno além do muro.
@@ -203,7 +224,28 @@ export function buildTrackModel(geojson, elevation) {
   curve.arcLengthDivisions = 12000;
 
   const SAMPLE_COUNT = TRACK_LENGTH === 4309 ? 2154 : Math.round(TRACK_LENGTH / 2);
-  const samples = curve.getSpacedPoints(SAMPLE_COUNT).slice(0, -1);
+  let samples = curve.getSpacedPoints(SAMPLE_COUNT).slice(0, -1);
+
+  // GeoJSONs públicos descrevem curvas apertadas com poucos vértices. Mesmo
+  // com Catmull-Rom, isso pode produzir um pico de curvatura menor que a
+  // meia-largura da pista: a borda interna então volta sobre si mesma e alguns
+  // triângulos do asfalto somem por ficarem invertidos. Suavizar a polilinha
+  // já densamente amostrada arredonda só esses picos (janela efetiva ~7 m),
+  // preservando o desenho geral e a metragem oficial de cada circuito.
+  for (let pass = 0; pass < 12; pass++) {
+    samples = samples.map((point, i) =>
+      samples[(i - 1 + SAMPLE_COUNT) % SAMPLE_COUNT].clone().multiplyScalar(.25)
+        .addScaledVector(point, .5)
+        .addScaledVector(samples[(i + 1) % SAMPLE_COUNT], .25)
+    );
+  }
+  curve = new THREE.CatmullRomCurve3(samples, true, "centripetal");
+  curve.arcLengthDivisions = 12000;
+  const smoothedScale = TRACK_LENGTH / curve.getLength();
+  samples.forEach((p) => p.multiplyScalar(smoothedScale));
+  curve = new THREE.CatmullRomCurve3(samples, true, "centripetal");
+  curve.arcLengthDivisions = 12000;
+  samples = curve.getSpacedPoints(SAMPLE_COUNT).slice(0, -1);
   const step = TRACK_LENGTH / SAMPLE_COUNT;
 
   /**

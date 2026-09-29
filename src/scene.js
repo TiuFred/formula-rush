@@ -13,6 +13,7 @@ import {
   ZEBRA_ZONES, APEX_GRASS_PATCHES, TRACK_NAME_PANEL_TEXT, SCENERY,
 } from "./constants.js";
 import {
+  alignedFootprintClearanceAt,
   asphaltClearanceAt,
   createSafeTracksideOffset,
   trackHalfWidthAt,
@@ -242,7 +243,16 @@ function buildTrackDecorations() {
 
   // Placas com o nome das curvas famosas.
   for (const [s, name] of CORNER_NAME_SIGNS) {
-    const frame = state.track.at(s, -trackHalfWidthAt(s) - 4);
+    const panelWidth = 9;
+    const panelClearance = 1;
+    const laneMagnitude = trackHalfWidthAt(s) + panelWidth / 2 + panelClearance;
+    // Prefere o lado esquerdo tradicional, mas troca de lado quando outra
+    // perna próxima do circuito ocuparia aquele espaço (Grand Hotel, Mônaco).
+    const lane = [-laneMagnitude, laneMagnitude].find((candidate) =>
+      alignedFootprintClearanceAt(state.track, s, candidate, panelWidth, .1) >= panelClearance - .05
+    );
+    if (lane == null) continue;
+    const frame = state.track.at(s, lane);
     const panel = makeTextPanel(name, 9, 1.4);
     panel.position.copy(frame.p);
     panel.position.y += 2.8;

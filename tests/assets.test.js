@@ -7,9 +7,12 @@ import {
   APEX_GRASS_PATCHES,
   CHAMPIONSHIP_CALENDAR,
   CHAMPIONSHIP_POINTS,
+  DISTANCE_BOARD_STATIONS,
+  SCENERY,
   ZEBRA_ZONES,
 } from "../src/constants.js";
 import {
+  alignedFootprintClearanceAt,
   asphaltClearanceAt,
   buildTrackModel,
   createSafeTracksideOffset,
@@ -78,6 +81,7 @@ test("asfalto ampliado mantém corredor livre em todas as pistas", async () => {
     let minimumWallClearance = Infinity;
     let minimumWallToAnyAsphalt = Infinity;
     let minimumOtherLegClearance = Infinity;
+    let minimumAsphaltEdgeAdvance = Infinity;
 
     for (let s = 0; s < circuit.trackLength; s += 5) {
       minimumHalfWidth = Math.min(minimumHalfWidth, trackHalfWidthAt(s));
@@ -89,6 +93,21 @@ test("asfalto ampliado mantém corredor livre em todas as pistas", async () => {
         if (renderedClearance > .05) {
           minimumWallToAnyAsphalt = Math.min(minimumWallToAnyAsphalt, renderedClearance);
         }
+      }
+    }
+
+    // A borda do ribbon deve sempre avançar no sentido da pista. Se a
+    // projeção ficar negativa, o triângulo virou do avesso e pode desaparecer
+    // por back-face culling — o antigo defeito visto em quatro hairpins.
+    for (let s = 0; s < circuit.trackLength; s += 2) {
+      const center = track.at(s);
+      for (const side of [-1, 1]) {
+        const edge = track.at(s, side * trackHalfWidthAt(s)).p;
+        const nextEdge = track.at(s + 2, side * trackHalfWidthAt(s + 2)).p;
+        const advance =
+          (nextEdge.x - edge.x) * center.t.x +
+          (nextEdge.z - edge.z) * center.t.z;
+        minimumAsphaltEdgeAdvance = Math.min(minimumAsphaltEdgeAdvance, advance);
       }
     }
 
@@ -131,6 +150,71 @@ test("asfalto ampliado mantém corredor livre em todas as pistas", async () => {
     assert.ok(minimumWallClearance >= 0.2 - 1e-9, `${id}: muro invade o próprio asfalto`);
     assert.ok(minimumWallToAnyAsphalt > 0.05, `${id}: muro invade outra perna do asfalto`);
     assert.ok(minimumOtherLegClearance > 1.5, `${id}: duas pernas do asfalto se sobrepõem`);
+    assert.ok(minimumAsphaltEdgeAdvance > 0, `${id}: borda do asfalto dobra sobre si mesma`);
+
+    // Placas de curva são largas no eixo lateral. A posição antiga usava
+    // apenas 4 m de afastamento para uma placa de 9 m e invadia 50 cm da
+    // pista em todos os circuitos.
+    for (const [s] of circuit.cornerNameSigns) {
+      const panelWidth = 9;
+      const laneMagnitude = trackHalfWidthAt(s) + panelWidth / 2 + 1;
+      const bestClearance = Math.max(
+        alignedFootprintClearanceAt(track, s, -laneMagnitude, panelWidth, .1),
+        alignedFootprintClearanceAt(track, s, laneMagnitude, panelWidth, .1),
+      );
+      assert.ok(bestClearance >= .95, `${id}: placa de curva invade o asfalto`);
+    }
+
+    const assertPropClear = (label, s, lane, width, depth, margin = 0) => {
+      const clearance = alignedFootprintClearanceAt(track, s, lane, width, depth);
+      assert.ok(clearance > margin, `${id}: ${label} invade o asfalto (${clearance.toFixed(2)} m)`);
+    };
+
+    // Audita a pegada completa dos principais volumes fixos do cenário. Isso
+    // cobre não só o centro do objeto, mas suas quinas e pontos intermediários.
+    for (const station of DISTANCE_BOARD_STATIONS) {
+      for (const distance of [150, 100, 50]) {
+        const s = station - distance;
+        assertPropClear("placa de distância", s, trackHalfWidthAt(s) + 3.2, 2.1, .14);
+      }
+    }
+    if (SCENERY.tunnel) {
+      for (let s = SCENERY.tunnel[0]; s < SCENERY.tunnel[1]; s += 12) {
+        for (const side of [-1, 1]) {
+          assertPropClear("parede do túnel", s, side * safeTracksideOffset(s, side, .9), 1.2, 12.4);
+        }
+      }
+    }
+    if (SCENERY.pitBuilding) {
+      const spacing = SCENERY.pitBoxSpacing;
+      const scale = spacing / 20;
+      for (let i = 0; i < 23; i++) {
+        const s = circuit.trackLength + (i - 12.25) * spacing;
+        assertPropClear("garagem dos boxes", s, 24, 7, 18 * scale);
+        assertPropClear("prédio dos boxes", s, 30, 15, 18.8 * scale);
+      }
+    }
+    if (SCENERY.grandstands) {
+      const stations = SCENERY.grandstandStations ?? [
+        90, 160, 230, circuit.trackLength - 409, circuit.trackLength - 339,
+        circuit.trackLength - 269, circuit.trackLength - 199, circuit.trackLength - 129,
+      ];
+      for (const s of stations) {
+        for (let tier = 0; tier < 5; tier++) {
+          assertPropClear("arquibancada", s, -29 - tier * 3, 3, 56);
+        }
+      }
+    }
+    if (SCENERY.yasHotelStation != null) {
+      for (const side of [-1, 1]) {
+        assertPropClear("torre do hotel", SCENERY.yasHotelStation, side * 34, 21, 25);
+      }
+    }
+    if (SCENERY.banners) {
+      for (let s = SCENERY.banners.from; s <= SCENERY.banners.to; s += SCENERY.banners.step) {
+        assertPropClear("painel publicitário", s, -safeTracksideOffset(s, -1, 2.5), 9, .1);
+      }
+    }
 
     // Zebras de escape são caixas baixas e compridas; confere os quatro
     // cantos contra qualquer perna da pista, inclusive o Bus Stop de Spa.
