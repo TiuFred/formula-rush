@@ -64,8 +64,12 @@ function buildTrackWallMesh(side, offsetAt, height, material) {
   const step = 2;
   for (let s = 0; s < TRACK_LENGTH; s += step) {
     const s1 = Math.min(s + step, TRACK_LENGTH);
-    const a = state.track.at(s, side * offsetAt(s, side));
-    const b = state.track.at(s1, side * offsetAt(s1, side));
+    const aOffset = offsetAt(s, side);
+    const bOffset = offsetAt(s1, side);
+    if (aOffset == null || bOffset == null) continue;
+    const a = state.track.at(s, side * aOffset);
+    const b = state.track.at(s1, side * bOffset);
+    if (asphaltClearanceAt(state.track, (a.p.x + b.p.x) / 2, (a.p.z + b.p.z) / 2) <= .05) continue;
     positions.push(
       a.p.x, a.p.y - .2, a.p.z,
       b.p.x, b.p.y - .2, b.p.z,
@@ -545,6 +549,8 @@ function scatterAlongTrack(rng, count, { near = 4, spread = 200, tightness = 2, 
     const frame = state.track.at(s, side * lateral);
     const { x, z } = frame.p;
     if (asphaltClearanceAt(state.track, x, z) < clearance) continue;
+    const exclusion = SCENERY.stadium;
+    if (exclusion && Math.hypot(x - exclusion.x, z - exclusion.z) < exclusion.exclusionRadius) continue;
     if (inWater?.(x, z)) continue;
     place(x, z, frame, n++);
   }
@@ -616,14 +622,22 @@ function buildWoodland(rng, scale, groundHeightAt, inWater) {
  */
 function buildSkyline(rng, scale, cfg, night) {
   const materials = cfg.palette.map((c) => makeMaterial(c, night ? { emissive: c, emissiveIntensity: .35 } : {}));
-  for (let i = 0; i < cfg.count; i++) {
+  let placed = 0;
+  let attempts = 0;
+  while (placed < cfg.count && attempts++ < cfg.count * 8) {
     const angle = cfg.angle[0] + rng() * (cfg.angle[1] - cfg.angle[0]);
     const radius = (cfg.radius[0] + rng() * (cfg.radius[1] - cfg.radius[0])) * scale;
     const h = cfg.height[0] + rng() * rng() * (cfg.height[1] - cfg.height[0]);
     const w = 14 + rng() * 20;
     const d = 14 + rng() * 20;
-    const tower = addBox(w, h, d, materials[Math.floor(rng() * materials.length)], Math.cos(angle) * radius, h / 2 - 8, Math.sin(angle) * radius);
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    // Verifica o volume inteiro da torre, não apenas seu centro. No oval de
+    // Indianápolis, um prédio do skyline podia cair sobre uma das curvas.
+    if (asphaltClearanceAt(state.track, x, z) < Math.hypot(w, d) / 2 + 10) continue;
+    const tower = addBox(w, h, d, materials[Math.floor(rng() * materials.length)], x, h / 2 - 8, z);
     tower.rotation.y = rng() * .6;
+    placed++;
   }
 }
 
@@ -731,6 +745,69 @@ function buildSpeedwayComplex(rng, groundHeightAt, inWater) {
   commitInstances([[trunks, n], [crowns, n]]);
 }
 
+/** Hard Rock Stadium, dentro do complexo do circuito de Miami. */
+function buildHardRockStadium(groundHeightAt, cfg) {
+  const stadium = new THREE.Group();
+  stadium.position.set(cfg.x, groundHeightAt(cfg.x, cfg.z), cfg.z);
+  stadium.rotation.y = cfg.rotation ?? 0;
+  state.scene.add(stadium);
+
+  const concrete = makeMaterial("#d9ddd8");
+  const dark = makeMaterial("#26343a");
+  const aqua = makeMaterial("#38c8c6");
+  const orange = makeMaterial("#e57838");
+  const roof = makeMaterial("#f4f5ef", { metalness: .15, roughness: .45 });
+  const field = makeMaterial("#3f8f4c");
+  addBox(112, .4, 54, field, 0, .2, 0, stadium);
+  addBox(122, .16, 2, MATERIALS.white, 0, .44, 0, stadium);
+
+  for (const side of [-1, 1]) {
+    addBox(28, 14, 122, dark, side * 70, 7, 0, stadium);
+    addBox(22, 2.4, 112, side < 0 ? aqua : orange, side * 57, 15, 0, stadium);
+    addBox(178, 12, 25, dark, 0, 6, side * 57, stadium);
+    addBox(166, 2.4, 19, side < 0 ? orange : aqua, 0, 13, side * 47, stadium);
+    addBox(30, 2.2, 150, roof, side * 94, 25, 0, stadium);
+    addBox(218, 2.2, 28, roof, 0, 25, side * 67, stadium);
+  }
+  for (const x of [-96, 96]) {
+    for (const z of [-69, 69]) {
+      addMesh(new THREE.CylinderGeometry(1.2, 1.8, 27, 6), concrete, x, 13.5, z, stadium);
+    }
+  }
+  const sign = makeTextPanel("HARD ROCK STADIUM", 48, 5, "#18272b", "#7de7df");
+  sign.position.set(0, 19, -72);
+  stadium.add(sign);
+}
+
+/** Hotel iluminado de Yas, com a passarela alta cruzando a pista. */
+function buildYasHotel(s) {
+  const glass = makeMaterial("#65cddd", { emissive: "#247d91", emissiveIntensity: .45, metalness: .25 });
+  const shell = makeMaterial("#edf5f0", { metalness: .2, roughness: .35 });
+  for (const side of [-1, 1]) {
+    addAlignedBox(s, side * 34, 18, 30, 22, glass, -.2);
+    addAlignedBox(s, side * 34, 21, 2, 25, shell, 29);
+  }
+  addAlignedBox(s, 0, 86, 7, 20, glass, 25);
+  addAlignedBox(s, 0, 90, 1.2, 23, shell, 32);
+}
+
+/** Palmeiras esparsas e iluminação do complexo desértico de Yas Marina. */
+function buildDesertScenery(rng, scale, groundHeightAt, inWater) {
+  const MAX = 220;
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.35, .55, 1, 5), makeMaterial("#806743"), MAX);
+  const crowns = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 4), makeMaterial("#ffffff"), MAX);
+  const greens = ["#427844", "#4d8748", "#376c3c"].map((c) => new THREE.Color(c));
+  let n = 0;
+  scatterAlongTrack(rng, MAX, { near: 16, spread: 260 * Math.max(.7, scale), tightness: 1.6, clearance: 12, inWater }, (x, z) => {
+    const base = groundHeightAt(x, z) - .3;
+    const h = 7 + rng() * 6;
+    setInstance(trunks, n, x, base + h / 2, z, .8, h, .8);
+    setInstance(crowns, n, x, base + h + .4, z, 3.3, 1, 3.3, rng() * 6.28, greens[n % greens.length]);
+    n++;
+  });
+  commitInstances([[trunks, n], [crowns, n]]);
+}
+
 /** Ajusta o tamanho do renderer/câmera ao tamanho atual do elemento <canvas>. */
 export function resizeRenderer() {
   if (!state.renderer) return;
@@ -754,12 +831,14 @@ export function buildScene() {
   const tropical = SCENERY.theme === "tropical";
   const woodland = SCENERY.theme === "woodland";
   const speedway = SCENERY.theme === "speedway";
+  const alpine = SCENERY.theme === "alpine";
+  const desert = SCENERY.theme === "desert";
   state.scene = new THREE.Scene();
   // Céu/névoa por ambiente: Mediterrâneo azul em Mônaco, tempo fechado nas
   // Ardenas. Noturna: céu quase negro (nunca preto puro — cidade/estádio ao
   // redor sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
   // "queimar" o preto do céu na distância como a névoa diurna faria.
-  const daySky = street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : "#a9c8c7";
+  const daySky = street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
   state.scene.background = new THREE.Color(night ? "#050810" : daySky);
   state.scene.fog = new THREE.Fog(
     night ? "#050810" : daySky,
@@ -789,8 +868,9 @@ export function buildScene() {
   // + faixa verde de escape. Rua ("street"): tudo pavimento, sem grama. Floresta:
   // gramado mais denso e escapes de asfalto.
   const groundMaterial = street ? makeMaterial("#7d786c") : forest ? makeMaterial("#4c7449")
-    : tropical ? makeMaterial("#5c9647") : woodland ? makeMaterial("#6b8f40") : speedway ? makeMaterial("#79a552") : MATERIALS.grass;
-  const runoffMaterial = street ? makeMaterial("#666a6d") : forest ? makeMaterial("#626b6a") : MATERIALS.green;
+    : tropical ? makeMaterial("#5c9647") : woodland ? makeMaterial("#6b8f40") : speedway ? makeMaterial("#79a552")
+      : desert ? makeMaterial("#b99a61") : alpine ? makeMaterial("#67924e") : MATERIALS.grass;
+  const runoffMaterial = street ? makeMaterial("#666a6d") : forest || desert ? makeMaterial("#626b6a") : MATERIALS.green;
   const sidewalkMaterial = makeMaterial("#8e8a7f");
   const wallMaterial = street ? makeMaterial("#ece9e0") : speedway ? makeMaterial("#dcdcd6") : MATERIALS.barrier;
   // As duas laterais usam a mesma ordem de vértices; DoubleSide garante que
@@ -873,18 +953,31 @@ export function buildScene() {
   addMesh(ground, groundMaterial);
   generateAsphaltTexture(state.renderer);
 
-  for (const poly of waterPolys) {
-    const shape = new THREE.Shape(poly.map((p) => new THREE.Vector2(p.x, -p.z)));
-    const geo = new THREE.ShapeGeometry(shape);
-    geo.rotateX(-Math.PI / 2);
-    addMesh(geo, new THREE.MeshStandardMaterial({ color: night ? "#0c2238" : SCENERY.waterColor, roughness: .3, metalness: .15 }), 0, waterY, 0);
+  if (waterPolys.length) {
+    const waterMaterial = new THREE.MeshStandardMaterial({
+      color: night ? "#0c2238" : SCENERY.waterColor,
+      roughness: .3,
+      metalness: .15,
+      side: THREE.DoubleSide,
+    });
+    for (const poly of waterPolys) {
+      const shape = new THREE.Shape(poly.map((p) => new THREE.Vector2(p.x, -p.z)));
+      const geo = new THREE.ShapeGeometry(shape);
+      geo.rotateX(-Math.PI / 2);
+      addMesh(geo, waterMaterial, 0, waterY, 0);
+    }
   }
 
   // Todas as bordas externas usam o mesmo resolvedor geométrico. Ele limita
   // offsets no lado interno de hairpins e entre pernas próximas, impedindo
   // runoff, terreno e muro de dobrarem por cima de outro trecho de asfalto.
   const safeTracksideOffset = createSafeTracksideOffset(state.track, TRACK_LENGTH);
-  state.track.wallOffsetAt = (s, side) => safeTracksideOffset(s, side);
+  const wallOffsetAt = (s, side) => {
+    const offset = safeTracksideOffset(s, side);
+    const point = state.track.at(s, side * offset).p;
+    return asphaltClearanceAt(state.track, point.x, point.z) > .05 ? offset : null;
+  };
+  state.track.wallOffsetAt = wallOffsetAt;
   state.track.tracksideOffsetAt = safeTracksideOffset;
   const outerEdge = (side, extra = 0) => (s) =>
     side * safeTracksideOffset(s, side, typeof extra === "function" ? extra(s) : extra);
@@ -915,12 +1008,13 @@ export function buildScene() {
   // 12,2 m cortavam o interior de chicanes/hairpins como uma corda e chegavam
   // a atravessar o asfalto mesmo quando o centro da caixa estava fora dele.
   for (const side of [-1, 1]) {
-    buildTrackWallMesh(side, safeTracksideOffset, street ? 1.5 : 1, wallMaterial);
+    buildTrackWallMesh(side, wallOffsetAt, street ? 1.5 : 1, wallMaterial);
   }
   if (!street) {
     for (let s = 0; s < TRACK_LENGTH; s += 36) {
       for (const side of [-1, 1]) {
-        addAlignedBox(s, side * safeTracksideOffset(s, side), .15, 3, .15, MATERIALS.metal);
+        const wallOffset = wallOffsetAt(s, side);
+        if (wallOffset != null) addAlignedBox(s, side * wallOffset, .15, 3, .15, MATERIALS.metal);
       }
     }
   }
@@ -995,6 +1089,8 @@ export function buildScene() {
     buildWoodland(rng, scale, groundHeightAt, inWater);
   } else if (speedway) {
     buildSpeedwayComplex(rng, groundHeightAt, inWater);
+  } else if (desert) {
+    buildDesertScenery(rng, scale, groundHeightAt, inWater);
   } else {
     const trunkMaterial = makeMaterial("#5a6550");
     const foliageMaterial = makeMaterial("#315a46");
@@ -1010,6 +1106,9 @@ export function buildScene() {
     }
   }
 
+  if (SCENERY.stadium) buildHardRockStadium(groundHeightAt, SCENERY.stadium);
+  if (SCENERY.yasHotelStation != null) buildYasHotel(SCENERY.yasHotelStation);
+
   if (SCENERY.skyline) buildSkyline(rng, scale, SCENERY.skyline, night);
   if (SCENERY.banners) buildBanners(SCENERY.banners);
 
@@ -1018,14 +1117,22 @@ export function buildScene() {
   // Floresta: colinas cônicas cobertas de mata em volta de toda a volta.
   // Trópico: morros arredondados e verdes. Bosque de Monza e oval de
   // Indianápolis: planície (sem morros).
-  if (forest) {
+  if (forest || alpine) {
     const hillMaterials = [makeMaterial("#3f6644"), makeMaterial("#365a3d"), makeMaterial("#4a7049")];
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < (alpine ? 58 : 46); i++) {
       const angle = rng() * Math.PI * 2;
       const radius = (780 + rng() * 240) * scale;
-      const r = 90 + rng() * 120;
-      const h = 70 + rng() * 120;
+      const r = (alpine ? 140 : 90) + rng() * (alpine ? 180 : 120);
+      const h = (alpine ? 110 : 70) + rng() * (alpine ? 210 : 120);
       addMesh(new THREE.ConeGeometry(r, h, 7), hillMaterials[i % 3], Math.cos(angle) * radius, h / 2 - 20, Math.sin(angle) * radius);
+    }
+  } else if (desert) {
+    const duneMaterials = [makeMaterial("#c5a568"), makeMaterial("#ad8d58"), makeMaterial("#d0b47a")];
+    for (let i = 0; i < 38; i++) {
+      const angle = rng() * Math.PI * 2;
+      const radius = (760 + rng() * 260) * scale;
+      const dune = addMesh(new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), duneMaterials[i % 3], Math.cos(angle) * radius, -18, Math.sin(angle) * radius);
+      dune.scale.set(120 + rng() * 130, 22 + rng() * 38, 90 + rng() * 110);
     }
   } else if (tropical) {
     const hillMaterials = [makeMaterial("#4b7d45"), makeMaterial("#3f6f3f"), makeMaterial("#5a8a4a")];

@@ -1546,6 +1546,11 @@ aside {
   z-index: 10;
 }
 
+#leaderboardPanel {
+  position: fixed;
+  z-index: 20;
+}
+
 .times-modal > div {
   width: min(420px, 100%);
 }
@@ -2130,7 +2135,7 @@ body.configuring main {
 
 .championship-calendar {
   display: grid;
-  grid-template-columns: repeat(9, auto);
+  grid-template-columns: repeat(15, auto);
   align-items: center;
   justify-content: center;
   gap: 12px;
@@ -2215,7 +2220,7 @@ body.configuring main {
   }
 
   .championship-calendar {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
     padding: 14px 10px;
   }

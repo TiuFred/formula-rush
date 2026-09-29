@@ -62,6 +62,9 @@ test("identidade e entradas de ranking são normalizadas", () => {
   assert.equal(normalizePlayerNumber("7A1"), "71");
   assert.equal(normalizePlayerNumber("sem número"), "07");
   assert.equal(isKnownCircuitId("spa"), true);
+  assert.equal(isKnownCircuitId("redBullRing"), true);
+  assert.equal(isKnownCircuitId("miami"), true);
+  assert.equal(isKnownCircuitId("yasMarina"), true);
   assert.equal(isKnownCircuitId("atalho"), false);
   assert.equal(isPlausibleLapTime(20), true);
   assert.equal(isPlausibleLapTime(19.999), false);

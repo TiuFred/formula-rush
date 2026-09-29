@@ -19,7 +19,7 @@ Ele executa, nesta ordem:
 
 - Nomes são normalizados e inseridos na interface apenas com `textContent`.
 - Tempos locais e remotos precisam estar entre 20 segundos e 15 minutos.
-- Somente os cinco identificadores de circuito conhecidos são aceitos.
+- Somente os oito identificadores de circuito conhecidos são aceitos.
 - A tabela remota é somente leitura para clientes; escrita passa pela RPC.
 - A RPC remove caracteres de controle e não herda permissão de execução da
   role pública.

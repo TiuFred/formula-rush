@@ -405,6 +405,181 @@ export const CIRCUITS = {
       grandstandStations: [6790, 6860, 6930, 6, 76, 146],
     },
   },
+
+  redBullRing: {
+    id: "redBullRing",
+    label: "Red Bull Ring",
+    subtitle: "AT / SPIELBERG",
+    fullName: "RED BULL RING",
+    geojsonPath: "./red-bull-ring.geojson",
+    elevationPath: "./red-bull-ring-elevation.json",
+    km: "4,318",
+    turns: 10,
+    direction: "HORÁRIO",
+    trackLength: 4318,
+    smoothElevation: true,
+    sectorNames: [
+      [0, "Reta Principal"], [250, "Niki Lauda · T1"], [430, "Subida Schönberg"],
+      [1190, "Remus · T3"], [1390, "Reta Norte"], [1980, "Rauch · T4"],
+      [2440, "Curvas 5–6"], [2780, "Graz · T7"], [3450, "Jochen Rindt · T9"],
+      [3790, "Curva 10"], [4040, "Reta Principal"],
+    ],
+    widthSamples: widenAsphalt([
+      [0, 7.2], [330, 6.6], [1270, 6.2], [2070, 6.6], [2610, 6.5],
+      [2900, 6.5], [3630, 6.7], [3870, 6.6], [4318, 7.2],
+    ], .6),
+    bankingSamples: bankingFromApexes(4318, [
+      [330, -.035], [1270, -.045], [2070, -.035], [2610, .035], [2900, .04],
+      [3630, -.04], [3870, -.04],
+    ]),
+    elevationSamples: [
+      [0, 5], [330, 12], [700, 35], [1050, 58], [1270, 65], [1600, 58],
+      [2070, 43], [2500, 28], [2900, 19], [3400, 15], [3870, 4], [4318, 5],
+    ],
+    cornerWideningTable: function redBullRingCornerWidening(_s, _side) {
+      return [
+        [0, 9], [330, 18], [650, 10], [1270, 20], [1600, 10], [2070, 18],
+        [2450, 12], [2900, 15], [3400, 10], [3630, 14], [3870, 16], [4318, 9],
+      ];
+    },
+    itemBoxPositions: [520, 930, 1530, 1880, 2380, 3160, 3520, 4140],
+    cornerNameSigns: [
+      [330, "NIKI LAUDA"], [1270, "REMUS"], [2070, "RAUCH"],
+      [2900, "GRAZ"], [3630, "JOCHEN RINDT"],
+    ],
+    distanceBoardStations: [330, 1270, 2070, 3630, 3870],
+    zebraZones: [[260, 390, 1], [1190, 1340, 1], [1980, 2140, 1], [3550, 3910, 1]],
+    apexGrassPatches: [330, 2610, 2900, 3870],
+    trackNamePanelText: "RED BULL RING",
+    drsZones: [[4010, 250], [470, 1160], [1400, 1960]],
+    scenery: {
+      theme: "alpine",
+      seatColors: ["#d21f2b", "#f2f2ea", "#263f78", "#d21f2b"],
+      banners: {
+        texts: ["AUSTRIA", "SPIELBERG", "RED BULL RING", "STYRIA"],
+        styles: [["#d21f2b", "#fff"], ["#263f78", "#fff"], ["#fff", "#d21f2b"]],
+        from: -430, to: -70, step: 90,
+      },
+    },
+  },
+
+  miami: {
+    id: "miami",
+    label: "Miami Autodrome",
+    subtitle: "EUA / MIAMI",
+    fullName: "MIAMI INTERNATIONAL AUTODROME",
+    geojsonPath: "./miami.geojson",
+    elevationPath: "./miami-elevation.json",
+    km: "5,412",
+    turns: 19,
+    direction: "ANTI-HORÁRIO",
+    trackLength: 5412,
+    smoothElevation: true,
+    sectorNames: [
+      [0, "Reta Principal"], [180, "Curvas 1–3"], [520, "Curvas 4–5"],
+      [880, "Curvas 6–8"], [1260, "Curvas 9–10"], [1680, "Curva 11"],
+      [1980, "Curva 12"], [2300, "Reta Norte"], [2920, "Curvas 13–16"],
+      [3550, "Reta Traseira"], [4650, "Curva 17"], [4880, "Curvas 18–19"],
+    ],
+    widthSamples: widenAsphalt([
+      [0, 7.2], [250, 6.3], [670, 6.1], [1120, 6.2], [1530, 6.4],
+      [2060, 6.5], [3000, 5.8], [3320, 5.5], [3450, 6], [4770, 7.1], [5180, 6.8], [5412, 7.2],
+    ], .55),
+    bankingSamples: bankingFromApexes(5412, [
+      [250, -.025], [350, .02], [460, -.02], [980, .025], [1120, -.025],
+      [1530, .025], [2060, -.02], [3000, .025], [3140, -.025], [3320, .025],
+      [3450, .025], [4770, .035], [5180, -.02],
+    ], 38),
+    elevationSamples: [
+      [0, 1], [2500, 1], [2920, 2], [3140, 6], [3320, 8], [3500, 3],
+      [3900, 1], [5412, 1],
+    ],
+    cornerWideningTable: function miamiCornerWidening(_s, _side) {
+      return [
+        [0, 6], [250, 12], [700, 7], [1120, 10], [1530, 11], [2100, 7],
+        [3000, 6], [3450, 8], [4200, 7], [4770, 16], [5200, 10], [5412, 6],
+      ];
+    },
+    itemBoxPositions: [620, 1220, 1840, 2460, 2860, 3740, 4320, 5060],
+    cornerNameSigns: [
+      [250, "T1"], [980, "T6"], [1530, "T10"], [3000, "T13"],
+      [3450, "T16"], [4770, "T17"],
+    ],
+    distanceBoardStations: [250, 980, 1530, 3000, 4770],
+    zebraZones: [[190, 500, 1], [900, 1180, -1], [2920, 3480, -1], [4670, 4860, 1]],
+    apexGrassPatches: [],
+    trackNamePanelText: "MIAMI",
+    drsZones: [[5150, 180], [2140, 2860], [3560, 4650]],
+    scenery: {
+      theme: "tropical",
+      pitBoxSpacing: 18,
+      grandstandStations: [100, 400, 1000, 1700, 2600, 3200, 3800, 4200],
+      seatColors: ["#35d7d2", "#f28ac3", "#f3f0df", "#3564ad"],
+      stadium: { x: -158, z: -10, rotation: -.08, exclusionRadius: 145 },
+      banners: {
+        texts: ["MIAMI", "FLORIDA", "SOUTH BEACH", "MIAMI GP"],
+        styles: [["#36d8d3", "#10272a"], ["#f28ac3", "#fff"], ["#172b58", "#fff"]],
+        from: -430, to: -70, step: 90,
+      },
+    },
+  },
+
+  yasMarina: {
+    id: "yasMarina",
+    label: "Yas Marina",
+    subtitle: "EAU / ABU DHABI",
+    fullName: "YAS MARINA CIRCUIT",
+    geojsonPath: "./yas-marina.geojson",
+    elevationPath: "./yas-marina-elevation.json",
+    km: "5,281",
+    turns: 16,
+    direction: "ANTI-HORÁRIO",
+    trackLength: 5281,
+    smoothElevation: true,
+    sectorNames: [
+      [0, "Reta Principal"], [190, "Curva 1"], [420, "Curvas 2–4"],
+      [1180, "Hairpin · T5"], [1450, "Reta Leste"], [2440, "Curva 6"],
+      [2700, "Reta Oeste"], [3420, "Complexo da Marina"], [3950, "Curvas 11–12"],
+      [4200, "Yas Hotel"], [4680, "Curvas 14–15"], [4930, "Curva 16"],
+    ],
+    widthSamples: widenAsphalt([
+      [0, 7.5], [260, 6.5], [720, 6.3], [1320, 7.4], [2530, 7.4],
+      [3520, 6.6], [4240, 6.3], [4760, 6.4], [4990, 6.8], [5281, 7.5],
+    ], .6),
+    bankingSamples: bankingFromApexes(5281, [
+      [260, .025], [500, .02], [620, -.02], [720, -.02], [1320, .035],
+      [2530, .04], [3520, .02], [3740, .02], [4100, -.025], [4240, -.035],
+      [4470, .025], [4760, -.025], [4990, -.035],
+    ], 38),
+    elevationSamples: [[0, 2], [900, 4], [1800, 3], [2800, 1], [3900, 2], [5281, 2]],
+    cornerWideningTable: function yasMarinaCornerWidening(_s, _side) {
+      return [
+        [0, 8], [260, 14], [720, 10], [1320, 18], [2100, 9], [2530, 20],
+        [3300, 10], [3740, 12], [4240, 14], [4760, 12], [4990, 15], [5281, 8],
+      ];
+    },
+    itemBoxPositions: [580, 1080, 1700, 2240, 2920, 3370, 4010, 4580, 5120],
+    cornerNameSigns: [
+      [260, "T1"], [1320, "HAIRPIN"], [2530, "T6"], [3740, "MARINA"],
+      [4240, "YAS HOTEL"], [4990, "T16"],
+    ],
+    distanceBoardStations: [260, 1320, 2530, 4240, 4990],
+    zebraZones: [[190, 330, -1], [1220, 1400, -1], [2440, 2620, -1], [4160, 4320, 1]],
+    apexGrassPatches: [],
+    trackNamePanelText: "YAS MARINA",
+    drsZones: [[1450, 2420], [2680, 3400]],
+    scenery: {
+      theme: "desert",
+      waterColor: "#2b8ba6",
+      harbor: { segments: [[3400, 3780]], depth: 55 },
+      yasHotelStation: 4240,
+      seatColors: ["#3c66a8", "#f2f2ea", "#39a6b5", "#d7b15b"],
+      skyline: {
+        count: 28, radius: [760, 980], angle: [2.8, 5.4], height: [45, 150],
+        palette: ["#d8d1c0", "#b9c2c5", "#e6dfcf", "#9eabb2"],
+      },
+    },
+  },
 };
 
 /**

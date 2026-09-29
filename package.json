@@ -1,7 +1,7 @@
 {
   "name": "formula-rush",
   "version": "1.0.0",
-  "description": "Formula Rush: corrida arcade 3D em cinco circuitos, construída com Three.js.",
+  "description": "Formula Rush: corrida arcade 3D em oito circuitos, construída com Three.js.",
   "type": "module",
   "private": true,
   "allowScripts": {

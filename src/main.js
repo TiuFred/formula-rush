@@ -208,7 +208,7 @@ function closeChampionshipSetup() {
   setVisible("stageBottom");
 }
 
-/** Confirma a inscrição e inicia a primeira das cinco etapas. */
+/** Confirma a inscrição e inicia a primeira etapa do campeonato. */
 async function startChampionship(event) {
   event?.preventDefault();
   setPlayerIdentity(

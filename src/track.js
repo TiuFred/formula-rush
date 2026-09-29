@@ -38,12 +38,19 @@ export function asphaltClearanceAt(track, x, z) {
 export function createSafeTracksideOffset(track, trackLength) {
   const clearanceCache = new Map();
   const insideLimit = (side, s) => {
-    const dyaw = Math.atan2(
-      Math.sin(track.at(s + 4).yaw - track.at(s - 4).yaw),
-      Math.cos(track.at(s + 4).yaw - track.at(s - 4).yaw),
-    );
-    if (-side * dyaw <= 0) return Infinity;
-    return .9 / (Math.abs(dyaw) / 8 + 1e-6);
+    // Usa o pico de curvatura numa janela curta, não só a derivada exata em
+    // `s`. Hairpins com entrada muito rápida (Red Bull Ring/Yas) mudam de
+    // raio dentro do próprio segmento do muro e um único ponto subestimava o
+    // quanto o offset interno podia dobrar sobre a pista.
+    let curvature = 0;
+    for (let delta = -12; delta <= 12; delta += 4) {
+      const dyaw = Math.atan2(
+        Math.sin(track.at(s + delta + 4).yaw - track.at(s + delta - 4).yaw),
+        Math.cos(track.at(s + delta + 4).yaw - track.at(s + delta - 4).yaw),
+      );
+      if (-side * dyaw > 0) curvature = Math.max(curvature, Math.abs(dyaw) / 8);
+    }
+    return curvature ? .82 / (curvature + 1e-6) : Infinity;
   };
   const legHalfGap = (s) => {
     const key = Math.round(s / 2);

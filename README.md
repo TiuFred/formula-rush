@@ -1,7 +1,7 @@
 # Formula Rush — Grand Prix Arcade
 
-Corrida arcade 3D (three.js) com **cinco circuitos** (Interlagos, Monza,
-o oval da Indy 500 em Indianápolis, Mônaco e Spa-Francorchamps) — drift, miniturbo, itens
+Corrida arcade 3D (three.js) com **oito circuitos** (Interlagos, Monza,
+Indianápolis, Mônaco, Spa-Francorchamps, Red Bull Ring, Miami e Yas Marina) — drift, miniturbo, itens
 (turbo/míssil/óleo/escudo), 22 bots com IA usando os pilotos e cores reais
 da F1 2026, câmera externa/cockpit, minimapa, cronometragem de voltas,
 contra-relógio solo com regra de limites de pista, uma tela de título
@@ -61,11 +61,17 @@ formula-rush/
 │   ├── monaco.geojson             # traçado de Mônaco
 │   ├── monaco-elevation.json
 │   ├── spa.geojson                # traçado de Spa-Francorchamps
-│   └── spa-elevation.json
+│   ├── spa-elevation.json
+│   ├── red-bull-ring.geojson
+│   ├── red-bull-ring-elevation.json
+│   ├── miami.geojson
+│   ├── miami-elevation.json
+│   ├── yas-marina.geojson
+│   └── yas-marina-elevation.json
 ├── src/
 │   ├── main.js                # ponto de entrada: inicialização + loop principal
 │   ├── constants.js           # constantes do jogo (tabelas de pista trocáveis + grid da F1 2026)
-│   ├── circuits.js             # registro e perfis dos cinco circuitos
+│   ├── circuits.js             # registro e perfis dos oito circuitos
 │   ├── leaderboard.js           # ranking de melhores voltas: online (Supabase) com fallback local
 │   ├── supabaseClient.js       # client Supabase do ranking online (null se não configurado)
 │   ├── state.js                # estado mutável central (compartilhado entre os módulos)
@@ -156,9 +162,9 @@ autoritativo para a corrida.
 
 ## Circuitos
 
-O seletor "CIRCUITO" no menu troca a qualquer momento entre Interlagos,
-Monza e o oval da Indy 500 (o traçado, o mapa e a órbita da câmera
-atualizam na hora). Os campos "SEU PILOTO" (nome e número) mudam o que
+O seletor "CIRCUITO" no menu troca a qualquer momento entre os oito traçados
+(o traçado, o mapa e a órbita da câmera atualizam na hora). Os campos
+"SEU PILOTO" (nome e número) mudam o que
 aparece no seu carro, na classificação final e no painel de tempos.
 
 ## Grid de 23 carros: os 22 pilotos da F1 2026
@@ -170,7 +176,6 @@ equipe compartilham a cor do carro, como na F1 de verdade. Ver
 
 ## Créditos de dados
 
-O traçado (`public/interlagos.geojson`, `public/monza.geojson` e
-`public/indianapolis.geojson`) vem do repositório
+Os traçados GeoJSON, com exceção do oval calculado de Indianápolis, vêm do repositório
 [bacinger/f1-circuits](https://github.com/bacinger/f1-circuits) (MIT); a
 Interlagos já era citada nos créditos da própria página do jogo.

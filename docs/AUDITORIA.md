@@ -1190,8 +1190,8 @@ minimapa/HUD/largada (as 5 luzes) funcionando normalmente, sem erros no
 console.
 
 **Modo campeonato** (`main.js`/`simulation.js`/`state.championship`):
-calendário fixo de 5 corridas (`CHAMPIONSHIP_CALENDAR` em constants.js —
-os 5 circuitos, 1 corrida cada), pontuação real da F1 (`CHAMPIONSHIP_POINTS`,
+calendário originalmente fixo de 5 corridas (`CHAMPIONSHIP_CALENDAR` em
+constants.js; ampliado para oito na seção 32), pontuação real da F1 (`CHAMPIONSHIP_POINTS`,
 25-18-15-12-10-8-6-4-2-1) acumulada corrida a corrida num mapa
 `id do piloto -> pontos`. Um botão novo na tela de abertura
 ("MODO CAMPEONATO") pula direto pra 1ª corrida (sem passar pela
@@ -1413,7 +1413,7 @@ Também foram corrigidos elementos de cenário:
 - zebras de escape e manchas decorativas de ápice agora encolhem ou deixam
   de ser criadas quando não há corredor lateral seguro.
 
-Um teste geométrico permanente abre os cinco GeoJSONs no próprio motor,
+Um teste geométrico permanente abre todos os GeoJSONs no próprio motor,
 reconstrói as pistas e verifica largura mínima, separação entre pernas não
 contíguas e a posição dos muros contra **qualquer** trecho de asfalto. Os
 antigos muros feitos de caixas de 12,2 m também foram substituídos por paredes
@@ -1431,6 +1431,39 @@ rascunho: voltar para a abertura não altera a configuração atual; confirmar
 aplica os quatro valores a toda a temporada e sincroniza os controles da
 corrida avulsa. O número do carro é normalizado para um ou dois algarismos.
 
-A tela também apresenta visualmente a ordem dos cinco grandes prêmios e usa o
+A tela também apresenta visualmente a ordem dos oito grandes prêmios e usa o
 mesmo limite de 1–20 voltas do restante do jogo. Contra-relógio e classificação
 avulsa continuam sendo desligados ao iniciar a temporada.
+
+## 31. Correções de cenário e acesso ao ranking
+
+O skyline procedural agora rejeita qualquer torre cuja projeção completa,
+incluindo rotação e 10 m de margem, alcance o asfalto. A verificação eliminou
+o prédio que podia surgir sobre uma curva do oval de Indianápolis.
+
+No porto de Mônaco, logo após a saída do túnel, os polígonos da água passaram
+a renderizar as duas faces. Dependendo da orientação do quadrilátero, a face
+única anterior apontava para baixo e deixava o lado do porto visualmente vazio.
+
+O painel de ranking foi retirado de dentro da seção 3D e transformado em modal
+fixo da página. Assim, o botão “Ver ranking desta pista” também funciona na
+tela de configuração, onde a seção 3D fica deliberadamente oculta.
+
+## 32. Red Bull Ring, Miami e Yas Marina
+
+Foram adicionados três traçados fechados do catálogo MIT
+`bacinger/f1-circuits`: Red Bull Ring (4,318 km), Miami International
+Autodrome (5,412 km) e Yas Marina (5,281 km). Cada circuito recebeu perfil
+próprio de largura, banking, elevação, setores, DRS, itens, placas, zebras e
+áreas de escape. O campeonato passou de cinco para oito etapas.
+
+O Red Bull Ring ganhou relevo de 65 m, subida máxima representativa de 12% e
+cenário alpino. Miami recebeu vegetação tropical e um Hard Rock Stadium 3D no
+centro do complexo, com campo, arquibancadas, cobertura, mastros e identificação;
+uma zona de exclusão impede árvores dentro do estádio. Yas Marina ganhou terreno
+desértico, palmeiras, marina validada contra o asfalto, skyline de Abu Dhabi e
+uma representação elevada do Yas Hotel atravessando a pista sem bloquear o carro.
+
+A auditoria geométrica agora cobre as oito pistas. Hairpins cujo raio interno é
+menor que a soma asfalto+muro omitem apenas o pequeno segmento interno de
+barreira, evitando criar uma parede sobre a superfície dirigível.

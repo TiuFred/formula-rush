@@ -6,6 +6,9 @@ export const CIRCUIT_IDS = Object.freeze([
   "indianapolis",
   "monaco",
   "spa",
+  "redBullRing",
+  "miami",
+  "yasMarina",
 ]);
 
 /**

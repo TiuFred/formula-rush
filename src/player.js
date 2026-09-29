@@ -182,7 +182,9 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   // um bug de colisão "quebrada" mesmo sem um impacto de verdade se repetindo.
   const wallSide = Math.sign(car.lane) || 1;
   const visualWallOffset = state.track.wallOffsetAt?.(car.s, wallSide);
-  const wallLimit = (visualWallOffset ?? updated.halfWidth + cornerWideningAt(car.s, wallSide)) - 1.6;
+  const wallLimit = visualWallOffset === null
+    ? Infinity
+    : (visualWallOffset ?? updated.halfWidth + cornerWideningAt(car.s, wallSide)) - 1.6;
   if (updated.dist > wallLimit) {
     car.lane = Math.sign(updated.lane) * (wallLimit - .1);
     const wallFrame = state.track.at(car.s, car.lane);

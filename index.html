@@ -81,7 +81,7 @@
             MODO CAMPEONATO
           </button>
           <div class="startmeta">
-            23 PILOTOS <span>•</span> 5 CIRCUITOS <span>•</span> VOCÊ CONTRA A
+            23 PILOTOS <span>•</span> 8 CIRCUITOS <span>•</span> VOCÊ CONTRA A
             IA
           </div>
         </div>
@@ -238,30 +238,6 @@
             <button id="closeTimes" class="primary">VOLTAR</button>
           </div>
         </div>
-        <div
-          id="leaderboardPanel"
-          class="modal times-modal hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="leaderboardTitle"
-        >
-          <div>
-            <div class="eyebrow">RANKING LOCAL</div>
-            <h2 id="leaderboardTitle">Melhores voltas</h2>
-            <p id="leaderboardStatus" class="leaderboard-note">
-              Carregando ranking…
-            </p>
-            <p class="leaderboard-note">
-              1 entrada por nome usado em "SEU PILOTO" — nomes iguais se
-              sobrescrevem.
-            </p>
-            <div id="leaderboardRows"></div>
-            <p id="leaderboardEmpty">
-              Ainda não há voltas registradas nesta pista.
-            </p>
-            <button id="closeLeaderboard" class="primary">VOLTAR</button>
-          </div>
-        </div>
         <div id="touch" class="touch hidden">
           <div>
             <button data-key="ArrowLeft" aria-label="Virar à esquerda">◀</button
@@ -294,16 +270,19 @@
             Monte seu piloto
           </h1>
           <p class="championship-lead">
-            Sua identidade e a duração escolhida serão mantidas durante os cinco
+            Sua identidade e a duração escolhida serão mantidas durante os oito
             grandes prêmios.
           </p>
           <div
             class="championship-calendar"
             aria-label="Calendário da temporada"
           >
-            <span><b>01</b> Brasil</span><i>→</i><span><b>02</b> Itália</span
-            ><i>→</i><span><b>03</b> Bélgica</span><i>→</i
-            ><span><b>04</b> Mônaco</span><i>→</i><span><b>05</b> EUA</span>
+            <span><b>01</b> Interlagos</span><i>→</i><span><b>02</b> Monza</span
+            ><i>→</i><span><b>03</b> Red Bull Ring</span><i>→</i
+            ><span><b>04</b> Spa</span><i>→</i><span><b>05</b> Miami</span
+            ><i>→</i><span><b>06</b> Mônaco</span><i>→</i
+            ><span><b>07</b> Yas Marina</span><i>→</i
+            ><span><b>08</b> Indianápolis</span>
           </div>
           <form id="championshipForm">
             <section class="config-block">
@@ -358,7 +337,7 @@
                 </button>
               </div>
               <small id="championshipDistanceInfo"
-                >3 voltas por etapa · 5 grandes prêmios</small
+                >3 voltas por etapa · 8 grandes prêmios</small
               >
             </section>
             <button id="confirmChampionship" class="primary config-cta">
@@ -398,6 +377,13 @@
               ><button
                 type="button"
                 class="option-btn"
+                data-value="redBullRing"
+                aria-pressed="false"
+              >
+                Red Bull Ring<br /><small>Áustria</small></button
+              ><button
+                type="button"
+                class="option-btn"
                 data-value="indianapolis"
                 aria-pressed="false"
               >
@@ -416,6 +402,22 @@
                 aria-pressed="false"
               >
                 Spa-Francorchamps<br /><small>Bélgica</small>
+              </button>
+              <button
+                type="button"
+                class="option-btn"
+                data-value="miami"
+                aria-pressed="false"
+              >
+                Miami Autodrome<br /><small>EUA</small>
+              </button>
+              <button
+                type="button"
+                class="option-btn"
+                data-value="yasMarina"
+                aria-pressed="false"
+              >
+                Yas Marina<br /><small>Abu Dhabi</small>
               </button>
             </div>
             <p class="config-info">
@@ -565,6 +567,30 @@
           </p>
         </div>
       </aside>
+      <div
+        id="leaderboardPanel"
+        class="modal times-modal hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="leaderboardTitle"
+      >
+        <div>
+          <div class="eyebrow">RANKING LOCAL</div>
+          <h2 id="leaderboardTitle">Melhores voltas</h2>
+          <p id="leaderboardStatus" class="leaderboard-note">
+            Carregando ranking…
+          </p>
+          <p class="leaderboard-note">
+            1 entrada por nome usado em "SEU PILOTO" — nomes iguais se
+            sobrescrevem.
+          </p>
+          <div id="leaderboardRows"></div>
+          <p id="leaderboardEmpty">
+            Ainda não há voltas registradas nesta pista.
+          </p>
+          <button id="closeLeaderboard" class="primary">VOLTAR</button>
+        </div>
+      </div>
     </main>
     <footer>
       <span><i></i> PRONTO PARA ACELERAR</span>

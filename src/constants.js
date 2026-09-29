@@ -19,8 +19,10 @@ export const DRIVER_COUNT = 23;
 /** Pontuação por posição no modo campeonato (ver main.js), sistema atual da F1: só o top 10 pontua. */
 export const CHAMPIONSHIP_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
-/** Calendário fixo do modo campeonato (ver main.js/startChampionship) — os 5 circuitos, nessa ordem. */
-export const CHAMPIONSHIP_CALENDAR = ["interlagos", "monza", "spa", "monaco", "indianapolis"];
+/** Calendário fixo do modo campeonato (ver main.js/startChampionship). */
+export const CHAMPIONSHIP_CALENDAR = [
+  "interlagos", "monza", "redBullRing", "spa", "miami", "monaco", "yasMarina", "indianapolis",
+];
 
 /**
  * Nomes de setor/curva do circuito ATIVO, por distância (m) percorrida na
@@ -167,7 +169,8 @@ export function setTrackNamePanelText(v) { TRACK_NAME_PANEL_TEXT = v; }
  * arquibancadas, complexo de boxes, árvores esparsas) — circuitos com um
  * ambiente diferente (Mônaco = rua, Spa = floresta) só sobrescrevem o que muda
  * (ver `scenery` em circuits.js).
- *   theme: "park" | "street" | "forest" | "tropical" | "woodland" | "speedway"
+ *   theme: "park" | "street" | "forest" | "tropical" | "woodland" |
+ *     "speedway" | "alpine" | "desert"
  *   pitBoxSpacing: espaço (m) entre boxes/garagens — 20 nos autódromos grandes;
  *     Mônaco tem uma reta dos boxes curta, então usa boxes bem mais juntos.
  *   grandstands/pitBuilding: liga/desliga a arquibancada e o complexo de boxes.
@@ -185,6 +188,8 @@ export function setTrackNamePanelText(v) { TRACK_NAME_PANEL_TEXT = v; }
  *     da linha).
  *   skyline: `{ count, radius: [min, max], angle: [a0, a1], height: [min, max],
  *     palette }` — prédios distantes ao fundo (raio × worldScale, ângulos em rad).
+ *   stadium: posição/rotação do Hard Rock Stadium de Miami.
+ *   yasHotelStation: estação da passarela elevada do hotel de Yas.
  *   bricks: faixa de tijolos na linha de chegada (Indianápolis).
  */
 export const DEFAULT_SCENERY = {
@@ -199,6 +204,8 @@ export const DEFAULT_SCENERY = {
   seatColors: null,
   banners: null,
   skyline: null,
+  stadium: null,
+  yasHotelStation: null,
   bricks: false,
 };
 export let SCENERY = { ...DEFAULT_SCENERY };

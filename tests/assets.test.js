@@ -15,10 +15,22 @@ import {
   createSafeTracksideOffset,
   trackHalfWidthAt,
 } from "../src/track.js";
+import { CIRCUIT_IDS } from "../src/validation.js";
 
 async function readPublicJson(relativePath) {
   const url = new URL("../public/" + relativePath.replace(/^\.\//, ""), import.meta.url);
   return JSON.parse(await readFile(url, "utf8"));
+}
+
+function pointInPolygon(x, z, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    if (((a.z > z) !== (b.z > z)) &&
+        x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
+  }
+  return inside;
 }
 
 test("todos os circuitos possuem traçado fechado e elevação válida", async () => {
@@ -35,6 +47,7 @@ test("todos os circuitos possuem traçado fechado e elevação válida", async (
 });
 
 test("calendário referencia circuitos existentes e pontuação é decrescente", () => {
+  assert.deepEqual([...CIRCUIT_IDS].sort(), Object.keys(CIRCUITS).sort());
   assert.equal(new Set(CHAMPIONSHIP_CALENDAR).size, CHAMPIONSHIP_CALENDAR.length);
   for (const id of CHAMPIONSHIP_CALENDAR) assert.ok(CIRCUITS[id], `circuito desconhecido: ${id}`);
   assert.equal(CHAMPIONSHIP_POINTS.length, 10);
@@ -50,6 +63,9 @@ test("asfalto ampliado mantém corredor livre em todas as pistas", async () => {
     indianapolis: 9.75,
     monaco: 5.15,
     spa: 6.55,
+    redBullRing: 6.8,
+    miami: 6.05,
+    yasMarina: 6.9,
   };
 
   for (const [id, circuit] of Object.entries(CIRCUITS)) {
@@ -69,10 +85,10 @@ test("asfalto ampliado mantém corredor livre em todas as pistas", async () => {
         const wallClearance = safeTracksideOffset(s, side) - trackHalfWidthAt(s);
         minimumWallClearance = Math.min(minimumWallClearance, wallClearance);
         const wall = track.at(s, side * safeTracksideOffset(s, side)).p;
-        minimumWallToAnyAsphalt = Math.min(
-          minimumWallToAnyAsphalt,
-          asphaltClearanceAt(track, wall.x, wall.z),
-        );
+        const renderedClearance = asphaltClearanceAt(track, wall.x, wall.z);
+        if (renderedClearance > .05) {
+          minimumWallToAnyAsphalt = Math.min(minimumWallToAnyAsphalt, renderedClearance);
+        }
       }
     }
 
@@ -83,10 +99,13 @@ test("asfalto ampliado mantém corredor livre em todas as pistas", async () => {
         const a = track.at(s, side * safeTracksideOffset(s, side)).p;
         const s1 = Math.min(s + 2, circuit.trackLength);
         const b = track.at(s1, side * safeTracksideOffset(s1, side)).p;
-        minimumWallToAnyAsphalt = Math.min(
-          minimumWallToAnyAsphalt,
-          asphaltClearanceAt(track, (a.x + b.x) / 2, (a.z + b.z) / 2),
-        );
+        // O renderer omite pequenos trechos do muro no centro de hairpins
+        // cujo raio interno é menor que o próprio asfalto.
+        if (asphaltClearanceAt(track, a.x, a.z) <= .05 ||
+            asphaltClearanceAt(track, b.x, b.z) <= .05) continue;
+        const midpointClearance = asphaltClearanceAt(track, (a.x + b.x) / 2, (a.z + b.z) / 2);
+        if (midpointClearance <= .05) continue;
+        minimumWallToAnyAsphalt = Math.min(minimumWallToAnyAsphalt, midpointClearance);
       }
     }
 
@@ -147,6 +166,36 @@ test("asfalto ampliado mantém corredor livre em todas as pistas", async () => {
             const z = frame.p.z + frame.right.z * lateral + frame.t.z * longitudinal;
             assert.ok(asphaltClearanceAt(track, x, z) > 0, `${id}: detalhe de ápice invade o asfalto`);
           }
+        }
+      }
+    }
+
+    if (circuit.scenery?.stadium) {
+      const { x, z } = circuit.scenery.stadium;
+      assert.ok(
+        asphaltClearanceAt(track, x, z) > Math.hypot(218, 150) / 2 + 5,
+        `${id}: estádio próximo demais do asfalto`,
+      );
+    }
+
+    // Lagos e marinas não podem cobrir outra perna do circuito.
+    for (const [start, end] of circuit.scenery?.harbor?.segments ?? []) {
+      const pieces = Math.max(1, Math.ceil((end - start) / 40));
+      for (let piece = 0; piece < pieces; piece++) {
+        const s0 = start + ((end - start) * piece) / pieces;
+        const s1 = start + ((end - start) * (piece + 1)) / pieces;
+        const f0 = track.at(s0);
+        const f1 = track.at(s1);
+        const p0 = track.at(s0, -(trackHalfWidthAt(s0) + 8)).p;
+        const p1 = track.at(s1, -(trackHalfWidthAt(s1) + 8)).p;
+        const q0 = p0.clone().addScaledVector(f0.right, -circuit.scenery.harbor.depth);
+        const q1 = p1.clone().addScaledVector(f1.right, -circuit.scenery.harbor.depth);
+        for (const sample of track.samples) {
+          assert.equal(
+            pointInPolygon(sample.x, sample.z, [p0, p1, q1, q0]),
+            false,
+            `${id}: água invade o asfalto`,
+          );
         }
       }
     }
