@@ -42,6 +42,9 @@ export const CIRCUITS = {
     turns: 15,
     direction: "ANTI-HORÁRIO",
     trackLength: 4309,
+    // A tabela original derrubava 16 m em 67 m no S do Senna (~35% de rampa
+    // de pico); agora ~12%, e a cúbica monótona tira o efeito "degrau".
+    smoothElevation: true,
     sectorNames: [
       [0, "Reta dos Boxes"], [275, "S do Senna · T1"], [385, "S do Senna · T2"],
       [470, "Curva do Sol · T3"], [735, "Reta Oposta"], [1310, "Descida do Lago · T4"],
@@ -62,7 +65,7 @@ export const CIRCUITS = {
       [3220, .03], [3420, .045], [3750, .065], [4000, .055], [4180, .012], [4309, 0],
     ],
     elevationSamples: [
-      [0, 41], [275, 43], [342, 27], [428, 18], [726, 9], [1300, 7], [1498, 1],
+      [0, 41], [275, 43], [360, 33], [470, 22], [726, 9], [1300, 7], [1498, 1],
       [1800, 18], [2088, 28], [2297, 26], [2423, 17], [2600, 20], [2719, 19],
       [2974, 8], [3235, 0], [3389, 8], [3620, 23], [3969, 38], [4309, 41],
     ],
@@ -87,6 +90,23 @@ export const CIRCUITS = {
     trackNamePanelText: "INTERLAGOS",
     // Reta dos boxes (atravessa a largada) e reta oposta — posições aproximadas.
     drsZones: [[4000, 260], [800, 1290]],
+    scenery: {
+      theme: "tropical",
+      // O "Lago" de Interlagos, do lado de dentro da Descida do Lago (T4–T5).
+      harbor: { segments: [[1330, 1600]], depth: 140 },
+      waterColor: "#3d8f97",
+      seatColors: ["#ffdf00", "#0e7a3b", "#f0e7d6", "#1e4f9c", "#eac170"],
+      banners: {
+        texts: ["BRASIL", "SÃO PAULO", "INTERLAGOS", "GRANDE PRÊMIO"],
+        styles: [["#0e7a3b", "#ffdf00"], ["#1e4f9c", "#f3f3ec"], ["#ffdf00", "#0e5a2c"]],
+        from: -430, to: -70, step: 90,
+      },
+      // Skyline paulistana ao fundo, num arco atrás da reta oposta.
+      skyline: {
+        count: 90, radius: [720, 1000], angle: [.2, 2.6], height: [50, 240],
+        palette: ["#8fb0c4", "#a9b9bd", "#d5d1c4", "#7d98ab", "#c4ced2"],
+      },
+    },
   },
 
   monza: {
@@ -100,14 +120,18 @@ export const CIRCUITS = {
     turns: 11,
     direction: "HORÁRIO",
     trackLength: 5793,
-    // Curvas famosas de Monza, em distâncias APROXIMADAS (não medidas por
-    // telemetria — o traçado geográfico é real, mas os marcadores de curva
-    // são estimativas de proporção ao longo da volta; ver docs/AUDITORIA.md).
+    // Distâncias medidas na própria curva do jogo (mesma spline e escala que a
+    // física usa), a partir dos ápices reais: Rettifilo 595/675, Roggia
+    // 1820/1895, Lesmo 1 ~2245, Lesmo 2 2570, Ascari 3635–3855, Parabolica
+    // 4860–5015. (A tabela antiga, "proporções estimadas", errava a Ascari em
+    // ~600 m, a Parabolica em ~450 m e a Rettifilo/Roggia em ~250 m.) Cada
+    // entrada começa uns 60–70 m ANTES do ápice, como nos outros circuitos.
     sectorNames: [
-      [0, "Reta Principal"], [300, "Variante del Rettifilo"], [850, "Curva Grande"],
-      [1600, "Variante della Roggia"], [2200, "Lesmo 1"], [2450, "Lesmo 2"],
-      [2700, "Serraglia (reta)"], [4250, "Variante Ascari"], [4700, "Reta Sul"],
-      [5300, "Curva Parabolica"],
+      [0, "Reta Principal"], [530, "Variante del Rettifilo · T1-2"], [740, "Curva Grande · T3"],
+      [1450, "Reta"], [1760, "Variante della Roggia · T4-5"], [1960, "Reta"],
+      [2170, "Lesmo 1 · T6"], [2330, "Reta"], [2510, "Lesmo 2 · T7"], [2660, "Serraglia (reta)"],
+      [3570, "Variante Ascari · T8-10"], [3900, "Reta Sul"], [4790, "Curva Parabolica · T11"],
+      [5150, "Reta Principal"],
     ],
     // Monza é uma pista bem larga e praticamente plana: perfil simplificado
     // (sem a afinação curva a curva que a Interlagos tem).
@@ -119,18 +143,28 @@ export const CIRCUITS = {
     cornerWideningTable: function monzaCornerWidening(_s, _side) {
       return [[0, 3], [5793, 3]];
     },
-    itemBoxPositions: [400, 1100, 1900, 2700, 3400, 4000, 4600, 5500],
+    itemBoxPositions: [400, 1250, 1650, 2700, 3400, 4000, 4600, 5500],
     cornerNameSigns: [
-      [300, "VARIANTE RETTIFILO"], [850, "CURVA GRANDE"], [1600, "VARIANTE ROGGIA"],
-      [2200, "LESMO 1"], [2450, "LESMO 2"], [4250, "VARIANTE ASCARI"],
-      [5300, "CURVA PARABOLICA"],
+      [595, "VARIANTE RETTIFILO"], [900, "CURVA GRANDE"], [1860, "VARIANTE ROGGIA"],
+      [2245, "LESMO 1"], [2570, "LESMO 2"], [3755, "VARIANTE ASCARI"],
+      [4900, "CURVA PARABOLICA"],
     ],
     distanceBoardStations: [],
     zebraZones: [],
     apexGrassPatches: [],
     trackNamePanelText: "MONZA",
-    // Reta principal (atravessa a largada) e a reta após a Curva Grande.
-    drsZones: [[5350, 280], [900, 1550]],
+    // Reta principal (atravessa a largada) e a reta Ascari → Parabolica.
+    drsZones: [[5300, 540], [3920, 4760]],
+    scenery: {
+      theme: "woodland",
+      // Arquibancadas vermelhas/brancas/verdes: as cores da Itália (e da Ferrari).
+      seatColors: ["#c5212b", "#f2f2ea", "#0a7a3a", "#c5212b", "#2a2a2a"],
+      banners: {
+        texts: ["MONZA", "ITALIA", "AUTODROMO", "FORZA"],
+        styles: [["#0a7a3a", "#f2f2ea"], ["#f2f2ea", "#c5212b"], ["#c5212b", "#f2f2ea"]],
+        from: -430, to: -70, step: 90,
+      },
+    },
   },
 
   indianapolis: {
@@ -181,6 +215,19 @@ export const CIRCUITS = {
     trackNamePanelText: "INDY 500 OVAL",
     // Num oval, as duas retas praticamente inteiras valem como zona de DRS.
     drsZones: [[3650, 950], [2050, 2950]],
+    scenery: {
+      theme: "speedway",
+      // Arquibancadas próprias em volta do oval inteiro (ver buildSpeedwayComplex).
+      grandstands: false,
+      pitBuilding: false,
+      // Lago do campo de golfe do infield, do lado esquerdo da reta oposta.
+      harbor: { segments: [[2200, 2800]], depth: 100 },
+      waterColor: "#3a8aa8",
+      skyline: {
+        count: 34, radius: [820, 1000], angle: [3.6, 5.2], height: [70, 210],
+        palette: ["#8fa2b0", "#aab6bd", "#cfd0c8", "#7c8f9e"],
+      },
+    },
   },
 
   monaco: {
@@ -255,7 +302,7 @@ export const CIRCUITS = {
       tunnel: [1490, 1790],
       // Port Hercule: fica DENTRO da grande volta, à esquerda da Beira-Mar
       // (reta do porto) e da perna da Piscina — dois quadriláteros de água.
-      harbor: { segments: [[1800, 2330], [2330, 2905]], depth: 300 },
+      harbor: { segments: [[1800, 2330], [2330, 2860]], depth: 200 },
     },
   },
 

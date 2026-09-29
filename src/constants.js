@@ -167,7 +167,7 @@ export function setTrackNamePanelText(v) { TRACK_NAME_PANEL_TEXT = v; }
  * arquibancadas, complexo de boxes, árvores esparsas) — circuitos com um
  * ambiente diferente (Mônaco = rua, Spa = floresta) só sobrescrevem o que muda
  * (ver `scenery` em circuits.js).
- *   theme: "park" | "street" | "forest"
+ *   theme: "park" | "street" | "forest" | "tropical" | "woodland" | "speedway"
  *   pitBoxSpacing: espaço (m) entre boxes/garagens — 20 nos autódromos grandes;
  *     Mônaco tem uma reta dos boxes curta, então usa boxes bem mais juntos.
  *   grandstands/pitBuilding: liga/desliga a arquibancada e o complexo de boxes.
@@ -176,7 +176,16 @@ export function setTrackNamePanelText(v) { TRACK_NAME_PANEL_TEXT = v; }
  *   tunnel: [inicio, fim] (m) de um túnel sobre a pista, ou null.
  *   harbor: `{ segments: [[inicio, fim], ...], depth }` — trechos (m) cuja
  *     margem ESQUERDA encosta na água; cada um vira um quadrilátero de água
- *     estendido `depth` m pra dentro da volta. Ou null.
+ *     estendido `depth` m pra dentro da volta (porto em Mônaco, lago em
+ *     Interlagos, lago do infield em Indianápolis). Ou null.
+ *   waterColor: cor da água.
+ *   seatColors: paleta das cadeiras das arquibancadas (null = padrão).
+ *   banners: `{ texts, styles: [[fundo, texto], ...], from, to, step }` — placas
+ *     de patrocínio/bandeira ao longo da cerca (from/to em m, negativos = antes
+ *     da linha).
+ *   skyline: `{ count, radius: [min, max], angle: [a0, a1], height: [min, max],
+ *     palette }` — prédios distantes ao fundo (raio × worldScale, ângulos em rad).
+ *   bricks: faixa de tijolos na linha de chegada (Indianápolis).
  */
 export const DEFAULT_SCENERY = {
   theme: "park",
@@ -186,6 +195,11 @@ export const DEFAULT_SCENERY = {
   pitBuilding: true,
   tunnel: null,
   harbor: null,
+  waterColor: "#2f86b3",
+  seatColors: null,
+  banners: null,
+  skyline: null,
+  bricks: false,
 };
 export let SCENERY = { ...DEFAULT_SCENERY };
 export function setScenery(v) { SCENERY = { ...DEFAULT_SCENERY, ...v }; }

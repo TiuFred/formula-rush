@@ -263,7 +263,8 @@ function buildTrackDecorations() {
           dummy.rotation.y = frame.yaw;
           dummy.updateMatrix();
           seatMesh.setMatrixAt(seatIndex, dummy.matrix);
-          seatMesh.setColorAt(seatIndex, new THREE.Color(["#d6ea55", "#f0e7d6", "#349e8e", "#293d62", "#eac170"][(seatIndex * 7 + row) % 5]));
+          const palette = SCENERY.seatColors ?? ["#d6ea55", "#f0e7d6", "#349e8e", "#293d62", "#eac170"];
+          seatMesh.setColorAt(seatIndex, new THREE.Color(palette[(seatIndex * 7 + row) % palette.length]));
           seatIndex++;
         }
       }
@@ -466,6 +467,232 @@ function buildForest(rng, scale, groundHeightAt) {
   }
 }
 
+// ---- Kit de cenário dos autódromos com identidade própria ------------------
+
+const _dummy = new THREE.Object3D();
+
+/** Grava a instância `i` de um InstancedMesh (posição, escala, giro em Y e cor opcional). */
+function setInstance(mesh, i, x, y, z, sx, sy, sz, rotY = 0, color = null) {
+  _dummy.position.set(x, y, z);
+  _dummy.rotation.set(0, rotY, 0);
+  _dummy.scale.set(sx, sy, sz);
+  _dummy.updateMatrix();
+  mesh.setMatrixAt(i, _dummy.matrix);
+  if (color) mesh.setColorAt(i, color);
+}
+
+/** Fixa quantas instâncias de cada InstancedMesh valem e os adiciona à cena. */
+function commitInstances(entries) {
+  for (const [mesh, n] of entries) {
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    state.scene.add(mesh);
+  }
+}
+
+/**
+ * Sorteia até `count` pontos em volta da pista: `near` m depois do muro, com
+ * densidade maior perto dele (`tightness` > 1 concentra) até `spread` m.
+ * Rejeita o que cai na pista, em outra perna da volta ou na água, e chama
+ * `place(x, z, frame, n)` pra cada ponto aceito.
+ */
+function scatterAlongTrack(rng, count, { near = 4, spread = 200, tightness = 2, clearance = 8, inWater = null }, place) {
+  let n = 0;
+  let attempts = 0;
+  while (n < count && attempts++ < count * 8) {
+    const s = rng() * TRACK_LENGTH;
+    const side = rng() < .5 ? -1 : 1;
+    const edge = trackHalfWidthAt(s) + cornerWideningAt(s, side);
+    const lateral = edge + near + Math.pow(rng(), tightness) * spread;
+    const frame = state.track.at(s, side * lateral);
+    const { x, z } = frame.p;
+    if (state.track.nearest(x, z).dist < trackHalfWidthAt(s) + clearance) continue;
+    if (inWater?.(x, z)) continue;
+    place(x, z, frame, n++);
+  }
+  return n;
+}
+
+/**
+ * Interlagos / trópico paulista: palmeiras (tronco alto + copa achatada) e
+ * árvores de copa redonda, com uns ipês amarelos e rosas no meio do verde.
+ */
+function buildTropicalVegetation(rng, scale, groundHeightAt, inWater) {
+  const MAX = 1500;
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.4, .6, 1, 5), makeMaterial("#6b5138"), MAX);
+  const broad = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), makeMaterial("#ffffff"), MAX);
+  const palms = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 4), makeMaterial("#ffffff"), MAX);
+  const greens = ["#3f8a3a", "#4a9a3f", "#33772f", "#58a848"].map((c) => new THREE.Color(c));
+  const palmGreens = ["#2f7a34", "#3a8a3a"].map((c) => new THREE.Color(c));
+  const ipeYellow = new THREE.Color("#e8c52a");
+  const ipePink = new THREE.Color("#d86aa5");
+  let t = 0, b = 0, p = 0;
+  scatterAlongTrack(rng, MAX, { near: 5, spread: 230 * Math.max(.7, scale), tightness: 2.2, clearance: 9, inWater }, (x, z) => {
+    const base = groundHeightAt(x, z) - .3;
+    if (rng() < .24) {
+      const h = 9 + rng() * 6;
+      setInstance(trunks, t++, x, base + h / 2, z, .7 + rng() * .3, h, .7 + rng() * .3);
+      setInstance(palms, p++, x, base + h + .4, z, 3.6 + rng(), 1.1, 3.6 + rng(), rng() * 6.28, palmGreens[Math.floor(rng() * 2)]);
+    } else {
+      const h = 3 + rng() * 3.5;
+      const r = 3.4 + rng() * 2.8;
+      const roll = rng();
+      const color = roll < .06 ? ipeYellow : roll < .085 ? ipePink : greens[Math.floor(rng() * greens.length)];
+      setInstance(trunks, t++, x, base + h / 2, z, 1, h, 1);
+      setInstance(broad, b++, x, base + h + r * .55, z, r, r * .85, r, rng() * 6.28, color);
+    }
+  });
+  commitInstances([[trunks, t], [broad, b], [palms, p]]);
+}
+
+/**
+ * Bosque do Parque de Monza: árvores de folha caduca bem próximas da pista
+ * (um "túnel" verde), algumas já em tons de outono.
+ */
+function buildWoodland(rng, scale, groundHeightAt, inWater) {
+  const MAX = 3000;
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.45, .7, 1, 5), makeMaterial("#5a4634"), MAX);
+  const crowns = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), makeMaterial("#ffffff"), MAX);
+  const crowns2 = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), makeMaterial("#ffffff"), MAX);
+  const greens = ["#5d8a3c", "#6e9944", "#4f7a35", "#7aa04a"].map((c) => new THREE.Color(c));
+  const autumn = ["#c9a23a", "#b8742a", "#a5872f"].map((c) => new THREE.Color(c));
+  let n = 0;
+  scatterAlongTrack(rng, MAX, { near: 3, spread: 170 * Math.max(.7, scale), tightness: 2.4, clearance: 6, inWater }, (x, z) => {
+    const base = groundHeightAt(x, z) - .3;
+    const h = 4 + rng() * 5;
+    const r = 3 + rng() * 3.4;
+    const color = rng() < .2 ? autumn[Math.floor(rng() * autumn.length)] : greens[Math.floor(rng() * greens.length)];
+    setInstance(trunks, n, x, base + h / 2, z, 1, h, 1);
+    setInstance(crowns, n, x, base + h + r * .5, z, r, r * .8, r, rng() * 6.28, color);
+    setInstance(crowns2, n, x + (rng() - .5) * r, base + h + r * 1.05, z + (rng() - .5) * r, r * .65, r * .55, r * .65, rng() * 6.28, color);
+    n++;
+  });
+  commitInstances([[trunks, n], [crowns, n], [crowns2, n]]);
+}
+
+/**
+ * Prédios distantes ao fundo (skyline de São Paulo, de Indianápolis): torres
+ * de 14–34 m de lado espalhadas num arco. À noite as janelas "acendem"
+ * (emissivo baixo), sem custo de luz dinâmica.
+ */
+function buildSkyline(rng, scale, cfg, night) {
+  const materials = cfg.palette.map((c) => makeMaterial(c, night ? { emissive: c, emissiveIntensity: .35 } : {}));
+  for (let i = 0; i < cfg.count; i++) {
+    const angle = cfg.angle[0] + rng() * (cfg.angle[1] - cfg.angle[0]);
+    const radius = (cfg.radius[0] + rng() * (cfg.radius[1] - cfg.radius[0])) * scale;
+    const h = cfg.height[0] + rng() * rng() * (cfg.height[1] - cfg.height[0]);
+    const w = 14 + rng() * 20;
+    const d = 14 + rng() * 20;
+    const tower = addBox(w, h, d, materials[Math.floor(rng() * materials.length)], Math.cos(angle) * radius, h / 2 - 8, Math.sin(angle) * radius);
+    tower.rotation.y = rng() * .6;
+  }
+}
+
+/**
+ * Placas de bandeira/patrocínio ao longo da cerca do lado esquerdo, no trecho
+ * `from`→`to` (m; negativos contam antes da linha). Cada placa alterna texto e
+ * estilo [fundo, letra].
+ */
+function buildBanners(cfg) {
+  let i = 0;
+  for (let s = cfg.from; s <= cfg.to; s += cfg.step, i++) {
+    const [bg, fg] = cfg.styles[i % cfg.styles.length];
+    const lane = -(trackHalfWidthAt(s) + cornerWideningAt(s, -1) + 2.5);
+    const frame = state.track.at(s, lane);
+    const panel = makeTextPanel(cfg.texts[i % cfg.texts.length], 9, 2.4, bg, fg);
+    panel.position.copy(frame.p);
+    panel.position.y += 2.8;
+    panel.rotation.y = frame.yaw + Math.PI;
+    state.scene.add(panel);
+    for (const dz of [-3.6, 3.6]) {
+      const post = state.track.at(s + dz, lane);
+      addMesh(new THREE.CylinderGeometry(.08, .08, 3, 5), MATERIALS.metal, post.p.x, post.p.y + 1.5, post.p.z);
+    }
+  }
+}
+
+/**
+ * Indianápolis Motor Speedway: arquibancadas contínuas em 3 camadas em volta de
+ * TODO o oval (lado de fora), mais altas e cobertas na reta principal, a
+ * Pagoda e o painel de posições no infield, faixa de tijolos na linha, um
+ * bosque baixo depois das arquibancadas e o campo de golfe do infield.
+ */
+function buildSpeedwayComplex(rng, groundHeightAt, inWater) {
+  // Caixa NIVELADA (só gira em Y): o oval tem banking de ~9° nas curvas, e o
+  // addAlignedBox acompanharia a inclinação — arquibancada torta. A base é a
+  // altura do muro; o primeiro andar desce 6 m pra encostar no terreno.
+  const level = (s, lane, w, h, d, material, yOffset = 0) => {
+    const side = Math.sign(lane) || 1;
+    const base = state.track.at(s, side * (trackHalfWidthAt(s) + cornerWideningAt(s, side))).p.y;
+    const f = state.track.at(s, lane);
+    const mesh = addBox(w, h, d, material, f.p.x, base + yOffset + h / 2, f.p.z);
+    mesh.rotation.y = f.yaw;
+    return mesh;
+  };
+  const concrete = makeMaterial("#b8b8b0");
+  const seatColors = ["#c8262c", "#f1f1ea", "#1f4f9c", "#e8c22a"].map((c) => makeMaterial(c));
+  const roofMaterial = makeMaterial("#eeeeea");
+  const front = (s) => s > TRACK_LENGTH - 520 || s < 520;
+  for (let s = 0, k = 0; s < TRACK_LENGTH; s += 14, k++) {
+    const edge = trackHalfWidthAt(s) + cornerWideningAt(s, 1) + 8;
+    const tiers = front(s) ? 4 : 3;
+    for (let tier = 0; tier < tiers; tier++) {
+      const lateral = edge + 5 + tier * 8.6;
+      level(s, lateral, 8.6, tier === 0 ? 8.8 : 2.8, 14.2, concrete, tier === 0 ? -6.4 : tier * 3.1 - .4);
+      level(s, lateral - 1.2, 5.6, .5, 13.4, seatColors[(k + tier) % seatColors.length], tier * 3.1 + 2.4);
+    }
+    if (front(s)) level(s, edge + 5 + (tiers - 1) * 4.3, 34, .6, 14.2, roofMaterial, tiers * 3.1 + 5);
+  }
+  // lado do infield: arquibancadas baixas só junto à reta principal
+  for (let s = TRACK_LENGTH - 420; s < TRACK_LENGTH + 320; s += 14) {
+    const edge = trackHalfWidthAt(s) + cornerWideningAt(s, -1) + 8;
+    for (let tier = 0; tier < 2; tier++) {
+      level(s, -(edge + 5 + tier * 8.6), 8.6, tier === 0 ? 8.8 : 2.8, 14.2, concrete, tier === 0 ? -6.4 : tier * 3.1 - .4);
+      level(s, -(edge + 5 + tier * 8.6 - 1.2), 5.6, .5, 13.4, seatColors[(Math.floor(s / 14) + tier) % 4], tier * 3.1 + 2.4);
+    }
+  }
+  // Pagoda: torre de 5 andares afinando, com faixa de vidro e telhado vermelho
+  const pagodaLane = -(trackHalfWidthAt(30) + cornerWideningAt(30, -1) + 34);
+  const glass = makeMaterial("#2b3a4a", { metalness: .4, roughness: .25 });
+  const white = makeMaterial("#e9e9e3");
+  const red = makeMaterial("#b3282d");
+  for (let floor = 0; floor < 5; floor++) {
+    const w = 16 - floor * 2.2;
+    level(30, pagodaLane, w, floor === 0 ? 11.2 : 5.2, w * .75, white, floor === 0 ? -6 : floor * 6.2);
+    level(30, pagodaLane, w + .2, 1.6, w * .75 + .2, glass, floor * 6.2 + 1.8);
+    level(30, pagodaLane, w + 1.6, .7, w * .75 + 1.6, red, floor * 6.2 + 5.3);
+  }
+  level(30, pagodaLane, .5, 7, .5, MATERIALS.metal, 31);
+  // painel de posições (pylon): coluna alta com placa
+  const pylonLane = -(trackHalfWidthAt(-45) + cornerWideningAt(-45, -1) + 16);
+  level(-45, pylonLane, 2.4, 58, 2.4, makeMaterial("#22272d"), -6);
+  const pylonFrame = state.track.at(-45, pylonLane);
+  const board = makeTextPanel("INDY 500", 9, 2.6, "#f3f3ec", "#c8262c");
+  board.position.copy(pylonFrame.p);
+  board.position.y += 46;
+  board.rotation.y = pylonFrame.yaw + Math.PI;
+  state.scene.add(board);
+  // faixa de tijolos na linha de chegada
+  const bricks = makeMaterial("#9c4a34");
+  addAlignedBox(3.4, 0, trackHalfWidthAt(3.4) * 2, .03, 1.1, bricks, .16);
+  // bosque baixo atrás das arquibancadas (copas redondas), fora do infield/lago
+  const MAX = 700;
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.4, .6, 1, 5), makeMaterial("#5a4634"), MAX);
+  const crowns = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), makeMaterial("#ffffff"), MAX);
+  const greens = ["#4d8a3a", "#5c9a44", "#437a34"].map((c) => new THREE.Color(c));
+  let n = 0;
+  scatterAlongTrack(rng, MAX, { near: 46, spread: 190, tightness: 1.6, clearance: 44, inWater }, (x, z) => {
+    const base = groundHeightAt(x, z) - .3;
+    const h = 4 + rng() * 4;
+    const r = 3 + rng() * 3;
+    setInstance(trunks, n, x, base + h / 2, z, 1, h, 1);
+    setInstance(crowns, n, x, base + h + r * .5, z, r, r * .8, r, rng() * 6.28, greens[Math.floor(rng() * 3)]);
+    n++;
+  });
+  commitInstances([[trunks, n], [crowns, n]]);
+}
+
 /** Ajusta o tamanho do renderer/câmera ao tamanho atual do elemento <canvas>. */
 export function resizeRenderer() {
   if (!state.renderer) return;
@@ -486,17 +713,20 @@ export function buildScene() {
   const night = state.nightMode;
   const street = SCENERY.theme === "street";
   const forest = SCENERY.theme === "forest";
+  const tropical = SCENERY.theme === "tropical";
+  const woodland = SCENERY.theme === "woodland";
+  const speedway = SCENERY.theme === "speedway";
   state.scene = new THREE.Scene();
   // Céu/névoa por ambiente: Mediterrâneo azul em Mônaco, tempo fechado nas
   // Ardenas. Noturna: céu quase negro (nunca preto puro — cidade/estádio ao
   // redor sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
   // "queimar" o preto do céu na distância como a névoa diurna faria.
-  const daySky = street ? "#9ccbea" : forest ? "#a3b2b6" : "#a9c8c7";
+  const daySky = street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : "#a9c8c7";
   state.scene.background = new THREE.Color(night ? "#050810" : daySky);
   state.scene.fog = new THREE.Fog(
     night ? "#050810" : daySky,
-    (night ? 260 : forest ? 420 : 700) * scale,
-    (night ? 1000 : forest ? 1500 : 1900) * scale
+    (night ? 260 : forest ? 420 : woodland ? 380 : 700) * scale,
+    (night ? 1000 : forest ? 1500 : woodland ? 1400 : 1900) * scale
   );
   state.camera = new THREE.PerspectiveCamera(60, 1, .2, 2500 * Math.max(1, scale));
   state.renderer = new THREE.WebGLRenderer({
@@ -520,10 +750,11 @@ export function buildScene() {
   // Materiais por ambiente. Autódromo ("park", o visual original): gramado
   // + faixa verde de escape. Rua ("street"): tudo pavimento, sem grama. Floresta:
   // gramado mais denso e escapes de asfalto.
-  const groundMaterial = street ? makeMaterial("#7d786c") : forest ? makeMaterial("#4c7449") : MATERIALS.grass;
+  const groundMaterial = street ? makeMaterial("#7d786c") : forest ? makeMaterial("#4c7449")
+    : tropical ? makeMaterial("#5c9647") : woodland ? makeMaterial("#6b8f40") : speedway ? makeMaterial("#79a552") : MATERIALS.grass;
   const runoffMaterial = street ? makeMaterial("#666a6d") : forest ? makeMaterial("#626b6a") : MATERIALS.green;
   const sidewalkMaterial = makeMaterial("#8e8a7f");
-  const wallMaterial = street ? makeMaterial("#ece9e0") : MATERIALS.barrier;
+  const wallMaterial = street ? makeMaterial("#ece9e0") : speedway ? makeMaterial("#dcdcd6") : MATERIALS.barrier;
 
   // Porto de Mônaco (só rua com `harbor`): quadriláteros de água na margem
   // ESQUERDA dos trechos indicados (a Port Hercule fica dentro da grande
@@ -531,17 +762,26 @@ export function buildScene() {
   // `depth` m pra dentro.
   const waterPolys = [];
   let waterY = 0;
-  if (street && SCENERY.harbor) {
+  if (SCENERY.harbor) {
     let ySum = 0, yCount = 0;
+    // Cada trecho é fatiado em quadriláteros de ≤40 m, cada um com as próprias
+    // normais nas duas pontas: um quadrilátero único de ponta a ponta "torce"
+    // (vira uma gravata-borboleta de área ~0) quando a pista faz uma curva
+    // fechada no meio do trecho, como o T4–T5 de Interlagos.
     for (const [a, b] of SCENERY.harbor.segments) {
-      const fa = state.track.at(a);
-      const fb = state.track.at(b);
-      const p0 = state.track.at(a, -(trackHalfWidthAt(a) + 8)).p;
-      const p1 = state.track.at(b, -(trackHalfWidthAt(b) + 8)).p;
-      const q0 = p0.clone().addScaledVector(fa.right, -SCENERY.harbor.depth);
-      const q1 = p1.clone().addScaledVector(fb.right, -SCENERY.harbor.depth);
-      waterPolys.push([p0, p1, q1, q0]);
-      ySum += fa.p.y + fb.p.y;
+      const pieces = Math.max(1, Math.ceil((b - a) / 40));
+      for (let i = 0; i < pieces; i++) {
+        const s0 = a + ((b - a) * i) / pieces;
+        const s1 = a + ((b - a) * (i + 1)) / pieces;
+        const f0 = state.track.at(s0);
+        const f1 = state.track.at(s1);
+        const p0 = state.track.at(s0, -(trackHalfWidthAt(s0) + 8)).p;
+        const p1 = state.track.at(s1, -(trackHalfWidthAt(s1) + 8)).p;
+        const q0 = p0.clone().addScaledVector(f0.right, -SCENERY.harbor.depth);
+        const q1 = p1.clone().addScaledVector(f1.right, -SCENERY.harbor.depth);
+        waterPolys.push([p0, p1, q1, q0]);
+      }
+      ySum += state.track.at(a).p.y + state.track.at(b).p.y;
       yCount += 2;
     }
     waterY = ySum / yCount - 1.6;
@@ -596,7 +836,7 @@ export function buildScene() {
     const shape = new THREE.Shape(poly.map((p) => new THREE.Vector2(p.x, -p.z)));
     const geo = new THREE.ShapeGeometry(shape);
     geo.rotateX(-Math.PI / 2);
-    addMesh(geo, new THREE.MeshStandardMaterial({ color: night ? "#0c2238" : "#2f86b3", roughness: .3, metalness: .15 }), 0, waterY, 0);
+    addMesh(geo, new THREE.MeshStandardMaterial({ color: night ? "#0c2238" : SCENERY.waterColor, roughness: .3, metalness: .15 }), 0, waterY, 0);
   }
 
   // Deslocamento lateral de "borda externa" (largura + alargamento em curva
@@ -605,9 +845,10 @@ export function buildScene() {
   // do raio da curva: um deslocamento lateral maior que o raio "dobra" a faixa
   // por cima dela mesma e cria lajes de terreno/calçada flutuando a alturas
   // erradas no meio da curva (era o "bug de elevação" no Grand Hotel Hairpin
-  // de Mônaco e nos hairpins de Spa). Só em rua/floresta — os autódromos
-  // originais mantêm a geometria de sempre.
-  const guardInside = street || forest;
+  // de Mônaco e nos hairpins de Spa). Vale pra todos os circuitos — só age
+  // onde a faixa realmente dobraria (Bico de Pato, S do Senna, chicanes de
+  // Monza), o resto da geometria fica igual.
+  const guardInside = true;
   const insideLimit = (side, s) => {
     if (!guardInside) return Infinity;
     const dyaw = wrapAngle(state.track.at(s + 4).yaw - state.track.at(s - 4).yaw);
@@ -740,6 +981,12 @@ export function buildScene() {
     buildCityBlocks(rng, groundHeightAt, inWater, waterY);
   } else if (forest) {
     buildForest(rng, scale, groundHeightAt);
+  } else if (tropical) {
+    buildTropicalVegetation(rng, scale, groundHeightAt, inWater);
+  } else if (woodland) {
+    buildWoodland(rng, scale, groundHeightAt, inWater);
+  } else if (speedway) {
+    buildSpeedwayComplex(rng, groundHeightAt, inWater);
   } else {
     const trunkMaterial = makeMaterial("#5a6550");
     const foliageMaterial = makeMaterial("#315a46");
@@ -755,9 +1002,14 @@ export function buildScene() {
     }
   }
 
+  if (SCENERY.skyline) buildSkyline(rng, scale, SCENERY.skyline, night);
+  if (SCENERY.banners) buildBanners(SCENERY.banners);
+
   // Fundo distante. Autódromo: "morros" de caixas atrás da largada. Rua:
   // paredões rochosos e altos (Mônaco é espremida contra a montanha).
   // Floresta: colinas cônicas cobertas de mata em volta de toda a volta.
+  // Trópico: morros arredondados e verdes. Bosque de Monza e oval de
+  // Indianápolis: planície (sem morros).
   if (forest) {
     const hillMaterials = [makeMaterial("#3f6644"), makeMaterial("#365a3d"), makeMaterial("#4a7049")];
     for (let i = 0; i < 46; i++) {
@@ -767,7 +1019,16 @@ export function buildScene() {
       const h = 70 + rng() * 120;
       addMesh(new THREE.ConeGeometry(r, h, 7), hillMaterials[i % 3], Math.cos(angle) * radius, h / 2 - 20, Math.sin(angle) * radius);
     }
-  } else {
+  } else if (tropical) {
+    const hillMaterials = [makeMaterial("#4b7d45"), makeMaterial("#3f6f3f"), makeMaterial("#5a8a4a")];
+    for (let i = 0; i < 40; i++) {
+      const angle = rng() * Math.PI * 2;
+      const radius = (760 + rng() * 260) * scale;
+      const r = 130 + rng() * 150;
+      const hill = addMesh(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillMaterials[i % 3], Math.cos(angle) * radius, -12, Math.sin(angle) * radius);
+      hill.scale.set(r, 30 + rng() * 55, r);
+    }
+  } else if (!woodland && !speedway) {
     const massifColors = street ? ["#a39a89", "#8b8373"] : ["#91a9a9", "#7b9699"];
     for (let i = 0; i < (street ? 90 : 65); i++) {
       const x = (rng() - .5) * 1900 * scale;

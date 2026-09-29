@@ -1299,3 +1299,90 @@ arquibancadas ao longo da reta dos boxes de verdade (6790 → 146 m).
 Validado: a simulação dos 22 bots continua fechando a volta (Mônaco
 73,3–79,6 s, Spa 120,8–129,0 s); câmera livre no hairpin de Mônaco e na reta
 dos boxes/Rivage de Spa sem as lajes nem as arquibancadas no traçado.
+
+## 27. Revisão de Interlagos, Monza e Indianápolis
+
+Mesma auditoria feita em Mônaco/Spa (seção 25–26): corpos reais medidos com
+o motor do jogo em Node (yaw a cada 5 m), rampas, simulação headless dos 22
+bots, e checagem de dobras de faixa lateral nos hairpins.
+
+**Indianápolis — sem achados.** Oval limpo: 4 curvas de ~256 m de raio, retas
+[20–990], [1430–1595], [2030–3000], [3440–3605] batendo com a tabela, elevação
+plana, sem dobras nem pernas próximas; bots fecham a volta em 56–62 s.
+
+**Monza — tabela de curvas errada (corrigido).** A geometria bate com a real
+(chicane Rettifilo 595/675, Roggia 1820/1895, Lesmo 1 ~2245, Lesmo 2 2570,
+Ascari 3635–3855, Parabolica 4860–5015), mas a tabela "por proporção" estava
+errada em até 600 m (Ascari em 4250 em vez de ~3600; Parabolica em 5300 em
+vez de ~4850; Rettifilo em 300 em vez de ~530; Roggia em 1600 em vez de
+~1760): o nome da curva no HUD, as placas e a zona de DRS (que cobria a Curva
+Grande e não a reta Ascari→Parabolica) estavam desalinhados. Refeitas as
+entradas de setor, placas, DRS (`[5300,540]` reta dos boxes e `[3920,4760]`
+Ascari→Parabolica) e uma caixa de item que caía dentro da Roggia (1900 → 1650).
+*Não alterado (escolha de design, não bug):* escapes de só 3 m em todas as
+curvas (o comentário original já dizia "perfil simplificado") — em Monza real
+os muros ficam bem mais longe; vale reavaliar.
+
+**Interlagos — rampa absurda no S do Senna (corrigido).** A tabela de
+elevação derrubava 16 m em 67 m (275→342 m): ~35% de rampa de pico (a real
+passa de ~12% só em trechos curtos), efeito ampliado pelo smoothstep por
+segmento. Trocada por 275→360→470 m (43 → 33 → 22 m) e `smoothElevation`
+ligado: rampa máxima 34,7% → 15,4%. Os demais nomes/DRS/itens/largura
+conferem (as entradas de setor ficam ~70–100 m antes do ápice medido, mesma
+convenção das pistas novas).
+
+**Todas — faixas laterais dobrando nos hairpins (corrigido).** A proteção
+da seção 26 (borda interna limitada a 0,8× o raio da curva e à metade da
+distância até a outra perna) agora vale pra todos os temas: 8 trechos de
+Interlagos (S do Senna R=31 m com faixa de 44 m, Bico de Pato R=21 m com
+33 m…) e 4 de Monza (chicane Rettifilo R=10 m com 25 m…) tinham a faixa
+maior que o raio. Só age onde a faixa realmente dobraria.
+
+Validação: bots fecham a 1ª volta em Interlagos 82–87 s, Monza 93–103 s,
+Indianápolis 56–62 s (sem NaN nem travados); câmera livre em Monza
+(chicane Rettifilo) e Interlagos (Bico de Pato) sem artefatos nem erros de
+console.
+
+## 28. Cenário próprio pra Interlagos, Monza e Indianápolis
+
+As três pistas originais usavam o mesmo cenário genérico (gramado, ~140
+árvores esparsas iguais, "morros" de caixas, arquibancadas de cores fixas).
+Agora cada uma tem identidade própria, no mesmo esquema de `SCENERY` da
+seção 25 (novos temas em `scenery.theme`; o tema `park` continua sendo o
+padrão pra quem não define nada):
+
+- **Interlagos (`tropical`)**: ~1500 árvores em `InstancedMesh` —
+  palmeiras (tronco alto + copa achatada) e copas redondas, com uns ipês
+  amarelos e rosas no meio; morros verdes arredondados em volta; skyline
+  paulistana (90 torres em arco ao fundo — à noite as janelas ganham
+  emissivo baixo); o Lago de verdade, dentro da Descida do Lago (T4–T5);
+  arquibancadas nas cores do Brasil e placas "BRASIL / SÃO PAULO /
+  INTERLAGOS / GRANDE PRÊMIO" ao longo da reta dos boxes.
+- **Monza (`woodland`)**: o Parque de Monza — ~3000 árvores de folha caduca
+  bem coladas na pista (um "corredor" verde, ~20% já em tons de outono),
+  céu enevoado da Lombardia, sem morros (é planície); arquibancadas
+  vermelhas/brancas/verdes e placas em tricolor ("MONZA / ITALIA /
+  AUTODROMO / FORZA").
+- **Indianápolis (`speedway`)**: arquibancadas contínuas de 3 camadas
+  (4 e com cobertura na reta principal) em volta de TODO o oval, mais
+  arquibancadas baixas no infield junto da reta; a Pagoda (5 andares com
+  faixa de vidro e telhado vermelho) e o painel de posições no infield;
+  faixa de tijolos na linha de chegada; lago do campo de golfe no infield;
+  bosque baixo depois das arquibancadas e skyline de Indianápolis.
+  As caixas do complexo usam uma variante *nivelada* de `addAlignedBox`
+  (o oval tem banking de ~9° e a versão normal inclinaria as arquibancadas).
+
+Infra nova em `scene.js`: `scatterAlongTrack` (sorteia pontos em volta da
+pista, denso perto do muro, rejeitando pista/outra perna/água) + `setInstance`
+/ `commitInstances`; o antigo "porto" de Mônaco virou `scenery.harbor`
+genérico (água = lago em Interlagos/Indy) com `waterColor`; cadeiras
+(`seatColors`), placas (`banners`) e skyline (`skyline`) configuráveis.
+
+Bug pego no teste visual: o lago de Interlagos não aparecia — o
+quadrilátero único de ponta a ponta "torcia" numa gravata-borboleta de área
+~0 porque a pista faz uma curva de ~130° no meio do trecho (T4–T5). A água
+agora é montada em fatias de ≤40 m, cada uma com as normais das próprias
+pontas (validado em Node: nenhuma amostra da pista cai dentro da água em
+Interlagos, Indianápolis nem Mônaco; em Mônaco isso exigiu reduzir a
+profundidade do porto de 300 pra 200 m e parar o trecho antes do hairpin da
+Rascasse, senão as fatias alagavam a subida de Beau Rivage).
