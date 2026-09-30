@@ -540,7 +540,7 @@ function animate(now) {
   }
 
   engineAudio.update(state.player, state.gameState === "race", state.player.wasDrifting);
-  updateBetaGraphics();
+  updateBetaGraphics(dt);
   if (state.composer) state.composer.render();
   else state.renderer.render(state.scene, state.camera);
 }

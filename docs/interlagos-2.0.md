@@ -33,20 +33,22 @@ continua usando o seu cenário original.
 ## Câmera
 
 A 2.0 usa exclusivamente a câmera a bordo, calculada no espaço local da pose
-interpolada do carro. O ponto de vista corresponde à cabeça do piloto e reage,
-dentro de limites pequenos, a aceleração, frenagem, esterço, velocidade e
-impactos. O FOV varia apenas dois graus para não deformar o cockpit. O botão
-de troca fica oculto e seu handler ignora a 2.0. A preferência de câmera da
-versão clássica é restaurada ao sair.
+interpolada do carro. O ponto de vista corresponde à cabeça do piloto, mantém
+FOV fixo e aplica somente uma reação curta e limitada a impactos. Isso evita
+deformação, enjoo e recortes do halo. O botão de troca fica oculto e seu
+handler ignora a 2.0. A preferência de câmera da versão clássica é restaurada
+ao sair.
 
 ## Cockpit e superfícies
 
 O cockpit é um conjunto 3D dedicado, com banheira de carbono, painéis laterais
 contínuos, revestimento interno, apoio de cabeça, cintos, coluna, paddles e
 nariz visível. O halo possui aro superior, braços laterais, pilar central e
-carenagem. A câmera recuada enquadra monocoque, pneus, halo e volante sem usar
-a cápsula externa do carro como interior. Braços, luvas, volante e LEDs de
-troca de marcha são animados com a direção e a telemetria.
+carenagem. A câmera recuada enquadra monocoque, pneus, halo e volante. A casca
+central externa é ocultada nessa visão para não disputar profundidade com o
+interior; um nariz próprio e contínuo ocupa seu lugar. Os antebraços são
+reposicionados entre os cotovelos e os punhos a cada frame, enquanto luvas,
+volante e LEDs acompanham direção e telemetria.
 
 O volante possui tela integrada, matriz simétrica de botões, três seletores e
 parafusos aparentes. O display é atualizado a 20 Hz com velocidade, marcha do
@@ -60,9 +62,10 @@ desgaste sutil. A faixa de borracha tem bordas suaves. As sombras continuam
 em 2048 px, com uma área menor em torno do carro para melhorar a definição
 sem aumentar a resolução. O shader do asfalto compartilhado é restaurado ao
 voltar à versão clássica. Nenhuma nova textura fotográfica foi adicionada.
-O pipeline da 2.0 acrescenta oclusão de ambiente GTAO, antialiasing SMAA,
-bloom restrito às áreas emissivas e persistência de imagem progressiva apenas
-em alta velocidade. O tone mapping ACES e a pintura com verniz preservam os
+O pipeline estável da 2.0 usa MSAA moderado e bloom restrito às áreas
+emissivas. Oclusão GTAO, antialiasing redundante e persistência temporal foram
+removidos porque provocavam ghosting, contornos artificiais e quedas de FPS em
+GPUs integradas. O tone mapping ACES e a pintura com verniz preservam os
 reflexos sem estourar a imagem.
 
 ## Revisão visual e dinâmica

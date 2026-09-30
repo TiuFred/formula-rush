@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cockpitTelemetry } from "../src/betaCockpit.js";
+import * as THREE from "three";
+import {
+  buildBetaCockpit,
+  cockpitTelemetry,
+  updateBetaCockpit,
+} from "../src/betaCockpit.js";
+import { makeCarbonMaterial } from "../src/betaSurfaceMaterials.js";
 
 test("cockpit uses the 2.0 powertrain telemetry", () => {
   assert.equal(cockpitTelemetry({ speed: 0 }, 0).gear, "N");
@@ -22,4 +28,52 @@ test("cockpit distinguishes live, finished and invalid laps", () => {
   assert.equal(cockpitTelemetry({ ...car, currentLapValid: false }, 65).status, "VOLTA INVALIDA");
   assert.equal(cockpitTelemetry({ ...car, finish: true, lastLap: 82.34 }, 200).lap, 82.34);
   assert.equal(cockpitTelemetry(car, 0).lap, 0);
+});
+
+test("driver arms remain connected to the steering wheel at full lock", () => {
+  const previousDocument = globalThis.document;
+  globalThis.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        fillRect() {},
+        fillText() {},
+        createLinearGradient: () => ({ addColorStop() {} }),
+      }),
+    }),
+  };
+  try {
+    const parent = new THREE.Group();
+    const cockpit = buildBetaCockpit(
+      parent,
+      makeCarbonMaterial(),
+      new THREE.MeshStandardMaterial({ color: "#d22b25" }),
+    );
+    const car = {
+      group: parent,
+      speed: 50,
+      steer: 1,
+      betaAcceleration: 0,
+      betaGear: 5,
+      betaThrottle: 1,
+      currentLapValid: true,
+    };
+    for (let i = 0; i < 60; i++)
+      updateBetaCockpit(car, i / 60, i / 60, 1 / 60);
+    parent.updateMatrixWorld(true);
+
+    for (const arm of cockpit.arms) {
+      const armEnd = new THREE.Vector3(0, 0.5, 0).applyMatrix4(
+        arm.mesh.matrixWorld,
+      );
+      const expected = new THREE.Vector3(arm.side * 0.285, -0.015, -0.01)
+        .multiply(cockpit.wheel.scale)
+        .applyEuler(cockpit.wheel.rotation)
+        .add(cockpit.wheel.position);
+      assert.ok(armEnd.distanceTo(expected) < 1e-9);
+    }
+  } finally {
+    globalThis.document = previousDocument;
+  }
 });

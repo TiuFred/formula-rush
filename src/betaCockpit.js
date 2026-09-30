@@ -92,20 +92,22 @@ function wheelDial(parent, x, y, ringColor, metal) {
 }
 
 function buildDriverArms(parent, wheel, fabric, glove, cuff) {
-  const forearms = new THREE.Group();
-  forearms.name = "beta-driver-arms";
-  parent.add(forearms);
+  const arms = [];
   for (const side of [-1, 1]) {
-    tube([
-      [side * 0.42, 0.72, -0.22],
-      [side * 0.36, 0.84, 0.14],
-      [side * 0.26, 0.99, 0.48],
-    ], 0.065, fabric, forearms, 24);
-    tube([
-      [side * 0.424, 0.735, -0.2],
-      [side * 0.367, 0.855, 0.13],
-      [side * 0.276, 1, 0.45],
-    ], 0.009, cuff, forearms, 20).castShadow = false;
+    const arm = addMesh(
+      new THREE.CylinderGeometry(0.05, 0.065, 1, 14),
+      fabric,
+      0,
+      0,
+      0,
+      parent,
+    );
+    arm.name = `beta-driver-arm-${side < 0 ? "left" : "right"}`;
+    arms.push({
+      mesh: arm,
+      side,
+      elbow: new THREE.Vector3(side * 0.42, 0.72, -0.22),
+    });
 
     const hand = new THREE.Group();
     hand.position.set(side * 0.285, 0, -0.01);
@@ -119,7 +121,26 @@ function buildDriverArms(parent, wheel, fabric, glove, cuff) {
     }
     addBox(0.104, 0.055, 0.075, cuff, 0, -0.09, 0.015, hand);
   }
-  return forearms;
+  return arms;
+}
+
+const armUp = new THREE.Vector3(0, 1, 0);
+const armWrist = new THREE.Vector3();
+const armDirection = new THREE.Vector3();
+
+function updateDriverArms(arms, wheel) {
+  for (const arm of arms) {
+    armWrist
+      .set(arm.side * 0.285, -0.015, -0.01)
+      .multiply(wheel.scale)
+      .applyEuler(wheel.rotation)
+      .add(wheel.position);
+    armDirection.copy(armWrist).sub(arm.elbow);
+    const length = armDirection.length();
+    arm.mesh.position.copy(arm.elbow).add(armWrist).multiplyScalar(0.5);
+    arm.mesh.quaternion.setFromUnitVectors(armUp, armDirection.normalize());
+    arm.mesh.scale.set(1, length, 1);
+  }
 }
 
 function buildSteeringWheel(parent, carbon, alcantara, metal) {
@@ -230,13 +251,36 @@ export function buildBetaCockpit(parent, carbon, paint) {
   }
 
   addBox(0.5, 0.075, 0.23, carbon, 0, 0.895, 0.77, parent).rotation.x = -0.1;
-  for (const side of [-1, 1]) {
-    tube([
-      [side * 0.22, 0.87, 0.83],
-      [side * 0.17, 0.76, 1.25],
-      [side * 0.1, 0.65, 1.9],
-    ], 0.018, shellPaint, parent, 24);
+  const noseSections = [
+    { z: 0.78, halfWidth: 0.24, y: 0.91 },
+    { z: 1.18, halfWidth: 0.19, y: 0.8 },
+    { z: 1.72, halfWidth: 0.125, y: 0.66 },
+    { z: 2.42, halfWidth: 0.075, y: 0.48 },
+  ];
+  const nosePositions = [];
+  for (const section of noseSections) {
+    nosePositions.push(
+      -section.halfWidth,
+      section.y,
+      section.z,
+      section.halfWidth,
+      section.y,
+      section.z,
+    );
   }
+  const noseIndices = [];
+  for (let i = 0; i < noseSections.length - 1; i++) {
+    const a = i * 2;
+    noseIndices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+  }
+  const noseGeometry = new THREE.BufferGeometry();
+  noseGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(nosePositions, 3),
+  );
+  noseGeometry.setIndex(noseIndices);
+  noseGeometry.computeVertexNormals();
+  addMesh(noseGeometry, shellPaint, 0, 0, 0, parent);
 
   // Halo em três apoios, dimensionado a partir da posição dos olhos.
   tube([
@@ -258,7 +302,8 @@ export function buildBetaCockpit(parent, carbon, paint) {
   fairing.rotation.x = -0.47;
 
   const data = buildSteeringWheel(parent, carbon, alcantara, aluminum);
-  data.forearms = buildDriverArms(parent, data.wheel, safetyFabric, glove, cuff);
+  data.arms = buildDriverArms(parent, data.wheel, safetyFabric, glove, cuff);
+  updateDriverArms(data.arms, data.wheel);
   data.lastUpdate = -Infinity;
   parent.userData.betaCockpit = data;
   return data;
@@ -303,14 +348,15 @@ function drawTelemetry(data, telemetry) {
   c.fillText(telemetry.status, 190, 285);
 }
 
-export function updateBetaCockpit(car, raceTime, clockTime) {
+export function updateBetaCockpit(car, raceTime, clockTime, dt = 1 / 60) {
   const data = car.group.userData.betaCockpit;
   if (!data) return;
   const steering = -THREE.MathUtils.clamp(car.steer || 0, -1, 1) * 0.34;
-  data.wheel.rotation.z += (steering - data.wheel.rotation.z) * 0.32;
-  data.forearms.rotation.z = data.wheel.rotation.z * 0.18;
+  const steeringBlend = 1 - Math.exp(-Math.max(0, dt) * 20);
+  data.wheel.rotation.z += (steering - data.wheel.rotation.z) * steeringBlend;
   const acceleration = THREE.MathUtils.clamp(car.betaAcceleration || 0, -35, 18);
   data.wheel.position.y = WHEEL_BASE_Y - acceleration * 0.00045;
+  updateDriverArms(data.arms, data.wheel);
 
   const telemetry = cockpitTelemetry(car, raceTime);
   for (let i = 0; i < data.shiftLights.length; i++) {

@@ -85,7 +85,7 @@ export function buildBetaCar(group, paint, wheels) {
   floor.rotateX(Math.PI / 2);
   addMesh(floor, carbon, 0, 0.25, 0, group);
 
-  bodyShell(
+  const centerBody = bodyShell(
     [
       [-1.65, 0.05, 0.04, 0.48],
       [-1.15, 0.33, 0.29, 0.62],
@@ -100,6 +100,9 @@ export function buildBetaCar(group, paint, wheels) {
     paint,
     group,
   );
+  // A versão interna possui seu próprio nariz/deck. Manter esta casca sob
+  // ela criava z-fighting e recortes escuros na câmera a bordo.
+  hideOnboard.push(centerBody);
   // Cobertura do motor estreita; o cockpit permanece aberto e legível.
   bodyShell(
     [

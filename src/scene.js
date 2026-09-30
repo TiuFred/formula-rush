@@ -8,11 +8,8 @@
 
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { AfterimagePass } from "three/examples/jsm/postprocessing/AfterimagePass.js";
-import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { state } from "./state.js";
 import {
@@ -902,13 +899,9 @@ export function resizeRenderer() {
 }
 
 /** Mantém a janela de sombras do beta concentrada ao redor do carro. */
-export function updateBetaGraphics() {
+export function updateBetaGraphics(dt = 0) {
   if (!state.graphicsBeta || !state.betaSun || !state.player) return;
-  updateBetaCockpit(state.player, state.raceTime, state.clockTime);
-  if (state.betaMotionPass) {
-    const speedBlend = THREE.MathUtils.smoothstep(state.player.speed, 42, 92);
-    state.betaMotionPass.uniforms.damp.value = speedBlend * 0.72;
-  }
+  updateBetaCockpit(state.player, state.raceTime, state.clockTime, dt);
   const target = state.player.group.position;
   state.betaSun.position.copy(target).addScaledVector(BETA_SUN_DIRECTION, 125);
   state.betaSun.target.position.copy(target);
@@ -948,7 +941,6 @@ export function buildScene() {
     state.composer.dispose();
   }
   state.composer = null;
-  state.betaMotionPass = null;
   state.renderer?.dispose();
   state.renderer = new THREE.WebGLRenderer({
     canvas: byId("race"),
@@ -1306,31 +1298,16 @@ export function buildScene() {
 
   if (state.graphicsBeta) {
     state.racingLineMesh.visible = false;
-    const renderSize = new THREE.Vector2();
-    state.renderer.getDrawingBufferSize(renderSize);
     const composer = new EffectComposer(state.renderer);
     composer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     composer.addPass(new RenderPass(state.scene, state.camera));
-    composer.renderTarget1.samples = 4;
-    composer.renderTarget2.samples = 4;
-    const gtao = new GTAOPass(
-      state.scene,
-      state.camera,
-      Math.max(1, renderSize.x / 2),
-      Math.max(1, renderSize.y / 2),
-      undefined,
-      { radius: 0.24, distanceExponent: 1.7, thickness: 0.8, scale: 1, samples: 8 },
-      { radius: 4, rings: 2, samples: 8 },
-    );
-    gtao.blendIntensity = 0.58;
-    composer.addPass(gtao);
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.075, 0.3, 1.25));
-    const motion = new AfterimagePass(0);
-    composer.addPass(motion);
-    composer.addPass(new SMAAPass(renderSize.x, renderSize.y));
+    // MSAA moderado + bloom são previsíveis em GPUs integradas. GTAO,
+    // SMAA redundante e persistência temporal causavam ghosting e stutter.
+    composer.renderTarget1.samples = 2;
+    composer.renderTarget2.samples = 2;
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.055, 0.28, 1.35));
     composer.addPass(new OutputPass());
     state.composer = composer;
-    state.betaMotionPass = motion;
   }
 
   // Minimapa dinâmico exibido durante a corrida (canvas extra sobreposto).
