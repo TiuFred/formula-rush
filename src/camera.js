@@ -15,7 +15,7 @@ export function updateCamera(dt) {
   const camera = state.camera;
 
   if (state.graphicsBeta && !["menu", "landing"].includes(state.gameState)) {
-    updateOnboardCamera(camera, state.player);
+    updateOnboardCamera(camera, state.player, dt, state.clockTime);
     return;
   }
   camera.up.set(0, 1, 0);

@@ -23,3 +23,24 @@ test("onboard mantém o olho fixo no carro sob aceleração, inclinação e curv
     assert.equal(group.visible, true);
   }
 });
+
+test("onboard 2.0 reage de forma limitada a velocidade, aceleração e impacto", () => {
+  const group = new THREE.Group();
+  const camera = new THREE.PerspectiveCamera();
+  const car = {
+    group,
+    speed: 82,
+    steer: 0.7,
+    betaAcceleration: -24,
+    cameraShake: 0.4,
+  };
+  for (let i = 0; i < 90; i++)
+    updateOnboardCamera(camera, car, 1 / 60, i / 60);
+
+  const localEye = camera.position.clone().applyQuaternion(group.quaternion.clone().invert());
+  assert.ok(localEye.distanceTo(ONBOARD_EYE) > 0.005);
+  assert.ok(localEye.distanceTo(ONBOARD_EYE) < 0.08);
+  assert.ok(camera.fov > ONBOARD_FOV);
+  assert.ok(camera.fov <= ONBOARD_FOV + 2);
+  assert.equal(car.cameraShake, 0);
+});

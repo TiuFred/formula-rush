@@ -98,6 +98,8 @@ export const state = {
   renderer: null,
   /** Cadeia de pós-processamento usada somente no modo gráfico 2.0. */
   composer: null,
+  /** Persistência de imagem sutil em alta velocidade no modo 2.0. */
+  betaMotionPass: null,
   /** Luz solar móvel do modo 2.0, mantida perto do jogador para sombras nítidas. */
   betaSun: null,
   /** Mapa de iluminação procedural usado nos reflexos do modo 2.0. */
