@@ -7,6 +7,26 @@ import {
   updateBetaCockpit,
 } from "../src/betaCockpit.js";
 import { makeCarbonMaterial } from "../src/betaSurfaceMaterials.js";
+import { buildBetaCar } from "../src/betaCar.js";
+import { updateOnboardCamera } from "../src/onboardCamera.js";
+
+function installCanvasMock() {
+  const previousDocument = globalThis.document;
+  globalThis.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        fillRect() {},
+        fillText() {},
+        createLinearGradient: () => ({ addColorStop() {} }),
+      }),
+    }),
+  };
+  return () => {
+    globalThis.document = previousDocument;
+  };
+}
 
 test("cockpit uses the 2.0 powertrain telemetry", () => {
   assert.equal(cockpitTelemetry({ speed: 0 }, 0).gear, "N");
@@ -31,18 +51,7 @@ test("cockpit distinguishes live, finished and invalid laps", () => {
 });
 
 test("driver arms remain connected to the steering wheel at full lock", () => {
-  const previousDocument = globalThis.document;
-  globalThis.document = {
-    createElement: () => ({
-      width: 0,
-      height: 0,
-      getContext: () => ({
-        fillRect() {},
-        fillText() {},
-        createLinearGradient: () => ({ addColorStop() {} }),
-      }),
-    }),
-  };
+  const restoreDocument = installCanvasMock();
   try {
     const parent = new THREE.Group();
     const cockpit = buildBetaCockpit(
@@ -74,6 +83,53 @@ test("driver arms remain connected to the steering wheel at full lock", () => {
       assert.ok(armEnd.distanceTo(expected) < 1e-9);
     }
   } finally {
-    globalThis.document = previousDocument;
+    restoreDocument();
+  }
+});
+
+test("onboard frame contains body sides, connected wheel and complete halo", () => {
+  const restoreDocument = installCanvasMock();
+  try {
+    const group = new THREE.Group();
+    buildBetaCar(
+      group,
+      new THREE.MeshPhysicalMaterial({ color: "#d22b25" }),
+      [],
+    );
+    const camera = new THREE.PerspectiveCamera(64, 16 / 9, 0.025, 100);
+    updateOnboardCamera(camera, { group, speed: 0 });
+    group.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+
+    const required = [
+      "beta-cockpit-shell-left",
+      "beta-cockpit-shell-right",
+      "beta-center-body",
+      "beta-steering-wheel",
+      "beta-steering-column",
+      "beta-steering-hub",
+      "beta-halo-crown",
+      "beta-halo-pillar",
+    ];
+    for (const name of required) {
+      const object = group.getObjectByName(name);
+      assert.ok(object, `${name} ausente`);
+      const center = new THREE.Box3()
+        .setFromObject(object)
+        .getCenter(new THREE.Vector3())
+        .project(camera);
+      assert.ok(Math.abs(center.x) <= 1 && Math.abs(center.y) <= 1, `${name} fora do enquadramento`);
+    }
+
+    const hidden = new Set(group.userData.hideOnboard);
+    assert.equal(hidden.has(group.getObjectByName("beta-center-body")), false);
+    const columnBox = new THREE.Box3().setFromObject(group.getObjectByName("beta-steering-column"));
+    const hubBox = new THREE.Box3().setFromObject(group.getObjectByName("beta-steering-hub"));
+    assert.ok(columnBox.intersectsBox(hubBox), "coluna não alcança o cubo do volante");
+    const crownBox = new THREE.Box3().setFromObject(group.getObjectByName("beta-halo-crown"));
+    const pillarBox = new THREE.Box3().setFromObject(group.getObjectByName("beta-halo-pillar"));
+    assert.ok(crownBox.intersectsBox(pillarBox), "pilar não alcança o aro do halo");
+  } finally {
+    restoreDocument();
   }
 });

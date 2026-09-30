@@ -44,11 +44,13 @@ ao sair.
 O cockpit é um conjunto 3D dedicado, com banheira de carbono, painéis laterais
 contínuos, revestimento interno, apoio de cabeça, cintos, coluna, paddles e
 nariz visível. O halo possui aro superior, braços laterais, pilar central e
-carenagem. A câmera recuada enquadra monocoque, pneus, halo e volante. A casca
-central externa é ocultada nessa visão para não disputar profundidade com o
-interior; um nariz próprio e contínuo ocupa seu lugar. Os antebraços são
-reposicionados entre os cotovelos e os punhos a cada frame, enquanto luvas,
-volante e LEDs acompanham direção e telemetria.
+carenagem. O aro e o pilar usam seções mais espessas e realmente se encontram,
+em vez de parecerem tubos independentes. A câmera recuada enquadra monocoque,
+pneus, halo e volante. A casca central é dividida antes e depois da abertura
+do cockpit: o interior não fica obstruído e o nariz e as laterais continuam
+visíveis. Os antebraços são reposicionados entre os cotovelos e os punhos a
+cada frame, enquanto luvas, volante e LEDs acompanham direção e telemetria.
+Uma coluna de direção, eixo e cubo conectam visualmente o volante ao painel.
 
 O volante possui tela integrada, matriz simétrica de botões, três seletores e
 parafusos aparentes. O display é atualizado a 20 Hz com velocidade, marcha do

@@ -85,12 +85,22 @@ export function buildBetaCar(group, paint, wheels) {
   floor.rotateX(Math.PI / 2);
   addMesh(floor, carbon, 0, 0.25, 0, group);
 
-  const centerBody = bodyShell(
+  // A casca central é dividida antes/depois do cockpit. Uma única superfície
+  // fechada atravessava a banheira; ocultá-la resolvia o interior, mas também
+  // fazia desaparecer nariz e laterais na visão do piloto.
+  const rearBody = bodyShell(
     [
       [-1.65, 0.05, 0.04, 0.48],
       [-1.15, 0.33, 0.29, 0.62],
-      [-0.6, 0.46, 0.33, 0.64],
-      [0.15, 0.42, 0.28, 0.65],
+      [-0.7, 0.45, 0.31, 0.64],
+    ],
+    paint,
+    group,
+  );
+  rearBody.name = "beta-rear-body";
+  const centerBody = bodyShell(
+    [
+      [0.72, 0.34, 0.24, 0.63],
       [0.8, 0.32, 0.23, 0.62],
       [1.3, 0.22, 0.14, 0.54],
       [2.1, 0.15, 0.08, 0.4],
@@ -100,9 +110,7 @@ export function buildBetaCar(group, paint, wheels) {
     paint,
     group,
   );
-  // A versão interna possui seu próprio nariz/deck. Manter esta casca sob
-  // ela criava z-fighting e recortes escuros na câmera a bordo.
-  hideOnboard.push(centerBody);
+  centerBody.name = "beta-center-body";
   // Cobertura do motor estreita; o cockpit permanece aberto e legível.
   bodyShell(
     [

@@ -25,6 +25,25 @@ function tube(points, radius, material, parent, segments = 32) {
   return addMesh(new THREE.TubeGeometry(curve, segments, radius, 10, false), material, 0, 0, 0, parent);
 }
 
+const linkUp = new THREE.Vector3(0, 1, 0);
+function linkBetween(start, end, radius, material, parent, name) {
+  const from = new THREE.Vector3(...start);
+  const direction = new THREE.Vector3(...end).sub(from);
+  const mesh = addMesh(
+    new THREE.CylinderGeometry(radius, radius, 1, 16),
+    material,
+    0,
+    0,
+    0,
+    parent,
+  );
+  mesh.name = name;
+  mesh.position.copy(from).add(new THREE.Vector3(...end)).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(linkUp, direction.clone().normalize());
+  mesh.scale.y = direction.length();
+  return mesh;
+}
+
 /** Painel lateral contínuo, modelado especificamente para a vista do piloto. */
 function cockpitSide(side, outerMaterial, innerMaterial, parent) {
   const sections = [
@@ -59,7 +78,8 @@ function cockpitSide(side, outerMaterial, innerMaterial, parent) {
   shell.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   shell.setIndex(indices);
   shell.computeVertexNormals();
-  addMesh(shell, outerMaterial, 0, 0, 0, parent);
+  const shellMesh = addMesh(shell, outerMaterial, 0, 0, 0, parent);
+  shellMesh.name = `beta-cockpit-shell-${side < 0 ? "left" : "right"}`;
 
   const linerIndices = [];
   for (let i = 0; i < sections.length - 1; i++) {
@@ -70,9 +90,11 @@ function cockpitSide(side, outerMaterial, innerMaterial, parent) {
   liner.setAttribute("position", new THREE.Float32BufferAttribute(linerPositions, 3));
   liner.setIndex(linerIndices);
   liner.computeVertexNormals();
-  addMesh(liner, innerMaterial, 0, 0, 0, parent);
+  const linerMesh = addMesh(liner, innerMaterial, 0, 0, 0, parent);
+  linerMesh.name = `beta-cockpit-liner-${side < 0 ? "left" : "right"}`;
 
-  tube(sections.map((s) => [side * (s.inner + 0.02), s.top + 0.006, s.z]), 0.022, outerMaterial, parent, 28);
+  const rim = tube(sections.map((s) => [side * (s.inner + 0.02), s.top + 0.006, s.z]), 0.028, outerMaterial, parent, 28);
+  rim.name = `beta-cockpit-rim-${side < 0 ? "left" : "right"}`;
 }
 
 function wheelButton(parent, x, y, color) {
@@ -149,6 +171,27 @@ function buildSteeringWheel(parent, carbon, alcantara, metal) {
   wheel.position.set(0, WHEEL_BASE_Y, 0.59);
   wheel.scale.setScalar(0.79);
   parent.add(wheel);
+
+  // Coluna, eixo e engate rápido tornam a ligação com o monocoque explícita.
+  const column = linkBetween(
+    [0, 0.925, 0.86],
+    [0, WHEEL_BASE_Y, 0.625],
+    0.027,
+    carbon,
+    parent,
+    "beta-steering-column",
+  );
+  column.castShadow = true;
+  const hub = addMesh(
+    new THREE.CylinderGeometry(0.052, 0.044, 0.095, 18),
+    metal,
+    0,
+    WHEEL_BASE_Y,
+    0.625,
+    parent,
+  );
+  hub.name = "beta-steering-hub";
+  hub.rotation.x = Math.PI / 2;
 
   const outline = new THREE.Shape();
   outline.moveTo(-0.205, 0.142);
@@ -280,26 +323,44 @@ export function buildBetaCockpit(parent, carbon, paint) {
   );
   noseGeometry.setIndex(noseIndices);
   noseGeometry.computeVertexNormals();
-  addMesh(noseGeometry, shellPaint, 0, 0, 0, parent);
+  const nose = addMesh(noseGeometry, shellPaint, 0, 0, 0, parent);
+  nose.name = "beta-cockpit-nose";
 
   // Halo em três apoios, dimensionado a partir da posição dos olhos.
-  tube([
+  const haloCrown = tube([
     [-0.58, 1.43, 0.2],
-    [-0.34, 1.475, 0.39],
-    [0, 1.49, 0.47],
-    [0.34, 1.475, 0.39],
+    [-0.36, 1.485, 0.36],
+    [0, 1.505, 0.455],
+    [0.36, 1.485, 0.36],
     [0.58, 1.43, 0.2],
-  ], 0.018, carbon, parent, 36);
+  ], 0.029, carbon, parent, 40);
+  haloCrown.name = "beta-halo-crown";
   for (const side of [-1, 1]) {
-    tube([
+    const haloRear = tube([
       [side * 0.58, 1.43, 0.2],
-      [side * 0.5, 1.39, -0.16],
-      [side * 0.4, 1.31, -0.54],
-    ], 0.019, carbon, parent, 26);
+      [side * 0.56, 1.39, -0.16],
+      [side * 0.49, 1.3, -0.58],
+    ], 0.027, carbon, parent, 28);
+    haloRear.name = `beta-halo-rear-${side < 0 ? "left" : "right"}`;
   }
-  tube([[0, 0.89, 0.84], [0, 1.19, 0.65], [0, 1.49, 0.47]], 0.016, carbon, parent, 26);
-  const fairing = addMesh(new THREE.CapsuleGeometry(0.034, 0.26, 7, 14), shellPaint, 0, 1.08, 0.71, parent);
-  fairing.rotation.x = -0.47;
+  const haloPillar = tube(
+    [[0, 0.9, 0.855], [0, 1.19, 0.65], [0, 1.505, 0.455]],
+    0.031,
+    carbon,
+    parent,
+    30,
+  );
+  haloPillar.name = "beta-halo-pillar";
+  const fairing = addMesh(
+    new THREE.CapsuleGeometry(0.045, 0.34, 8, 18),
+    shellPaint,
+    0,
+    1.105,
+    0.715,
+    parent,
+  );
+  fairing.name = "beta-halo-fairing";
+  fairing.rotation.x = -0.52;
 
   const data = buildSteeringWheel(parent, carbon, alcantara, aluminum);
   data.arms = buildDriverArms(parent, data.wheel, safetyFabric, glove, cuff);
