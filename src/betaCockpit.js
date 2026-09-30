@@ -2,8 +2,7 @@ import * as THREE from "three";
 import { addBox, addMesh, makeMaterial } from "./materials.js";
 import { betaPowertrainTelemetry } from "./betaPowertrain.js";
 
-// O jogo não simula uma caixa de câmbio: marcha e luzes são indicações
-// derivadas da velocidade, consistentes com o HUD, não telemetria de RPM.
+// O painel consome a telemetria do powertrain exclusivo da experiência 2.0.
 export function cockpitTelemetry(car, raceTime) {
   const speed = Math.max(0, Number.isFinite(car.speed) ? car.speed : 0);
   const kph = speed * 3.6;
@@ -18,75 +17,166 @@ export function cockpitTelemetry(car, raceTime) {
   };
 }
 
-export function buildBetaCockpit(parent, carbon) {
-  const alcantara = makeMaterial("#111519", { roughness: 1 });
-  const aluminum = makeMaterial("#727b82", { metalness: .88, roughness: .26 });
-  // Banheiras laterais e painel frontal: fecham o vazio ao redor da câmera
-  // sem bloquear a visão das rodas dianteiras e dos pontos de tangência.
-  for (const side of [-1, 1]) {
-    const rail = addBox(.075, .12, 1.12, carbon, side * .43, .985, .26, parent);
-    rail.rotation.y = side * -.035;
-    rail.rotation.z = side * -.055;
-    addBox(.025, .075, .68, alcantara, side * .375, 1.025, .17, parent).rotation.z = side * -.06;
+function taperedCockpitSide(side, material, parent) {
+  const sections = [
+    { z: -.42, inner: .31, outer: .49, y: 1.13, bottom: .91 },
+    { z: .12, inner: .3, outer: .45, y: 1.09, bottom: .89 },
+    { z: .72, inner: .245, outer: .36, y: .96, bottom: .84 },
+    { z: 1.02, inner: .2, outer: .29, y: .86, bottom: .8 },
+  ];
+  const positions = [];
+  for (const section of sections) {
+    positions.push(
+      side * section.outer, section.y, section.z,
+      side * section.inner, section.y - .012, section.z,
+      side * section.outer, section.bottom, section.z,
+      side * section.inner, section.bottom, section.z,
+    );
   }
-  addBox(.62, .075, .22, carbon, 0, 1.075, .65, parent).rotation.x = -.08;
-  addMesh(new THREE.CylinderGeometry(.022, .028, .21, 16), carbon, 0, 1.17, .48, parent).rotation.x = Math.PI / 2;
+  const indices = [];
+  for (let i = 0; i < sections.length - 1; i++) {
+    const a = i * 4, b = a + 4;
+    for (const [p, q] of [[0, 1], [2, 0], [1, 3], [3, 2]]) {
+      indices.push(a + p, b + p, a + q, b + p, b + q, a + q);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return addMesh(geometry, material, 0, 0, 0, parent);
+}
+
+function wheelButton(parent, x, y, color) {
+  const button = addMesh(
+    new THREE.CylinderGeometry(.013, .014, .014, 16),
+    makeMaterial(color, { roughness: .34, metalness: .1 }),
+    x,
+    y,
+    -.063,
+    parent,
+  );
+  button.rotation.x = Math.PI / 2;
+  return button;
+}
+
+function wheelDial(parent, x, y, ringColor, metal) {
+  const ring = addMesh(new THREE.TorusGeometry(.026, .006, 8, 24),
+    makeMaterial(ringColor, { roughness: .42 }), x, y, -.061, parent);
+  const dial = addMesh(new THREE.CylinderGeometry(.019, .022, .019, 14), metal, x, y, -.068, parent);
+  dial.rotation.x = Math.PI / 2;
+  addBox(.004, .014, .005, makeMaterial("#f4eee0"), x, y + .008, -.082, parent);
+  return ring;
+}
+
+export function buildBetaCockpit(parent, carbon, paint) {
+  const alcantara = makeMaterial("#0c0f12", { roughness: 1, side: THREE.DoubleSide });
+  const shellPaint = paint.clone();
+  shellPaint.side = THREE.DoubleSide;
+  const aluminum = makeMaterial("#68737b", { metalness: .9, roughness: .24 });
+  const stitch = makeMaterial("#d6d1c3", { roughness: .8 });
+  const pinstripe = makeMaterial("#ede9dc", { roughness: .38, metalness: .18 });
+
+  // Monocoque afunilado e simétrico, inspirado em cockpits reais: a pintura
+  // envolve o piloto e o revestimento escuro fica voltado para dentro.
+  for (const side of [-1, 1]) {
+    taperedCockpitSide(side, shellPaint, parent);
+    const liner = taperedCockpitSide(side, alcantara, parent);
+    liner.scale.set(.965, .965, .94);
+    liner.position.y = -.025;
+    const rimPoints = [
+      [side * .4, 1.18, -.35],
+      [side * .36, 1.145, .14],
+      [side * .28, 1.02, .7],
+      [side * .22, .91, 1.02],
+    ];
+    const rimCurve = new THREE.CatmullRomCurve3(rimPoints.map((point) => new THREE.Vector3(...point)));
+    addMesh(new THREE.TubeGeometry(rimCurve, 24, .028, 8, false), shellPaint, 0, 0, 0, parent);
+    const stripeCurve = new THREE.CatmullRomCurve3(rimPoints.map(([x, y, z]) => new THREE.Vector3(x * 1.018, y - .034, z)));
+    addMesh(new THREE.TubeGeometry(stripeCurve, 24, .006, 6, false), pinstripe, 0, 0, 0, parent);
+  }
+  addBox(.56, .055, .18, carbon, 0, .96, .78, parent).rotation.x = -.09;
+  const column = addMesh(new THREE.CylinderGeometry(.018, .025, .3, 16), carbon, 0, 1.08, .53, parent);
+  column.rotation.x = Math.PI / 2;
 
   const wheel = new THREE.Group();
   wheel.name = "beta-steering-wheel";
-  wheel.position.set(0, 1.275, .48);
-  wheel.scale.setScalar(.48);
+  wheel.position.set(0, 1.17, .66);
+  wheel.scale.setScalar(.52);
   parent.add(wheel);
-  const rubber = makeMaterial("#181a1d", { roughness: .94 });
-  const metal = aluminum;
-  for (const side of [-1, 1]) {
-    const paddle = addMesh(new THREE.CapsuleGeometry(.022, .105, 5, 10), metal,
-      side * .17, -.01, .075, wheel);
-    paddle.rotation.z = side * -.2;
-  }
+
   const outline = new THREE.Shape();
-  outline.moveTo(-.205, .12);
-  outline.lineTo(.205, .12);
-  outline.quadraticCurveTo(.26, .09, .235, -.035);
-  outline.lineTo(.16, -.13);
-  outline.lineTo(-.16, -.13);
-  outline.lineTo(-.235, -.035);
-  outline.quadraticCurveTo(-.26, .09, -.205, .12);
-  const frame = new THREE.ExtrudeGeometry(outline, { depth: .045, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: .008, bevelThickness: .008, curveSegments: 8 });
-  addMesh(frame, carbon, 0, 0, -.023, wheel);
-  addBox(.305, .028, .09, carbon, 0, -.133, 0, wheel);
+  outline.moveTo(-.205, .135);
+  outline.lineTo(.205, .135);
+  outline.lineTo(.245, .085);
+  outline.lineTo(.218, -.105);
+  outline.lineTo(.145, -.15);
+  outline.lineTo(-.145, -.15);
+  outline.lineTo(-.218, -.105);
+  outline.lineTo(-.245, .085);
+  outline.closePath();
+  const frame = new THREE.ExtrudeGeometry(outline, {
+    depth: .045,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    steps: 1,
+    bevelSize: .007,
+    bevelThickness: .007,
+  });
+  addMesh(frame, carbon, 0, 0, -.02, wheel);
+
+  // Punhos separados e braços estruturais dão a silhueta de um volante real.
   for (const side of [-1, 1]) {
-    const grip = addMesh(new THREE.CapsuleGeometry(.04, .17, 6, 12), rubber, side * .24, -.015, -.012, wheel);
-    grip.rotation.z = side * -.16;
-    // Costuras claras quebram o volume preto dos punhos em visão onboard.
-    for (let stitch = -2; stitch <= 2; stitch++) {
-      const seam = addBox(.012, .006, .073, makeMaterial("#b8b2a2", { roughness: .8 }),
-        side * .24, stitch * .032, -.012, wheel);
-      seam.rotation.z = side * -.16;
+    const grip = addMesh(new THREE.CapsuleGeometry(.043, .18, 7, 14), alcantara,
+      side * .285, -.005, -.01, wheel);
+    grip.rotation.z = side * -.105;
+    addBox(.09, .05, .05, carbon, side * .235, .075, 0, wheel).rotation.z = side * -.12;
+    addBox(.09, .05, .05, carbon, side * .225, -.085, 0, wheel).rotation.z = side * .12;
+    for (let seam = -2; seam <= 2; seam++) {
+      const thread = addBox(.009, .006, .075, stitch, side * .285, seam * .037, -.012, wheel);
+      thread.rotation.z = side * -.105;
     }
-    addBox(.048, .15, .012, metal, side * .185, 0, .06, wheel);
-    for (let row = 0; row < 3; row++) {
-      const button = addMesh(new THREE.CylinderGeometry(.014, .015, .013, 12),
-        makeMaterial(["#dc463c", "#53aec9", "#e6c445"][row], { roughness: .4 }),
-        side * .176, .055 - row * .05, -.04, wheel);
-      button.rotation.x = Math.PI / 2;
-    }
-    const dial = addMesh(new THREE.CylinderGeometry(.026, .026, .02, 16), metal, side * .09, -.09, -.042, wheel);
-    dial.rotation.x = Math.PI / 2;
-    addBox(.003, .015, .005, makeMaterial("#f1e5bc"), side * .09, -.083, -.055, wheel);
+    const paddle = addMesh(new THREE.CapsuleGeometry(.019, .12, 5, 10), aluminum,
+      side * .205, -.008, .075, wheel);
+    paddle.rotation.z = side * -.12;
   }
-  // Cubo central e parafuso de engate rápido.
-  const hub = addMesh(new THREE.CylinderGeometry(.043, .043, .042, 20), aluminum, 0, -.082, -.045, wheel);
-  hub.rotation.x = Math.PI / 2;
-  const release = addMesh(new THREE.CylinderGeometry(.021, .021, .046, 16), makeMaterial("#d6b63b", { metalness: .55, roughness: .3 }), 0, -.082, -.071, wheel);
+
+  // Matriz de comandos intencionalmente simétrica, com função agrupada por cor.
+  const colors = ["#e2473d", "#4da9d1", "#e6bf3d", "#4fc47a"];
+  for (let row = 0; row < 4; row++) {
+    wheelButton(wheel, -.194, .083 - row * .049, colors[row]);
+    wheelButton(wheel, .194, .083 - row * .049, colors[(row + 2) % colors.length]);
+  }
+  wheelButton(wheel, -.13, .113, "#e8c341");
+  wheelButton(wheel, .13, .113, "#df4138");
+  wheelDial(wheel, -.105, -.116, "#62b4cf", aluminum);
+  wheelDial(wheel, 0, -.12, "#e1c54e", aluminum);
+  wheelDial(wheel, .105, -.116, "#d65244", aluminum);
+
+  // Parafusos frontais e engate central reforçam a leitura mecânica.
+  for (const [x, y] of [[-.224, .11], [.224, .11], [-.207, -.125], [.207, -.125]]) {
+    const screw = addMesh(new THREE.CylinderGeometry(.006, .006, .008, 12), aluminum, x, y, -.064, wheel);
+    screw.rotation.x = Math.PI / 2;
+  }
+  const release = addMesh(new THREE.CylinderGeometry(.018, .018, .025, 18),
+    makeMaterial("#d7b83d", { metalness: .55, roughness: .3 }), 0, -.12, -.079, wheel);
   release.rotation.x = Math.PI / 2;
+
   const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 256;
+  canvas.width = 768;
+  canvas.height = 320;
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  const display = addMesh(new THREE.PlaneGeometry(.282, .141),
-    new THREE.MeshBasicMaterial({ map: texture, toneMapped: false }), 0, .017, -.05, wheel);
+  const bezel = addBox(.306, .137, .018, alcantara, 0, .025, -.052, wheel);
+  bezel.castShadow = false;
+  const display = addMesh(
+    new THREE.PlaneGeometry(.286, .117),
+    new THREE.MeshBasicMaterial({ map: texture, toneMapped: false }),
+    0,
+    .026,
+    -.063,
+    wheel,
+  );
   display.rotation.y = Math.PI;
   display.castShadow = false;
   const data = { wheel, canvas, ctx: canvas.getContext("2d"), texture, lastUpdate: -Infinity };
@@ -97,40 +187,43 @@ export function buildBetaCockpit(parent, carbon) {
 export function updateBetaCockpit(car, raceTime, clockTime) {
   const data = car.group.userData.betaCockpit;
   if (!data) return;
-  data.wheel.rotation.z = -THREE.MathUtils.clamp(car.steer || 0, -1, 1) * .48;
+  data.wheel.rotation.z = -THREE.MathUtils.clamp(car.steer || 0, -1, 1) * .42;
   if (clockTime >= data.lastUpdate && clockTime - data.lastUpdate < .1) return;
   data.lastUpdate = clockTime;
   const t = cockpitTelemetry(car, raceTime);
   const c = data.ctx;
   c.fillStyle = "#080f14";
-  c.fillRect(0, 0, 512, 256);
-  for (let i = 0; i < 12; i++) {
-    c.fillStyle = i / 12 < t.shift ? (i < 5 ? "#68e28e" : i < 9 ? "#ffcf50" : "#67baff") : "#223039";
-    c.fillRect(15 + i * 41, 12, 32, 14);
-  }
+  c.fillRect(0, 0, 768, 320);
   c.textAlign = "center";
+  c.fillStyle = "#5e7885";
+  c.font = "bold 22px monospace";
+  c.fillText("RACE", 384, 31);
+  for (let i = 0; i < 15; i++) {
+    c.fillStyle = i / 15 < t.shift ? (i < 6 ? "#57d98b" : i < 11 ? "#ffd14d" : "#61aaff") : "#17242b";
+    c.fillRect(17 + i * 49, 43, 39, 12);
+  }
   c.fillStyle = "#edf5f6";
-  c.font = "bold 114px monospace";
-  c.fillText(String(t.gear), 98, 144);
-  c.font = "bold 62px monospace";
-  c.fillText(String(t.speed).padStart(3, "0"), 337, 108);
+  c.font = "bold 126px monospace";
+  c.fillText(String(t.gear), 300, 190);
+  c.font = "bold 66px monospace";
+  c.fillText(String(t.speed).padStart(3, "0"), 572, 139);
   c.fillStyle = "#8dabb9";
-  c.font = "22px monospace";
-  c.fillText("GEAR", 98, 174);
-  c.fillText("KM/H", 337, 139);
+  c.font = "19px monospace";
+  c.fillText("GEAR", 300, 218);
+  c.fillText("KM/H", 572, 164);
   c.fillStyle = "#273943";
-  c.fillRect(255, 190, 190, 10);
+  c.fillRect(462, 190, 218, 10);
   c.fillStyle = "#58c9a0";
-  c.fillRect(255, 190, 190 * t.throttle, 10);
+  c.fillRect(462, 190, 218 * t.throttle, 10);
   c.fillStyle = "#8dabb9";
-  c.font = "17px monospace";
-  c.fillText("THROTTLE", 350, 219);
+  c.font = "16px monospace";
+  c.fillText("THROTTLE", 571, 221);
   const minutes = Math.floor(t.lap / 60);
   c.fillStyle = "#edf5f6";
-  c.font = "26px monospace";
-  c.fillText(`${minutes}:${(t.lap % 60).toFixed(2).padStart(5, "0")}`, 337, 178);
+  c.font = "25px monospace";
+  c.fillText(`${minutes}:${(t.lap % 60).toFixed(2).padStart(5, "0")}`, 571, 262);
   c.fillStyle = t.status === "VOLTA INVALIDA" ? "#fa826d" : "#78dbaa";
-  c.font = "bold 23px monospace";
-  c.fillText(t.status, 118, 234);
+  c.font = "bold 19px monospace";
+  c.fillText(t.status, 190, 282);
   data.texture.needsUpdate = true;
 }

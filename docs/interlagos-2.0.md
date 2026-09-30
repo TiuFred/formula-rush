@@ -39,11 +39,14 @@ A preferência de câmera da versão clássica é restaurada ao sair.
 
 ## Cockpit e superfícies
 
-O cockpit possui laterais internas, coluna, paddles, engate rápido, punhos
-com costura e volante reposicionado para preservar a visão do asfalto. O
-display é atualizado a 10 Hz com velocidade, marcha do powertrain, progressão
-de giro, acelerador, tempo da volta e indicação de DRS/volta inválida. Botões
-e seletores modelados no volante são decorativos, não novos comandos.
+O cockpit possui monocoque afunilado na cor do carro, revestimento interno,
+filetes claros, coluna, paddles, engate rápido e punhos com costura. O halo foi
+removido do modelo 2.0 para manter a visão aberta solicitada. O volante fica
+mais baixo e distante, com uma matriz simétrica de botões, três seletores e
+parafusos aparentes. O display é atualizado a 10 Hz com velocidade, marcha do
+powertrain, progressão de giro, acelerador, tempo da volta e indicação de
+DRS/volta inválida. Botões e seletores modelados no volante são decorativos,
+não novos comandos.
 
 Carbono usa trama procedural com filtragem por derivadas para reduzir cintilação.
 Asfalto recebe variação de tonalidade em escala maior; zebras e muros recebem

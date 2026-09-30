@@ -47,6 +47,7 @@ function tube(points, radius, material, parent) {
 }
 
 export function buildBetaCar(group, paint, wheels) {
+  const hideOnboard = [];
   paint.metalness = 0.3;
   paint.roughness = 0.27;
   paint.envMapIntensity = 0.95;
@@ -235,7 +236,7 @@ export function buildBetaCar(group, paint, wheels) {
       }
     }
     // Espelhos e suportes finos, sem duplicar os retrovisores clássicos.
-    tube(
+    const mirrorSupport = tube(
       [
         [side * 0.35, 0.84, 0.48],
         [side * 0.59, 0.94, 0.53],
@@ -245,6 +246,7 @@ export function buildBetaCar(group, paint, wheels) {
       carbon,
       group,
     );
+    hideOnboard.push(mirrorSupport);
     const mirror = addMesh(
       new THREE.SphereGeometry(1, 16, 10),
       paint,
@@ -254,7 +256,8 @@ export function buildBetaCar(group, paint, wheels) {
       group,
     );
     mirror.scale.set(0.19, 0.075, 0.09);
-    addBox(0.22, 0.08, 0.015, visorMaterial, side * 0.8, 0.97, 0.475, group);
+    const mirrorGlass = addBox(0.22, 0.08, 0.015, visorMaterial, side * 0.8, 0.97, 0.475, group);
+    hideOnboard.push(mirror, mirrorGlass);
     addBox(0.045, 0.38, 0.58, paint, side * 1.18, 0.43, 2.31, group);
     addBox(0.045, 0.43, 0.67, paint, side * 1.02, 1.09, -2.1, group);
     addBox(0.055, 0.63, 0.13, carbon, side * 0.34, 0.68, -2.06, group);
@@ -287,27 +290,6 @@ export function buildBetaCar(group, paint, wheels) {
   for (let x = -0.6; x <= 0.6; x += 0.2)
     addBox(0.024, 0.18, 0.55, carbon, x, 0.3, -1.98, group);
 
-  tube(
-    [
-      [-0.34, 1.03, -0.25],
-      [-0.38, 1.19, 0.12],
-      [0, 1.2, 0.59],
-      [0.38, 1.19, 0.12],
-      [0.34, 1.03, -0.25],
-    ],
-    0.038,
-    carbon,
-    group,
-  );
-  tube(
-    [
-      [0, 0.84, 0.66],
-      [0, 1.2, 0.59],
-    ],
-    0.033,
-    carbon,
-    group,
-  );
   const helmet = addMesh(
     new THREE.SphereGeometry(0.225, 32, 20),
     accent,
@@ -326,8 +308,8 @@ export function buildBetaCar(group, paint, wheels) {
     0.025,
     group,
   );
-  group.userData.hideOnboard = [helmet, visor];
-  buildBetaCockpit(group, carbon);
+  group.userData.hideOnboard = [helmet, visor, ...hideOnboard];
+  buildBetaCockpit(group, carbon, paint);
   const intake = addMesh(
     new THREE.TorusGeometry(0.12, 0.035, 8, 24),
     carbon,
