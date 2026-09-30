@@ -2,8 +2,8 @@ import * as THREE from "three";
 
 // Ponto de vista no espaço local do carro. Não usar lerp de posição no mundo:
 // isso faz o olho atravessar o capacete e o halo durante acelerações e curvas.
-export const ONBOARD_EYE = new THREE.Vector3(0, 1.5, -.16);
-export const ONBOARD_FORWARD = new THREE.Vector3(0, -.045, 1).normalize();
+export const ONBOARD_EYE = new THREE.Vector3(0, 1.32, -.25);
+export const ONBOARD_FORWARD = new THREE.Vector3(0, -.15, 1).normalize();
 export const ONBOARD_FOV = 68;
 const forward = new THREE.Vector3();
 const up = new THREE.Vector3();

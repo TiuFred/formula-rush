@@ -121,6 +121,7 @@ export function buildBetaCar(group, paint, wheels) {
     group,
   );
   cockpit.scale.set(0.34, 0.095, 0.49);
+  hideOnboard.push(cockpit);
   for (const side of [-1, 1]) {
     bodyShell(
       [

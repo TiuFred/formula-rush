@@ -42,9 +42,11 @@ A preferência de câmera da versão clássica é restaurada ao sair.
 O cockpit possui monocoque afunilado na cor do carro, revestimento interno,
 filetes claros, coluna, paddles, engate rápido e punhos com costura. O halo foi
 restaurado com aro superior, braços laterais e pilar central. A câmera fica
-mais alta e recuada para enquadrar o monocoque, as rodas, o halo e o volante
-na mesma composição. O volante possui uma matriz simétrica de botões, três seletores e
-parafusos aparentes. O display é atualizado a 10 Hz com velocidade, marcha do
+recuada e inclinada para o interior, enquadrando monocoque, pneus, halo e
+volante na mesma composição da referência. A cápsula externa do cockpit é
+ocultada apenas nessa visão e substituída por um fundo interno de carbono.
+O volante possui uma matriz simétrica de botões, três seletores e parafusos
+aparentes. O display é atualizado a 10 Hz com velocidade, marcha do
 powertrain, progressão de giro, acelerador, tempo da volta e indicação de
 DRS/volta inválida. Botões e seletores modelados no volante são decorativos,
 não novos comandos.

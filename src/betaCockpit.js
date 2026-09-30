@@ -100,40 +100,50 @@ export function buildBetaCockpit(parent, carbon, paint) {
     const stripeCurve = new THREE.CatmullRomCurve3(rimPoints.map(([x, y, z]) => new THREE.Vector3(x * 1.018, y - .034, z)));
     addMesh(new THREE.TubeGeometry(stripeCurve, 24, .006, 6, false), pinstripe, 0, 0, 0, parent);
   }
+  // Fundo escuro da banheira: cobre a carroceria externa sob o piloto e
+  // separa visualmente as duas bordas pintadas, como no cockpit de referência.
+  const deckGeometry = new THREE.BufferGeometry();
+  deckGeometry.setAttribute("position", new THREE.Float32BufferAttribute([
+    -.42, .94, -.72,
+    .42, .94, -.72,
+    -.235, .955, .82,
+    .235, .955, .82,
+  ], 3));
+  deckGeometry.setIndex([0, 2, 1, 1, 2, 3]);
+  deckGeometry.computeVertexNormals();
+  addMesh(deckGeometry, carbon, 0, 0, 0, parent);
   addBox(.56, .055, .18, carbon, 0, .96, .78, parent).rotation.x = -.09;
-  const column = addMesh(new THREE.CylinderGeometry(.018, .025, .3, 16), carbon, 0, 1.08, .53, parent);
-  column.rotation.x = Math.PI / 2;
 
   // Halo enquadrado a partir do ponto de vista do piloto: aro próximo à
   // borda superior e pilar central descendo até o nariz, como na referência.
   cockpitTube([
-    [-.69, 1.805, .44],
-    [-.36, 1.83, .5],
-    [0, 1.84, .54],
-    [.36, 1.83, .5],
-    [.69, 1.805, .44],
+    [-.69, 1.485, .44],
+    [-.36, 1.51, .5],
+    [0, 1.52, .54],
+    [.36, 1.51, .5],
+    [.69, 1.485, .44],
   ], .011, carbon, parent);
   cockpitTube([
-    [-.69, 1.805, .44],
-    [-.55, 1.65, .06],
-    [-.4, 1.48, -.36],
+    [-.69, 1.485, .44],
+    [-.55, 1.44, .06],
+    [-.4, 1.38, -.36],
   ], .012, carbon, parent);
   cockpitTube([
-    [.69, 1.805, .44],
-    [.55, 1.65, .06],
-    [.4, 1.48, -.36],
+    [.69, 1.485, .44],
+    [.55, 1.44, .06],
+    [.4, 1.38, -.36],
   ], .012, carbon, parent);
   cockpitTube([
-    [0, 1.015, .82],
-    [0, 1.35, .68],
-    [0, 1.84, .54],
+    [0, .96, .82],
+    [0, 1.24, .68],
+    [0, 1.52, .54],
   ], .009, carbon, parent);
-  addBox(.115, .045, .12, carbon, 0, 1.01, .8, parent).rotation.x = -.2;
+  addBox(.115, .045, .12, carbon, 0, .955, .8, parent).rotation.x = -.2;
 
   const wheel = new THREE.Group();
   wheel.name = "beta-steering-wheel";
-  wheel.position.set(0, 1.15, .64);
-  wheel.scale.setScalar(.72);
+  wheel.position.set(0, 1.04, .64);
+  wheel.scale.setScalar(.68);
   parent.add(wheel);
 
   const outline = new THREE.Shape();
