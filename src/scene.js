@@ -112,8 +112,10 @@ export function addAlignedBox(s, lane, w, h, d, material, yOffset = 0) {
 /** Gera uma textura de asfalto ruidosa (PRNG determinístico) e aplica ao material da pista. */
 function generateAsphaltTexture(renderer) {
   if (MATERIALS.road.map) MATERIALS.road.map.dispose(); // textura de uma troca de circuito anterior
+  if (MATERIALS.road.bumpMap && MATERIALS.road.bumpMap !== MATERIALS.road.map) MATERIALS.road.bumpMap.dispose();
   MATERIALS.road.map = null;
   MATERIALS.road.bumpMap = null;
+  MATERIALS.road.roughnessMap = null;
   MATERIALS.road.onBeforeCompile = () => {};
   MATERIALS.road.customProgramCacheKey = () => "classic-road";
 
@@ -127,11 +129,28 @@ function generateAsphaltTexture(renderer) {
       return texture;
     };
     const asphalt = configure(loader.load("./assets/beta/asphalt-albedo.jpg"), 2, 2);
+    const detailCanvas = document.createElement("canvas");
+    detailCanvas.width = detailCanvas.height = 256;
+    const detailContext = detailCanvas.getContext("2d");
+    const image = detailContext.createImageData(256, 256);
+    let seed = 74923;
+    for (let i = 0; i < image.data.length; i += 4) {
+      seed = seed * 16807 % 2147483647;
+      const grain = 92 + seed % 145;
+      image.data[i] = image.data[i + 1] = image.data[i + 2] = grain;
+      image.data[i + 3] = 255;
+    }
+    detailContext.putImageData(image, 0, 0);
+    const detail = new THREE.CanvasTexture(detailCanvas);
+    detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
+    detail.repeat.set(6, 6);
+    detail.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     MATERIALS.road.map = asphalt;
-    MATERIALS.road.bumpMap = asphalt;
-    MATERIALS.road.bumpScale = .008;
-    MATERIALS.road.color.set("#aeb2b5");
-    MATERIALS.road.roughness = .9;
+    MATERIALS.road.bumpMap = detail;
+    MATERIALS.road.roughnessMap = detail;
+    MATERIALS.road.bumpScale = .026;
+    MATERIALS.road.color.set("#a5aaac");
+    MATERIALS.road.roughness = .88;
     MATERIALS.road.metalness = 0;
     detailSurface(MATERIALS.road, "road");
     MATERIALS.road.needsUpdate = true;
@@ -158,6 +177,7 @@ function generateAsphaltTexture(renderer) {
   texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   MATERIALS.road.map = texture;
   MATERIALS.road.bumpMap = null;
+  MATERIALS.road.roughnessMap = null;
   MATERIALS.road.bumpScale = 0;
   MATERIALS.road.color.set("#c7cdce");
   MATERIALS.road.roughness = .82;
@@ -908,12 +928,12 @@ export function buildScene() {
   // Ardenas. Noturna: céu quase negro (nunca preto puro — cidade/estádio ao
   // redor sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
   // "queimar" o preto do céu na distância como a névoa diurna faria.
-  const daySky = state.graphicsBeta ? "#b4c6d1" : street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
+  const daySky = state.graphicsBeta ? "#93afc0" : street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
   state.scene.background = new THREE.Color(night ? "#050810" : daySky);
   state.scene.fog = new THREE.Fog(
     night ? "#050810" : daySky,
-    (night ? 260 : forest ? 420 : woodland ? 380 : 700) * scale,
-    (night ? 1000 : forest ? 1500 : woodland ? 1400 : 1900) * scale
+    (night ? 260 : state.graphicsBeta ? 620 : forest ? 420 : woodland ? 380 : 700) * scale,
+    (night ? 1000 : state.graphicsBeta ? 1750 : forest ? 1500 : woodland ? 1400 : 1900) * scale
   );
   state.camera = new THREE.PerspectiveCamera(60, 1, .2, 2500 * Math.max(1, scale));
   if (state.composer) {
@@ -930,7 +950,7 @@ export function buildScene() {
   state.renderer.setPixelRatio(Math.min(devicePixelRatio, state.graphicsBeta ? 1.5 : 1.7));
   state.renderer.outputColorSpace = THREE.SRGBColorSpace;
   state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  state.renderer.toneMappingExposure = state.graphicsBeta ? .85 : night ? .95 : 1.15;
+  state.renderer.toneMappingExposure = state.graphicsBeta ? .84 : night ? .95 : 1.15;
   state.renderer.shadowMap.enabled = state.graphicsBeta;
   state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   if (state.graphicsBeta) setupBetaEnvironment();
@@ -938,8 +958,8 @@ export function buildScene() {
   // De noite, o "sol" vira luar (bem mais fraco e frio) — a pista em si é
   // iluminada por holofotes emissivos (ver buildFloodlights abaixo), não
   // por luzes dinâmicas de verdade (custaria caro com 23 carros na cena).
-  state.scene.add(new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#52613d" : "#556c39", state.graphicsBeta ? .6 : night ? .55 : 2.6));
-  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : state.graphicsBeta ? "#fff1cf" : "#fff2d1", state.graphicsBeta ? 2.7 : night ? .4 : 2.5);
+  state.scene.add(new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#46523c" : "#556c39", state.graphicsBeta ? .35 : night ? .55 : 2.6));
+  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : state.graphicsBeta ? "#fff0d1" : "#fff2d1", state.graphicsBeta ? 2.85 : night ? .4 : 2.5);
   sun.position.set(-300, 700, 100);
   state.scene.add(sun);
   state.scene.add(sun.target);
@@ -947,12 +967,13 @@ export function buildScene() {
   if (state.graphicsBeta) {
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = sun.shadow.camera.bottom = -48;
-    sun.shadow.camera.right = sun.shadow.camera.top = 48;
+    sun.shadow.camera.left = sun.shadow.camera.bottom = -42;
+    sun.shadow.camera.right = sun.shadow.camera.top = 42;
     sun.shadow.camera.near = 8;
     sun.shadow.camera.far = 220;
     sun.shadow.bias = -.00035;
     sun.shadow.normalBias = .018;
+    sun.shadow.radius = 1.5;
     state.betaSun = sun;
 
 
@@ -1007,7 +1028,8 @@ export function buildScene() {
   // Terreno: grande plano cujo relevo segue (com suavização por distância
   // inversa) a elevação de amostras da pista, formando um "vale" ao redor
   // dela (terreno ~5m abaixo do nível médio da pista).
-  const ground = new THREE.PlaneGeometry(2100 * scale, 2100 * scale, 74, 74);
+  const terrainSegments = state.graphicsBeta ? 132 : 74;
+  const ground = new THREE.PlaneGeometry(2100 * scale, 2100 * scale, terrainSegments, terrainSegments);
   ground.rotateX(-Math.PI / 2);
   const groundPos = ground.attributes.position;
   const referencePoints = state.track.samples.filter((_, i) => i % 18 === 0);
@@ -1024,12 +1046,22 @@ export function buildScene() {
   const groundHeightAt = (x, z) => {
     let weightedY = 0;
     let weightSum = 0;
+    let nearestDistance = Infinity;
     for (const ref of referencePoints) {
-      const weight = 1 / Math.pow(35 + Math.hypot(x - ref.x, z - ref.z), 4);
+      const distance = Math.hypot(x - ref.x, z - ref.z);
+      nearestDistance = Math.min(nearestDistance, distance);
+      const weight = 1 / Math.pow(35 + distance, 4);
       weightedY += ref.y * weight;
       weightSum += weight;
     }
-    const average = weightedY / weightSum - groundDrop;
+    let average = weightedY / weightSum - groundDrop;
+    if (state.graphicsBeta) {
+      const reliefMask = THREE.MathUtils.smoothstep(nearestDistance, 24, 175);
+      const broadRelief = Math.sin(x * .0107 + z * .0041) * 2.8
+        + Math.sin(z * .0163 - x * .0037) * 1.65
+        + Math.sin((x + z) * .0052) * 3.1;
+      average += broadRelief * reliefMask;
+    }
     if (!capByRoad) return average;
     let cap = Infinity;
     for (const p of state.track.samples) {

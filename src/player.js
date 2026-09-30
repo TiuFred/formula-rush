@@ -19,6 +19,7 @@ import { engineAudio, beep } from "./audio.js";
 import { showNotice } from "./dom.js";
 import { addMesh } from "./materials.js";
 import { playerTurboSettings } from "./turbo.js";
+import { updateBetaPowertrain } from "./betaPowertrain.js";
 
 /** Faísca visual de drift (cor conforme o nível de miniturbo carregado). */
 function spawnDriftSpark(car, color) {
@@ -125,18 +126,30 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   // numa zona marcada do circuito (ver computeDrsActive em physics.js).
   car.drsActive = computeDrsActive(car) && !car.underYellow;
 
-  // --- Longitudinal: aceleração, arrasto, gravidade na ladeira, penalidades. ---
-  let accel = throttle ? 27 : -7;
-  accel -= car.speed * car.speed * .0032;
-  accel -= nearest.t.y * 9.81;
-  if (brake) accel -= 53;
-  if (!onTrack) accel -= car.speed * .62;
-  if (car.stun > 0) accel -= 24;
-  const turbo = playerTurboSettings(car, state, throttle && !brake);
-  if (turbo.accelerating) accel += 36;
-  if (car.drsActive) accel += 14;
-  const speedCap = turbo.speedCap;
-  car.speed = clamp(car.speed + accel * dt, 0, speedCap);
+  // A 2.0 usa resposta de pedal, relações de marcha, corte de troca e arrasto
+  // próprios. A física arcade da 1.0 permanece exatamente no caminho abaixo.
+  if (state.graphicsBeta) {
+    updateBetaPowertrain(car, {
+      throttle,
+      brake,
+      grade: nearest.t.y,
+      onTrack,
+      stunned: car.stun > 0,
+      drs: car.drsActive,
+      underYellow: car.underYellow,
+    }, dt);
+  } else {
+    let accel = throttle ? 27 : -7;
+    accel -= car.speed * car.speed * .0032;
+    accel -= nearest.t.y * 9.81;
+    if (brake) accel -= 53;
+    if (!onTrack) accel -= car.speed * .62;
+    if (car.stun > 0) accel -= 24;
+    const turbo = playerTurboSettings(car, state, throttle && !brake);
+    if (turbo.accelerating) accel += 36;
+    if (car.drsActive) accel += 14;
+    car.speed = clamp(car.speed + accel * dt, 0, turbo.speedCap);
+  }
 
   // --- Lateral: escorregamento (slip) durante o drift. Entrada mais rápida
   // (4 -> 6) para o carro "sentir" o drift assim que Shift é pressionado.

@@ -17,6 +17,25 @@ export const INTERLAGOS_STANDS = [
   { id: "PORTO", start: 1280, end: 1352, rows: 18, covered: true },
 ];
 
+const MARSHAL_POSTS = [[350, -1], [1010, 1], [1740, -1], [2380, 1], [3040, -1], [3730, 1]];
+
+export function planInterlagosLandmarks(track) {
+  const bridgeStation = 710;
+  const bridgeHalf = trackHalfWidthAt(bridgeStation) + 8.5;
+  const groundStructures = [
+    { id: "bridge-left", s: bridgeStation, lane: -bridgeHalf, width: .65, depth: 3.5 },
+    { id: "bridge-right", s: bridgeStation, lane: bridgeHalf, width: .65, depth: 3.5 },
+    { id: "timing-tower", s: -115, lane: trackHalfWidthAt(-115) + 11, width: 4.8, depth: 4.8 },
+  ];
+  for (const [s, side] of MARSHAL_POSTS) {
+    const lane = side * (trackHalfWidthAt(s) + 7.5);
+    if (alignedFootprintClearanceAt(track, s, lane, 4.2, 5) >= 2) {
+      groundStructures.push({ id: `marshal-${s}`, s, lane, width: 4.2, depth: 5 });
+    }
+  }
+  return { bridgeStation, bridgeHalf, groundStructures };
+}
+
 /** Valida toda a projeção da cobertura, não só o centro de cada arquibancada. */
 export function planInterlagosStands(track) {
   const modules = [];
@@ -155,5 +174,74 @@ export function addPitCanopy(s, lane, parent = state.scene) {
   beam([0, 6.7, 0], [0, 14.4, 0], .1, cable, root);
   for (const x of [-8, 8]) {
     for (const z of [-9.9, 9.9]) beam([0, 14.3, 0], [x, 8.2 + .4 * x / 8, z], .024, cable, root);
+  }
+}
+
+function alignedRoot(s, lane = 0) {
+  const frame = state.track.at(s, lane);
+  const root = new THREE.Group();
+  root.position.copy(frame.p);
+  root.rotation.set(-Math.asin(frame.t.y), frame.yaw, -frame.bank, "YXZ");
+  state.scene.add(root);
+  return root;
+}
+
+/** Elementos de orientação vistos durante a volta: passarela, pórticos,
+ * torre de cronometragem e postos de fiscais. Todos ficam fora do corredor
+ * lateral ou a mais de 6,5 m do asfalto. */
+export function buildInterlagosLandmarks() {
+  const concrete = makeMaterial("#b3b4ae", { roughness: .94 });
+  const steel = makeMaterial("#4f5b5b", { metalness: .72, roughness: .4 });
+  const glass = makeMaterial("#263e49", { metalness: .62, roughness: .18 });
+  const green = makeMaterial("#174c40", { roughness: .62 });
+  const lightOff = makeMaterial("#271b18", { roughness: .55 });
+
+  // Passarela na aproximação do miolo, com apoios além das defensas.
+  const { bridgeStation, bridgeHalf, groundStructures } = planInterlagosLandmarks(state.track);
+  const bridge = alignedRoot(bridgeStation);
+  addBox(bridgeHalf * 2, .72, 4.2, concrete, 0, 7.15, 0, bridge);
+  addBox(bridgeHalf * 2, 1.65, .12, glass, 0, 8.28, -2.02, bridge);
+  addBox(bridgeHalf * 2, 1.65, .12, glass, 0, 8.28, 2.02, bridge);
+  for (const side of [-1, 1]) {
+    addBox(.65, 7.5, 3.5, concrete, side * bridgeHalf, 3.55, 0, bridge);
+    for (let y = 7.7; y < 9; y += .42) addBox(bridgeHalf * 2, .035, .035, steel, 0, y, side > 0 ? 2.09 : -2.09, bridge);
+  }
+  const bridgeSign = makeTextPanel("INTERLAGOS · SÃO PAULO", 14, 1.15, "#174c40", "#f4f0df");
+  bridgeSign.position.set(0, 6.72, -2.14);
+  bridge.add(bridgeSign);
+
+  // Pórtico de largada e conjunto de cinco luzes sobre a reta principal.
+  const gantryStation = -32;
+  const gantry = alignedRoot(gantryStation);
+  const gantryHalf = trackHalfWidthAt(gantryStation) + 3.2;
+  for (const side of [-1, 1]) addBox(.24, 7.7, .32, steel, side * gantryHalf, 3.75, 0, gantry);
+  addBox(gantryHalf * 2, .32, .4, steel, 0, 7.45, 0, gantry);
+  for (let lamp = 0; lamp < 5; lamp++) {
+    const housing = addMesh(new THREE.CylinderGeometry(.25, .25, .22, 18), lightOff,
+      (lamp - 2) * .68, 7.05, -.03, gantry);
+    housing.rotation.x = Math.PI / 2;
+  }
+
+  // Torre vertical de cronometragem voltada para a reta e boxes.
+  const towerPlan = groundStructures.find((item) => item.id === "timing-tower");
+  const tower = alignedRoot(towerPlan.s, towerPlan.lane);
+  addBox(3.4, 18, 3.2, concrete, 0, 9, 0, tower);
+  addBox(4.2, 5.4, 4.4, glass, 0, 14.7, 0, tower);
+  addBox(4.7, .28, 4.8, green, 0, 17.6, 0, tower);
+  const towerLabel = makeTextPanel("INTERLAGOS", 2.8, 9.6, "#102c27", "#f2ead1");
+  towerLabel.position.set(-1.73, 7.2, 0);
+  towerLabel.rotation.y = -Math.PI / 2;
+  tower.add(towerLabel);
+  for (let floor = 0; floor < 5; floor++) {
+    addBox(.06, .05, 3.24, steel, -1.74, 2.5 + floor * 2, 0, tower);
+  }
+
+  // Postos de fiscais acrescentam escala e pontos reconhecíveis sem invadir a pista.
+  for (const plan of groundStructures.filter((item) => item.id.startsWith("marshal-"))) {
+    const post = alignedRoot(plan.s, plan.lane);
+    addBox(4.2, .28, 5, concrete, 0, .12, 0, post);
+    addBox(3.5, 2.25, 4.2, green, 0, 1.35, 0, post);
+    addBox(3.15, 1.15, .08, glass, 0, 1.65, -2.13, post);
+    addBox(4.65, .2, 5.35, concrete, 0, 2.58, 0, post);
   }
 }

@@ -6,18 +6,18 @@ import { asphaltClearanceAt, trackHalfWidthAt } from "./track.js";
 
 // O mesmo sol orienta o céu, os reflexos e as sombras do autódromo.
 export const BETA_SUN_DIRECTION = new THREE.Vector3(
-  -0.62,
-  0.48,
-  -0.62,
+  -0.57,
+  0.61,
+  -0.55,
 ).normalize();
 
 export function setupBetaEnvironment() {
   const sky = new Sky();
   sky.scale.setScalar(4200);
-  sky.material.uniforms.turbidity.value = 1.8;
-  sky.material.uniforms.rayleigh.value = 2.6;
-  sky.material.uniforms.mieCoefficient.value = 0.004;
-  sky.material.uniforms.mieDirectionalG.value = 0.82;
+  sky.material.uniforms.turbidity.value = 2.45;
+  sky.material.uniforms.rayleigh.value = 1.85;
+  sky.material.uniforms.mieCoefficient.value = 0.0035;
+  sky.material.uniforms.mieDirectionalG.value = 0.79;
   sky.material.uniforms.sunPosition.value.copy(BETA_SUN_DIRECTION);
   // Nuvens altas integradas à abóbada celeste, sem quads voltados à câmera.
   sky.material.fragmentShader =
@@ -30,7 +30,7 @@ export function setupBetaEnvironment() {
     "gl_FragColor = vec4( retColor, 1.0 );",
     `vec2 cloudUv=direction.xz/max(direction.y,.13)*1.1;
      float cloud=smoothstep(.54,.76,cloudField(cloudUv))*smoothstep(.06,.3,direction.y);
-     retColor=mix(retColor,vec3(.83,.85,.84),cloud*.6);
+     retColor=mix(retColor,vec3(.76,.80,.81),cloud*.36);
      gl_FragColor=vec4(retColor,1.0);`,
   );
   sky.userData.keepSeparate = true;
@@ -42,7 +42,7 @@ export function setupBetaEnvironment() {
   state.scene.userData.environmentTarget = target;
   state.betaEnvironment = target.texture;
   state.scene.environment = target.texture;
-  state.scene.environmentIntensity = 0.55;
+  state.scene.environmentIntensity = 0.62;
   generator.dispose();
 }
 
@@ -256,6 +256,6 @@ export function makeBetaGroundMaterial() {
     `,
     );
   };
-  material.customProgramCacheKey = () => "beta-ground-v2";
+  material.customProgramCacheKey = () => "beta-ground-v3";
   return material;
 }

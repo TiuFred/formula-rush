@@ -24,8 +24,11 @@ export function detailSurface(material, kind) {
       float threads = sin(weave.x + weave.y) * sin(weave.x - weave.y);
       diffuseColor.rgb *= 1.0 + threads * 0.17 * (1.0-smoothstep(0.5,2.0,filterWidth));
     ` : kind === "road" ? `
-      float patches = surfaceNoise(vSurfacePoint.xz * 0.13);
-      diffuseColor.rgb *= mix(0.88,1.08,patches);
+      float patches = surfaceNoise(vSurfacePoint.xz * 0.105);
+      float aggregate = surfaceNoise(vSurfacePoint.xz * 5.7);
+      float repairs = smoothstep(.72,.78,surfaceNoise(vSurfacePoint.xz*.035+vec2(7.0,19.0)));
+      diffuseColor.rgb *= mix(0.86,1.075,patches) * mix(.94,1.045,aggregate);
+      diffuseColor.rgb *= mix(1.0,.82,repairs*.34);
     ` : `
       float weathering = surfaceNoise(vSurfacePoint.xz * 2.8 + vSurfacePoint.y * 3.0);
       float staining = surfaceNoise(vSurfacePoint.xz * 0.28);

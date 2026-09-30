@@ -5,7 +5,7 @@ import { TRACK_LENGTH } from "./constants.js";
 import { addBox, makeMaterial, makeTextPanel } from "./materials.js";
 import { alignedFootprintClearanceAt } from "./track.js";
 export { setupBetaEnvironment, buildBetaAtmosphere } from "./betaNature.js";
-import { buildInterlagosStands, addPitCanopy } from "./interlagosStructures.js";
+import { buildInterlagosStands, buildInterlagosLandmarks, addPitCanopy } from "./interlagosStructures.js";
 
 function addAligned(s, lane, width, height, depth, material, yOffset = 0) {
   const frame = state.track.at(s, lane);
@@ -112,6 +112,7 @@ export function buildBetaTrackDetails(rng) {
   }
 
   buildInterlagosStands(rng);
+  buildInterlagosLandmarks();
 
   const cameraMaterial = makeMaterial("#22282b", { metalness: .65, roughness: .3 });
   for (const s of [420, 1340, 2460, 3480]) {

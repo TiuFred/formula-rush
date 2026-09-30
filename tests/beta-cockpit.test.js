@@ -2,11 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { cockpitTelemetry } from "../src/betaCockpit.js";
 
-test("cockpit uses HUD speed/gear thresholds without claiming engine RPM", () => {
+test("cockpit uses the 2.0 powertrain telemetry", () => {
   assert.equal(cockpitTelemetry({ speed: 0 }, 0).gear, "N");
   assert.equal(cockpitTelemetry({ speed: .49 }, 0).gear, "N");
   assert.equal(cockpitTelemetry({ speed: .5 }, 0).gear, 1);
-  assert.equal(cockpitTelemetry({ speed: 43 / 3.6 }, 0).gear, 2);
+  assert.equal(cockpitTelemetry({ speed: 43 / 3.6 }, 0).gear, 1);
+  assert.equal(cockpitTelemetry({ speed: 25, betaGear: 2, betaThrottle: .7 }, 0).gear, 2);
   const fast = cockpitTelemetry({ speed: 120 }, 0);
   assert.equal(fast.gear, 8);
   assert.equal(fast.speed, 432);
