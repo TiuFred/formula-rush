@@ -69,6 +69,11 @@ function wheelDial(parent, x, y, ringColor, metal) {
   return ring;
 }
 
+function cockpitTube(points, radius, material, parent) {
+  const curve = new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point)));
+  return addMesh(new THREE.TubeGeometry(curve, 32, radius, 10, false), material, 0, 0, 0, parent);
+}
+
 export function buildBetaCockpit(parent, carbon, paint) {
   const alcantara = makeMaterial("#0c0f12", { roughness: 1, side: THREE.DoubleSide });
   const shellPaint = paint.clone();
@@ -99,10 +104,36 @@ export function buildBetaCockpit(parent, carbon, paint) {
   const column = addMesh(new THREE.CylinderGeometry(.018, .025, .3, 16), carbon, 0, 1.08, .53, parent);
   column.rotation.x = Math.PI / 2;
 
+  // Halo enquadrado a partir do ponto de vista do piloto: aro próximo à
+  // borda superior e pilar central descendo até o nariz, como na referência.
+  cockpitTube([
+    [-.69, 1.805, .44],
+    [-.36, 1.83, .5],
+    [0, 1.84, .54],
+    [.36, 1.83, .5],
+    [.69, 1.805, .44],
+  ], .011, carbon, parent);
+  cockpitTube([
+    [-.69, 1.805, .44],
+    [-.55, 1.65, .06],
+    [-.4, 1.48, -.36],
+  ], .012, carbon, parent);
+  cockpitTube([
+    [.69, 1.805, .44],
+    [.55, 1.65, .06],
+    [.4, 1.48, -.36],
+  ], .012, carbon, parent);
+  cockpitTube([
+    [0, 1.015, .82],
+    [0, 1.35, .68],
+    [0, 1.84, .54],
+  ], .009, carbon, parent);
+  addBox(.115, .045, .12, carbon, 0, 1.01, .8, parent).rotation.x = -.2;
+
   const wheel = new THREE.Group();
   wheel.name = "beta-steering-wheel";
-  wheel.position.set(0, 1.17, .66);
-  wheel.scale.setScalar(.52);
+  wheel.position.set(0, 1.15, .64);
+  wheel.scale.setScalar(.72);
   parent.add(wheel);
 
   const outline = new THREE.Shape();
