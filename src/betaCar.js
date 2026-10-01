@@ -302,12 +302,16 @@ export function buildBetaCar(group, paint, wheels) {
   // Carro 3D: troca a carroceria procedural e desce o cockpit para a altura real do piloto.
   // Se o arquivo não chegar, a carroceria procedural continua valendo.
   const useModel = (source) => {
-    const { holder, wheelPivots, onboardHidden } = buildCarFromModel(source, paint);
+    const { holder, wheelPivots, onboardHidden, onboardShown, bodyMaterial } = buildCarFromModel(source, paint);
+    group.userData.betaBodyMaterial = bodyMaterial;
     group.userData.hideOnboard.push(...onboardHidden);
     // Por dentro vale o cockpit do jogo; por fora, o do modelo (halo, painel, volante) e só o
     // capacete e os retrovisores do jogo. `applyBetaCarView` alterna entre os dois.
     group.userData.betaView = {
-      onboardOnly: cockpitRoot.children.filter((child) => child !== helmet && child !== visor && !child.name.startsWith("beta-mirror")),
+      onboardOnly: [
+        ...cockpitRoot.children.filter((child) => child !== helmet && child !== visor && !child.name.startsWith("beta-mirror")),
+        ...onboardShown,
+      ],
     };
     body.visible = false;
     group.add(holder);
@@ -330,4 +334,7 @@ export function applyBetaCarView(group, onboard) {
   if (!view) return;
   for (const piece of view.onboardOnly) piece.visible = onboard;
   for (const mesh of group.userData.hideOnboard ?? []) mesh.visible = !onboard;
+  // O carbono em volta do cockpit só escurece por dentro; por fora vale a pintura clara.
+  const dark = group.userData.betaBodyMaterial?.userData.dark;
+  if (dark) dark.value = onboard ? 1 : 0;
 }

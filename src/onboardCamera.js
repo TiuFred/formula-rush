@@ -5,7 +5,7 @@ import { prefersReducedMotion } from "./accessibility.js";
 // halo. Não usar lerp de posição no mundo: isso faz o olho atravessar o capacete
 // e o halo durante acelerações e curvas. Todo movimento de cabeça abaixo é
 // calculado em espaço local e limitado a poucos centímetros e graus.
-const BASE_EYE = { y: 1.0, z: -0.22 };
+const BASE_EYE = { y: 1.03, z: -0.22 };
 export const ONBOARD_EYE = new THREE.Vector3(0, BASE_EYE.y, BASE_EYE.z);
 
 /**

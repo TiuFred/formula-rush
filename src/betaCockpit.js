@@ -2,13 +2,14 @@ import * as THREE from "three";
 import { addMesh, makeMaterial } from "./materials.js";
 import { state } from "./state.js";
 import { betaPowertrainTelemetry } from "./betaPowertrain.js";
-import { buildF1Wheel, DISPLAY, GRIP_ANCHOR, HAND_SCALE, wristLocal } from "./betaWheel.js";
+import { buildF1Wheel, DISPLAY } from "./betaWheel.js";
+import { buildDriverArms, buildDriverLegs, suitMaterial, updateDriverArms } from "./betaDriver.js";
 import { makeAlcantaraTexture, makeLiveryTexture } from "./betaTextures.js";
 import { qualityPreset, speedUnit } from "./betaSettings.js";
 
-const WHEEL_POS = new THREE.Vector3(0, 0.8, 0.54);
+const WHEEL_POS = new THREE.Vector3(0, 0.77, 0.58);
 const WHEEL_SCALE = 1.0;
-const WHEEL_TILT = 0.3;
+const WHEEL_TILT = 0.34;
 const WHEEL_BASE_Y = WHEEL_POS.y;
 const WHEEL_LOCK = 0.6;
 
@@ -27,11 +28,6 @@ export function cockpitTelemetry(car, raceTime) {
       ? "VOLTA INVALIDA"
       : car.drsActive ? "DRS ATIVO" : "TIME TRIAL",
   };
-}
-
-function tube(points, radius, material, parent, segments = 32) {
-  const curve = new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point)));
-  return addMesh(new THREE.TubeGeometry(curve, segments, radius, 10, false), material, 0, 0, 0, parent);
 }
 
 /**
@@ -201,6 +197,15 @@ const SIDE_KEYS = [
 
 const SIDE_SPANS = [3, 4, 4, 5, 5, 5, 5];
 
+/** Altura do piso do cockpit (a bandeja de alcantara, ver `tubMesh`). */
+export const COCKPIT_FLOOR = 0.52;
+
+/** Parede interna do cockpit na posição z: meia-largura (x), altura da borda (top) e do piso (floor). */
+export function cockpitWall(z) {
+  const key = sampleKeys(SIDE_KEYS, z);
+  return { x: key.xi, top: key.yt, floor: COCKPIT_FLOOR };
+}
+
 function sideControls(k) {
   const span = k.xo - k.xi;
   return [
@@ -276,290 +281,161 @@ function cockpitNose(material, parent) {
   return mesh;
 }
 
-/** Retrovisor de F1: carcaça de carbono, tampa pintada e vidro refletivo. */
+/**
+ * Contorno do retrovisor visto de trás: corpo mais alto na ponta externa, borda inferior
+ * inclinada e cantos arredondados, como as carcaças aerodinâmicas dos F1. `sign` inverte o
+ * lado (o contorno é desenhado com a ponta externa em +x) e `scale` encolhe em torno do centro.
+ */
+function mirrorShape(sign, scale = 1) {
+  const shape = new THREE.Shape();
+  const move = (x, y) => shape.moveTo(x * sign * scale, y * scale);
+  const line = (x, y) => shape.lineTo(x * sign * scale, y * scale);
+  const curve = (cx, cy, x, y) => shape.quadraticCurveTo(cx * sign * scale, cy * scale, x * sign * scale, y * scale);
+  move(-0.082, -0.04);
+  line(0.066, -0.047);
+  curve(0.1, -0.05, 0.102, -0.012);
+  line(0.104, 0.026);
+  curve(0.105, 0.056, 0.072, 0.054);
+  line(-0.07, 0.046);
+  curve(-0.102, 0.044, -0.1, 0.014);
+  line(-0.098, -0.014);
+  curve(-0.098, -0.04, -0.082, -0.04);
+  shape.closePath();
+  return shape;
+}
+
+/** Geometria plana de uma forma com UV de 0 a 1 sobre a caixa dela (para a textura do vidro). */
+function mirrorPane(sign, scale) {
+  const geometry = new THREE.ShapeGeometry(mirrorShape(sign, scale), 14);
+  geometry.computeBoundingBox();
+  const { min, max } = geometry.boundingBox;
+  const position = geometry.attributes.position;
+  const uv = [];
+  for (let i = 0; i < position.count; i++) uv.push((position.getX(i) - min.x) / (max.x - min.x), (position.getY(i) - min.y) / (max.y - min.y));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  return geometry;
+}
+
+/** Reflexo e vinheta sobre o vidro: brilho em diagonal e bordas levemente escurecidas. */
+function mirrorSheenTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  const edge = ctx.createLinearGradient(0, 0, 256, 0);
+  edge.addColorStop(0, "rgba(10,18,30,0.42)");
+  edge.addColorStop(0.16, "rgba(10,18,30,0)");
+  edge.addColorStop(0.84, "rgba(10,18,30,0)");
+  edge.addColorStop(1, "rgba(10,18,30,0.42)");
+  ctx.fillStyle = edge;
+  ctx.fillRect(0, 0, 256, 128);
+  const rim = ctx.createLinearGradient(0, 0, 0, 128);
+  rim.addColorStop(0, "rgba(10,18,30,0.34)");
+  rim.addColorStop(0.2, "rgba(10,18,30,0)");
+  rim.addColorStop(0.8, "rgba(10,18,30,0)");
+  rim.addColorStop(1, "rgba(10,18,30,0.38)");
+  ctx.fillStyle = rim;
+  ctx.fillRect(0, 0, 256, 128);
+  // Brilho de verniz em faixa diagonal.
+  const sheen = ctx.createLinearGradient(0, 0, 256, 128);
+  sheen.addColorStop(0, "rgba(255,255,255,0)");
+  sheen.addColorStop(0.34, "rgba(255,255,255,0)");
+  sheen.addColorStop(0.44, "rgba(210,230,255,0.16)");
+  sheen.addColorStop(0.52, "rgba(255,255,255,0)");
+  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, 256, 128);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Retrovisor de F1: carcaça de carbono aerodinâmica com cauda afilada, moldura de borracha,
+ * vidro refletivo com brilho, tampa na cor da equipe, aleta superior e duas hastes de perfil
+ * alar presas ao monocoque.
+ */
 function buildMirror(side, carbon, paint, parent) {
   const group = new THREE.Group();
   group.name = `beta-mirror-${side < 0 ? "left" : "right"}`;
-  group.position.set(side * 0.72, 0.94, 0.84);
+  group.position.set(side * 0.76, 0.91, 0.86);
   group.rotation.y = side * 0.16;
   parent.add(group);
 
-  const outline = new THREE.Shape();
-  const w = 0.095;
-  const h = 0.038;
-  const r = 0.028;
-  outline.moveTo(-w + r, -h);
-  outline.lineTo(w - r, -h);
-  outline.quadraticCurveTo(w, -h, w, -h + r);
-  outline.lineTo(w, h - r);
-  outline.quadraticCurveTo(w, h, w - r, h);
-  outline.lineTo(-w + r, h);
-  outline.quadraticCurveTo(-w, h, -w, h - r);
-  outline.lineTo(-w, -h + r);
-  outline.quadraticCurveTo(-w, -h, -w + r, -h);
-  const housing = addMesh(new THREE.ExtrudeGeometry(outline, {
-    depth: 0.045,
-    bevelEnabled: true,
-    bevelSegments: 3,
-    bevelSize: 0.012,
-    bevelThickness: 0.012,
-  }), carbon, 0, 0, -0.02, group);
+  const bevel = (size, thickness) => ({ bevelEnabled: true, bevelSegments: 5, bevelSize: size, bevelThickness: thickness, curveSegments: 10 });
+  const housing = addMesh(new THREE.ExtrudeGeometry(mirrorShape(side), { depth: 0.032, ...bevel(0.011, 0.011) }), carbon, 0, 0, -0.02, group);
   housing.name = `${group.name}-housing`;
-  const cap = addMesh(new THREE.BoxGeometry(0.2, 0.012, 0.06), paint, 0, h + 0.008, 0.005, group);
-  cap.rotation.x = -0.06;
+  // Cauda: a carcaça afina para trás, como o carenado de um F1.
+  const tail = addMesh(new THREE.ExtrudeGeometry(mirrorShape(side, 0.74), { depth: 0.036, ...bevel(0.014, 0.016) }), carbon, 0, -0.004, 0.026, group);
+  tail.name = `${group.name}-tail`;
+
+  // Moldura de borracha ao redor do vidro.
+  const seal = mirrorShape(side, 0.975);
+  seal.holes.push(new THREE.Path(mirrorShape(side, 0.9).getPoints(24)));
+  const sealMesh = addMesh(
+    new THREE.ExtrudeGeometry(seal, { depth: 0.004, bevelEnabled: false, curveSegments: 14 }),
+    new THREE.MeshStandardMaterial({ color: "#0b0d10", roughness: 0.6, metalness: 0.1 }),
+    0,
+    0,
+    -0.0385,
+    group,
+  );
+  sealMesh.name = `${group.name}-seal`;
+
+  // Tampa superior na cor da equipe e aleta de carbono na ponta externa.
+  const capShape = new THREE.Shape();
+  capShape.moveTo(side * -0.098, 0);
+  capShape.lineTo(side * 0.1, 0);
+  capShape.quadraticCurveTo(side * 0.112, 0.03, side * 0.092, 0.058);
+  capShape.lineTo(side * -0.09, 0.052);
+  capShape.closePath();
+  const cap = addMesh(new THREE.ExtrudeGeometry(capShape, { depth: 0.007, ...bevel(0.002, 0.002) }), paint, 0, 0.058, -0.012, group);
+  cap.rotation.x = Math.PI / 2;
+  cap.name = `${group.name}-cap`;
+  const fin = addMesh(new THREE.BoxGeometry(0.004, 0.034, 0.05), carbon, side * 0.07, 0.066, 0.004, group);
+  fin.rotation.z = side * -0.1;
+  fin.name = `${group.name}-fin`;
+
   // Vidro: vista real traseira renderizada em textura pequena (ver renderBetaMirrors).
-  const target = new THREE.WebGLRenderTarget(384, 160, { type: THREE.HalfFloatType, samples: 2 });
+  const target = new THREE.WebGLRenderTarget(384, 192, { type: THREE.HalfFloatType, samples: 2 });
   target.texture.wrapS = THREE.RepeatWrapping;
   // O espelho inverte esquerda e direita.
   target.texture.repeat.x = -1;
   target.texture.offset.x = 1;
-  const face = addMesh(
-    new THREE.PlaneGeometry(w * 2 - 0.022, h * 2 - 0.018),
-    new THREE.MeshBasicMaterial({ map: target.texture, fog: false }),
-    0,
-    0,
-    -0.0345,
-    group,
-  );
+  const glassGeometry = mirrorPane(-side, 0.9);
+  const face = addMesh(glassGeometry, new THREE.MeshBasicMaterial({ map: target.texture, fog: false }), 0, 0, -0.0345, group);
   face.rotation.y = Math.PI;
   face.castShadow = false;
   face.receiveShadow = false;
   face.name = `${group.name}-glass`;
   face.geometry.addEventListener("dispose", () => target.dispose());
+  const sheen = addMesh(
+    glassGeometry,
+    new THREE.MeshBasicMaterial({ map: mirrorSheenTexture(), transparent: true, depthWrite: false, fog: false, toneMapped: false }),
+    0,
+    0,
+    -0.0349,
+    group,
+  );
+  sheen.rotation.y = Math.PI;
+  sheen.castShadow = false;
+  sheen.receiveShadow = false;
+  sheen.name = `${group.name}-sheen`;
   group.userData.mirror = {
     target,
     face,
-    camera: new THREE.PerspectiveCamera(26, 384 / 160, 0.05, 450),
+    camera: new THREE.PerspectiveCamera(26, 384 / 192, 0.05, 450),
   };
-  tube([
-    [side * 0.44, 0.82, 0.64],
-    [side * 0.57, 0.88, 0.76],
-    [side * 0.69, 0.93, 0.86],
-  ], 0.014, carbon, parent, 12).name = `${group.name}-stalk`;
+
+  // Duas hastes de perfil alar (corda ao longo de z, fina em y) ligando o monocoque à carcaça.
+  const stay = (from, to, name) => {
+    const strut = ribbonTube([from, to], () => 0.0155, () => 0.0048, carbon, parent, { segments: 12, radial: 12 });
+    strut.name = name;
+    return strut;
+  };
+  stay([side * 0.44, 0.82, 0.64], [side * 0.69, 0.885, 0.88], `${group.name}-stalk`);
+  stay([side * 0.5, 0.775, 0.7], [side * 0.71, 0.87, 0.9], `${group.name}-stay`);
   return group;
-}
-
-/** Tecido técnico procedural (trama diagonal + pontos de silicone), só com fillRect. */
-function fabricMaterial(base, weave, { repeat = [3, 3], roughness = 0.85, dots = false } = {}) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 64;
-  canvas.height = 64;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, 64, 64);
-  ctx.fillStyle = weave;
-  for (let i = 0; i < 64; i += 4) {
-    ctx.fillRect(i, 0, 1, 64);
-    ctx.fillRect(0, i, 64, 1);
-  }
-  if (dots) {
-    ctx.fillStyle = "#3b4349";
-    for (let y = 4; y < 64; y += 8) for (let x = 4; x < 64; x += 8) ctx.fillRect(x, y, 2, 2);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(repeat[0], repeat[1]);
-  texture.anisotropy = 4;
-  return new THREE.MeshStandardMaterial({ map: texture, roughness });
-}
-
-/** Perfuração fina do dorso da luva (padrão de luvas de piloto), em canvas. */
-function perforatedMaterial(base, color) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 64;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, 64, 64);
-  ctx.fillStyle = "rgba(0,0,0,0.55)";
-  for (let y = 4; y < 64; y += 8) {
-    for (let x = (y / 8) % 2 ? 0 : 4; x < 64; x += 8) {
-      ctx.beginPath();
-      ctx.arc(x + 2, y, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(10, 12);
-  texture.anisotropy = 8;
-  return new THREE.MeshStandardMaterial({ map: texture, color, roughness: 0.62, metalness: 0.02 });
-}
-
-function roundedPlate(width, height, radius) {
-  const shape = new THREE.Shape();
-  const x = width / 2;
-  const y = height / 2;
-  shape.moveTo(-x + radius, -y);
-  shape.lineTo(x - radius, -y);
-  shape.quadraticCurveTo(x, -y, x, -y + radius);
-  shape.lineTo(x, y - radius);
-  shape.quadraticCurveTo(x, y, x - radius, y);
-  shape.lineTo(-x + radius, y);
-  shape.quadraticCurveTo(-x, y, -x, y - radius);
-  shape.lineTo(-x, -y + radius);
-  shape.quadraticCurveTo(-x, -y, -x + radius, -y);
-  return shape;
-}
-
-/**
- * Luva de piloto: dorso perfurado com protetor de nós dos dedos, quatro dedos que
- * contornam a borda externa da empunhadura (cada um com falange e ponta), polegar
- * sobre a borda interna e o punho reforçado. Tudo no espaço local da mão.
- */
-function buildGlove(side, mats, hand) {
-  const name = side < 0 ? "left" : "right";
-  const back = addMesh(
-    new THREE.ExtrudeGeometry(roundedPlate(0.074, 0.106, 0.026), { depth: 0.012, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.008, bevelSegments: 3, curveSegments: 8 }),
-    mats.back,
-    side * 0.006,
-    0.002,
-    -0.108,
-    hand,
-  );
-  back.rotation.z = side * 0.1;
-  back.name = `beta-glove-back-${name}`;
-  // Protetor dos nós dos dedos: faixa em relevo na cor da equipe.
-  const pad = addMesh(new THREE.BoxGeometry(0.016, 0.098, 0.011), mats.accent, side * 0.04, 0, -0.1, hand);
-  pad.rotation.z = side * 0.05;
-  pad.name = `beta-glove-pad-${name}`;
-
-  // Quatro dedos empilhados na vertical; o indicador (topo) é o mais longo.
-  const rows = [
-    { y: 0.043, reach: 1.0, radius: 0.0112 },
-    { y: 0.0145, reach: 1.06, radius: 0.0116 },
-    { y: -0.0145, reach: 1.0, radius: 0.0112 },
-    { y: -0.043, reach: 0.9, radius: 0.0102 },
-  ];
-  rows.forEach(({ y, reach, radius }, i) => {
-    const points = [
-      [0.04, y, -0.1],
-      [0.064 * reach, y, -0.097],
-      [0.08 * reach, y, -0.075],
-      [0.085 * reach, y, -0.04],
-      [0.078 * reach, y, -0.008],
-      [0.056 * reach, y, 0.008],
-    ].map(([u, yy, z]) => new THREE.Vector3(side * u, yy, z));
-    const finger = addMesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, false, "centripetal"), 28, radius, 10, false), mats.finger, 0, 0, 0, hand);
-    finger.name = `beta-glove-finger-${name}-${i}`;
-    const tip = addMesh(new THREE.SphereGeometry(radius, 12, 10), mats.finger, points.at(-1).x, y, points.at(-1).z, hand);
-    tip.name = `beta-glove-tip-${name}-${i}`;
-    // Articulações: anéis finos de costura nas dobras dos dedos.
-    for (const t of [0.34, 0.62]) {
-      const p = new THREE.CatmullRomCurve3(points, false, "centripetal").getPointAt(t);
-      const joint = addMesh(new THREE.SphereGeometry(radius * 1.12, 10, 8), mats.finger, p.x, p.y, p.z, hand);
-      joint.scale.set(1, 1, 0.8);
-    }
-  });
-
-  // Polegar: sai da base interna da mão e sobe pela frente da borda interna.
-  const thumb = [
-    [-0.036, -0.034, -0.104],
-    [-0.05, -0.004, -0.106],
-    [-0.056, 0.03, -0.098],
-    [-0.05, 0.062, -0.082],
-    [-0.04, 0.078, -0.062],
-  ].map(([u, yy, z]) => new THREE.Vector3(side * u, yy, z));
-  addMesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(thumb, false, "centripetal"), 20, 0.0128, 10, false), mats.finger, 0, 0, 0, hand).name = `beta-glove-thumb-${name}`;
-  addMesh(new THREE.SphereGeometry(0.0128, 12, 10), mats.finger, thumb.at(-1).x, thumb.at(-1).y, thumb.at(-1).z, hand);
-
-  // Punho da luva (cano reforçado) descendo do dorso em direção ao antebraço.
-  const gauntlet = addMesh(new THREE.CylinderGeometry(0.031, 0.037, 0.06, 20), mats.cuff, side * 0.006, -0.082, -0.1, hand);
-  gauntlet.rotation.x = 0.35;
-  gauntlet.name = `beta-glove-cuff-${name}`;
-}
-
-const SHOULDER = { x: 0.22, y: 0.86, z: -0.16 };
-const UPPER_ARM = 0.34;
-const FOREARM = 0.34;
-
-function buildDriverArms(parent, wheel, fabric, teamColor) {
-  const arms = [];
-  const mats = {
-    back: perforatedMaterial("#2a3036", "#ffffff"),
-    finger: new THREE.MeshStandardMaterial({ color: "#23282e", roughness: 0.55, metalness: 0.02 }),
-    accent: new THREE.MeshStandardMaterial({ color: teamColor, roughness: 0.45, metalness: 0.05 }),
-    cuff: new THREE.MeshStandardMaterial({ color: "#b9b7b0", roughness: 0.85 }),
-  };
-  for (const side of [-1, 1]) {
-    const name = side < 0 ? "left" : "right";
-    // Antebraço (`mesh`, mantido para quem monitora o pulso), braço, cotovelo e punho da manga.
-    const forearm = addMesh(new THREE.CylinderGeometry(0.029, 0.04, 1, 20), fabric, 0, 0, 0, parent);
-    forearm.name = `beta-driver-arm-${name}`;
-    const upper = addMesh(new THREE.CylinderGeometry(0.04, 0.05, 1, 20), fabric, 0, 0, 0, parent);
-    upper.name = `beta-driver-upper-${name}`;
-    const elbow = addMesh(new THREE.SphereGeometry(0.043, 16, 12), fabric, 0, 0, 0, parent);
-    elbow.name = `beta-driver-elbow-${name}`;
-    const band = addMesh(new THREE.CylinderGeometry(0.0315, 0.0315, 0.04, 20), mats.cuff, 0, 0, 0, parent);
-    band.name = `beta-driver-cuff-${name}`;
-    // Faixa de cor da equipe no antebraço, logo acima do punho.
-    const stripe = addMesh(new THREE.CylinderGeometry(0.0345, 0.0345, 0.022, 20), mats.accent, 0, 0, 0, parent);
-    stripe.name = `beta-driver-stripe-${name}`;
-    arms.push({
-      mesh: forearm,
-      upper,
-      elbowMesh: elbow,
-      band,
-      stripe,
-      side,
-      shoulder: new THREE.Vector3(side * SHOULDER.x, SHOULDER.y, SHOULDER.z),
-      elbow: new THREE.Vector3(),
-    });
-
-    const hand = new THREE.Group();
-    hand.name = `beta-hand-${name}`;
-    hand.position.set(side * GRIP_ANCHOR.x, GRIP_ANCHOR.y, GRIP_ANCHOR.z);
-    hand.scale.setScalar(HAND_SCALE);
-    wheel.add(hand);
-    buildGlove(side, mats, hand);
-  }
-  return arms;
-}
-
-const armUp = new THREE.Vector3(0, 1, 0);
-const armWrist = new THREE.Vector3();
-const armAxis = new THREE.Vector3();
-const armPole = new THREE.Vector3();
-const armDirection = new THREE.Vector3();
-
-/** Orienta um cilindro de altura 1 (eixo Y) do ponto `from` ao ponto `to`. */
-function placeLimb(mesh, from, to) {
-  armDirection.copy(to).sub(from);
-  const length = armDirection.length();
-  mesh.position.copy(from).add(to).multiplyScalar(0.5);
-  mesh.quaternion.setFromUnitVectors(armUp, armDirection.normalize());
-  mesh.scale.set(1, length, 1);
-}
-
-/**
- * Cinemática inversa de dois ossos: ombro fixo, pulso preso à empunhadura. O
- * cotovelo cai para fora e para baixo, como o de um piloto com os braços semi
- * dobrados. Se o pulso estiver além do alcance, o braço apenas estica.
- */
-function updateDriverArms(arms, wheel) {
-  for (const arm of arms) {
-    armWrist.copy(wristLocal(arm.side)).multiply(wheel.scale).applyEuler(wheel.rotation).add(wheel.position);
-    armAxis.copy(armWrist).sub(arm.shoulder);
-    const reach = Math.min(armAxis.length(), UPPER_ARM + FOREARM - 1e-4);
-    armAxis.normalize();
-    // Distância do ombro até o ponto médio do plano do cotovelo, e altura do cotovelo sobre o eixo.
-    const along = (reach * reach + UPPER_ARM * UPPER_ARM - FOREARM * FOREARM) / (2 * reach);
-    const height = Math.sqrt(Math.max(0, UPPER_ARM * UPPER_ARM - along * along));
-    armPole.set(arm.side * 0.55, -1, -0.25);
-    armPole.addScaledVector(armAxis, -armPole.dot(armAxis)).normalize();
-    arm.elbow.copy(arm.shoulder).addScaledVector(armAxis, along).addScaledVector(armPole, height);
-
-    placeLimb(arm.upper, arm.shoulder, arm.elbow);
-    placeLimb(arm.mesh, arm.elbow, armWrist);
-    arm.elbowMesh.position.copy(arm.elbow);
-    // Punho claro e faixa de cor ao longo do antebraço, rente à luva.
-    armDirection.copy(armWrist).sub(arm.elbow).normalize();
-    for (const [piece, back] of [[arm.band, 0.02], [arm.stripe, 0.068]]) {
-      piece.quaternion.copy(arm.mesh.quaternion);
-      piece.position.copy(armWrist).addScaledVector(armDirection, -back);
-    }
-  }
 }
 
 function buildSteeringWheel(parent, carbon, metal) {
@@ -623,7 +499,7 @@ export function buildBetaCockpit(parent, carbon, paint) {
   const lining = new THREE.MeshStandardMaterial({ map: liningMap, roughness: 0.95, side: THREE.DoubleSide });
   const padding = new THREE.MeshStandardMaterial({ map: paddingMap, roughness: 0.85, side: THREE.DoubleSide });
   const aluminum = makeMaterial("#7a858d", { metalness: 0.92, roughness: 0.22 });
-  const safetyFabric = fabricMaterial("#1c2128", "#252c34", { repeat: [4, 6], roughness: 0.92 });
+  const suit = suitMaterial(undefined, [3, 4]);
   const haloCarbon = carbon.clone();
   haloCarbon.roughness = 0.34;
 
@@ -633,7 +509,7 @@ export function buildBetaCockpit(parent, carbon, paint) {
   cockpitNose(nosePaint, parent);
 
   // Capa do painel: carbono fosco curvo sobre o display, como nos monopostos reais.
-  const hood = addMesh(new THREE.SphereGeometry(1, 36, 12, 0, Math.PI * 2, 0, Math.PI / 2), carbon, 0, 0.875, 0.78, parent);
+  const hood = addMesh(new THREE.SphereGeometry(1, 36, 12, 0, Math.PI * 2, 0, Math.PI / 2), carbon, 0, 0.85, 0.82, parent);
   hood.scale.set(0.27, 0.07, 0.2);
   hood.name = "beta-dash-hood";
 
@@ -644,57 +520,52 @@ export function buildBetaCockpit(parent, carbon, paint) {
   tub.lineTo(0.22, 0.85);
   tub.lineTo(-0.22, 0.85);
   tub.closePath();
-  const tubMesh = addMesh(new THREE.ShapeGeometry(tub), alcantara, 0, 0.52, 0, parent);
+  const tubMesh = addMesh(new THREE.ShapeGeometry(tub), alcantara, 0, COCKPIT_FLOOR, 0, parent);
   tubMesh.rotation.x = -Math.PI / 2;
 
-  // Halo: aro oval que alarga no centro e encontra o pilar frontal.
+  // Halo: aro fino e alto que sai da linha de visão. Os arcos laterais passam acima e para
+  // fora do campo de visão e só o aro frontal e o pilar central aparecem, como nos jogos de F1.
   const crownPoints = [
-    [-0.42, 1.0, -0.6],
-    [-0.56, 1.14, -0.3],
-    [-0.5, 1.23, 0.1],
-    [-0.27, 1.2, 0.4],
-    [0, 1.175, 0.55],
-    [0.27, 1.2, 0.4],
-    [0.5, 1.23, 0.1],
-    [0.56, 1.14, -0.3],
-    [0.42, 1.0, -0.6],
+    [-0.4, 1.0, -0.62],
+    [-0.58, 1.16, -0.32],
+    [-0.58, 1.3, 0.08],
+    [-0.34, 1.36, 0.42],
+    [0, 1.34, 0.62],
+    [0.34, 1.36, 0.42],
+    [0.58, 1.3, 0.08],
+    [0.58, 1.16, -0.32],
+    [0.4, 1.0, -0.62],
   ];
   const bulge = (t, amount) => amount * Math.exp(-(((t - 0.5) / 0.14) ** 2));
   const haloCrown = ribbonTube(
     crownPoints,
-    (t) => 0.022 + bulge(t, 0.006),
-    (t) => 0.03 + bulge(t, 0.01),
+    (t) => 0.0165 + bulge(t, 0.004),
+    (t) => 0.021 + bulge(t, 0.007),
     haloCarbon,
     parent,
     { segments: 96 },
   );
   haloCrown.name = "beta-halo-crown";
-  // Pilar curto: nasce no painel e sobe só até o aro, como nas imagens de referência.
+  // Pilar curto: nasce no painel e sobe só até o aro.
   const haloPillar = ribbonTube(
-    [[0, 1.175, 0.55], [0, 1.06, 0.74], [0, 0.97, 0.88], [0, 0.91, 0.94]],
-    (t) => 0.024 + 0.014 * (1 - t) ** 2,
-    (t) => 0.03 + 0.008 * (1 - t),
+    [[0, 1.34, 0.62], [0, 1.2, 0.73], [0, 1.05, 0.86], [0, 0.93, 0.94]],
+    (t) => 0.0175 + 0.011 * (1 - t) ** 2,
+    (t) => 0.022 + 0.006 * (1 - t),
     haloCarbon,
     parent,
     { segments: 40 },
   );
   haloPillar.name = "beta-halo-pillar";
-  const pillarBase = addMesh(new THREE.CylinderGeometry(0.07, 0.09, 0.03, 20), aluminum, 0, 0.945, 0.94, parent);
+  const pillarBase = addMesh(new THREE.CylinderGeometry(0.05, 0.068, 0.026, 24), aluminum, 0, 0.925, 0.94, parent);
   pillarBase.name = "beta-halo-mount";
 
   const mirrors = [buildMirror(-1, carbon, plainPaint, parent), buildMirror(1, carbon, plainPaint, parent)];
 
-  // Coxas do piloto convergindo para os joelhos sob o volante: sem elas a área
-  // abaixo do volante parece vazia.
-  for (const side of [-1, 1]) {
-    const thigh = addMesh(new THREE.CapsuleGeometry(0.085, 0.72, 8, 16), safetyFabric, side * 0.155, 0.6, -0.02, parent);
-    thigh.rotation.x = Math.PI / 2 - 0.05;
-    thigh.rotation.z = side * 0.03;
-    thigh.name = `beta-driver-thigh-${side < 0 ? "left" : "right"}`;
-  }
+  // Coxas e joelhos do piloto sob o volante: sem eles a área abaixo do volante parece vazia.
+  buildDriverLegs(parent, suitMaterial(undefined, [3, 7]));
 
   const data = buildSteeringWheel(parent, carbon, aluminum);
-  data.arms = buildDriverArms(parent, data.wheel, safetyFabric, teamColor);
+  data.arms = buildDriverArms(parent, data.wheel, suit, teamColor, cockpitWall);
   updateDriverArms(data.arms, data.wheel);
   data.mirrors = mirrors;
   data.lastUpdate = -Infinity;

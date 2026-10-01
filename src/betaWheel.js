@@ -21,19 +21,30 @@ const CENTER_Y = 360;
 const P = (px, py) => new THREE.Vector2(-(px - CENTER_X) * K, (CENTER_Y - py) * K);
 
 export const WHEEL_FACE_Z = -0.04;
-/** Centro da pegada de cada mão, em coordenadas locais do volante (antes da escala). */
-export const GRIP_ANCHOR = { x: 0.245, y: -0.045, z: -0.012 };
-/** Escala da luva em relação ao volante e posição do punho no espaço local da mão (antes da escala). */
-export const HAND_SCALE = 0.9;
-export const WRIST_IN_HAND = { x: 0.004, y: -0.09, z: -0.1 };
-
-/** Punho, em coordenadas do volante: logo abaixo do dorso da mão, do lado do piloto. */
-export const wristLocal = (side) =>
-  new THREE.Vector3(
-    side * (GRIP_ANCHOR.x + WRIST_IN_HAND.x * HAND_SCALE),
-    GRIP_ANCHOR.y + WRIST_IN_HAND.y * HAND_SCALE,
-    GRIP_ANCHOR.z + WRIST_IN_HAND.z * HAND_SCALE,
-  );
+/**
+ * Centro da empunhadura (a parte reta, abaixo da curva que liga à placa), em coordenadas locais do
+ * volante antes da escala: x é o meio da largura (0,205–0,28 m), z é o meio da espessura.
+ */
+export const GRIP_ANCHOR = { x: 0.242, y: -0.045, z: -0.037 };
+/** Escala da luva em relação ao volante. */
+export const HAND_SCALE = 1.4;
+/**
+ * Como a luva (modelada para a mão esquerda; a direita é o espelho) segura a empunhadura. A luva
+ * fica presa ao volante e gira com ele; é o pulso que acompanha, e o braço é resolvido até ele.
+ * `post`: deslocamento do ponto de pegada em relação ao centro da empunhadura, em coordenadas da
+ * mão esquerda (x para fora, y para cima, z para a frente do carro).
+ * `curl`: raio (m, antes da escala da luva) do arco que os dedos fazem em volta da empunhadura;
+ * o eixo desse arco é onde a luva "segura" (ver `gripCenter` em betaDriver.js).
+ * `yaw`/`pitch`/`roll` (rad): giro da luva em volta do volante, na ordem Y, X, Z: zero deixa o dorso
+ * para fora, os dedos apontando para a frente e o polegar para cima.
+ */
+export const HAND_FIT = {
+  post: { x: 0.011, y: 0.058, z: 0.017 },
+  curl: 0.0473,
+  yaw: 0.08,
+  pitch: -0.426,
+  roll: 0,
+};
 
 export const DISPLAY = { width: 330 * K, height: 206 * K, px: 640, py: 282, canvasW: 800, canvasH: 500 };
 export const SHIFT_LED_COUNT = 15;
