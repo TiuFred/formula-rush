@@ -13,6 +13,8 @@ import { updateBetaHud } from "./betaHud.js";
 import { installBetaSettings } from "./betaApply.js";
 import { closeBetaMenu, openBetaMenu, showBetaLoading } from "./betaMenu.js";
 import { getSettings } from "./betaSettings.js";
+import { preloadCarModel } from "./betaCarModel.js";
+import { applyBetaCarView } from "./betaCar.js";
 import { installErrorCollector } from "./betaDiagnostics.js";
 import "./betaHud.css";
 import { setupGrid, applyRenderInterpolation, setPlayerIdentity } from "./car.js";
@@ -559,6 +561,9 @@ function animate(now) {
   }
 
   engineAudio.update(state.player, state.gameState === "race", state.player.wasDrifting);
+  if (state.graphicsBeta && state.player) {
+    applyBetaCarView(state.player.group, !["menu", "landing", "replay"].includes(state.gameState));
+  }
   updateBetaGraphics(dt);
   updateBetaHud(dt);
   if (state.composer) state.composer.render();
@@ -613,7 +618,9 @@ async function loadCircuit(circuitId) {
     loadProgress?.(45, "CONSTRUINDO O AUTÓDROMO");
     await paintFrame();
     buildScene();
-    loadProgress?.(88, "PREPARANDO O CARRO");
+    loadProgress?.(70, "BAIXANDO O CARRO");
+    if (state.graphicsBeta) await preloadCarModel().catch(() => {});
+    loadProgress?.(90, "PREPARANDO O CARRO");
     await paintFrame();
     setupGrid();
     loadProgress?.(100, "PRONTO");

@@ -3,7 +3,7 @@ import { byId } from "./dom.js";
 import { betaPowertrainTelemetry } from "./betaPowertrain.js";
 import { formatLapTime } from "./timing.js";
 import { TRACK_LENGTH } from "./constants.js";
-import { speedUnit } from "./betaSettings.js";
+import { getSettings, speedUnit } from "./betaSettings.js";
 import { recordFrame } from "./betaDiagnostics.js";
 
 /**
@@ -50,6 +50,7 @@ const SKELETON = `
         <div class="f1-pedal brk"><small>FREIO</small><div class="f1-bar"><i data-ref="brake"></i></div></div>
       </div>
       <span class="f1-drs" data-ref="drs">DRS</span>
+      <span class="f1-cue" data-ref="cue">ACELERE</span>
     </div>
   </div>
 
@@ -219,6 +220,12 @@ export function updateBetaHud(dt) {
     [...refs.leds.children].forEach((led, i) => led.classList.toggle("on", i < lit));
   }
   setClass("drs", "on", Boolean(player.drsActive));
+
+  // Aviso do guia de pilotagem: o mesmo código de cores da faixa na pista.
+  const action = state.gameState === "race" && getSettings().guide ? state.betaGuide?.action : null;
+  const cues = { go: "ACELERE", lift: "ALIVIE", brake: "FREIE" };
+  setText("cue", cues[action] ?? "");
+  for (const tone of Object.keys(cues)) setClass("cue", tone, action === tone);
 
   // Setores.
   const done = player.sectorsCompleted % SECTORS;

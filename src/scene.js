@@ -11,6 +11,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { createBetaGradePass, updateBetaGrade } from "./betaPostFx.js";
 import { chunkInstancedMeshes } from "./instanceChunks.js";
+import { createBetaGuide } from "./betaGuide.js";
 import { makeAsphaltMaps } from "./betaTextures.js";
 import { createAdaptiveResolution } from "./adaptiveResolution.js";
 import { prefersReducedMotion } from "./accessibility.js";
@@ -961,6 +962,12 @@ export function updateBetaGraphics(dt = 0) {
   updateCrowd(state.clockTime, state.player.group.position);
   updateBetaCockpit(state.player, state.raceTime, state.clockTime, dt);
   renderBetaMirrors(state.renderer, state.scene, state.camera, state.player, dt);
+  const guide = state.betaGuide;
+  if (guide) {
+    const driving = state.gameState === "race" && !state.player.finish && getSettings().guide;
+    guide.mesh.visible = driving;
+    if (driving) guide.update(state.player.s, state.player.speed, state.clockTime);
+  }
   const grade = state.composer?.passes.find((pass) => pass.uniforms?.uSaturation);
   if (grade) {
     const size = state.renderer.getDrawingBufferSize(_drawingSize);
@@ -1370,6 +1377,7 @@ export function buildScene() {
   mergeStaticMeshesByMaterial();
   chunkInstancedMeshes(state.scene, { cellSize: 360 * worldScale() });
   buildRacingLineMesh();
+  state.betaGuide = state.graphicsBeta ? createBetaGuide() : null;
 
   if (state.graphicsBeta) {
     state.racingLineMesh.visible = false;

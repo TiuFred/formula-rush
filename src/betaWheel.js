@@ -23,8 +23,17 @@ const P = (px, py) => new THREE.Vector2(-(px - CENTER_X) * K, (CENTER_Y - py) * 
 export const WHEEL_FACE_Z = -0.04;
 /** Centro da pegada de cada mão, em coordenadas locais do volante (antes da escala). */
 export const GRIP_ANCHOR = { x: 0.245, y: -0.045, z: -0.012 };
-/** Punho: onde o antebraço encontra a luva. */
-export const wristLocal = (side) => new THREE.Vector3(side * GRIP_ANCHOR.x, GRIP_ANCHOR.y - 0.01, GRIP_ANCHOR.z);
+/** Escala da luva em relação ao volante e posição do punho no espaço local da mão (antes da escala). */
+export const HAND_SCALE = 0.9;
+export const WRIST_IN_HAND = { x: 0.004, y: -0.09, z: -0.1 };
+
+/** Punho, em coordenadas do volante: logo abaixo do dorso da mão, do lado do piloto. */
+export const wristLocal = (side) =>
+  new THREE.Vector3(
+    side * (GRIP_ANCHOR.x + WRIST_IN_HAND.x * HAND_SCALE),
+    GRIP_ANCHOR.y + WRIST_IN_HAND.y * HAND_SCALE,
+    GRIP_ANCHOR.z + WRIST_IN_HAND.z * HAND_SCALE,
+  );
 
 export const DISPLAY = { width: 330 * K, height: 206 * K, px: 640, py: 282, canvasW: 800, canvasH: 500 };
 export const SHIFT_LED_COUNT = 15;

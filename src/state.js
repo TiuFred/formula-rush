@@ -103,6 +103,8 @@ export const state = {
   /** Céu (Sky) e luz hemisférica da 2.0, guardados para trocar o horário com a corrida aberta. */
   betaSky: null,
   betaHemi: null,
+  /** Guia 3D de pilotagem da 2.0 (ver betaGuide.js). */
+  betaGuide: null,
   /** Luz solar móvel do modo 2.0, mantida perto do jogador para sombras nítidas. */
   betaSun: null,
   /** Mapa de iluminação procedural usado nos reflexos do modo 2.0. */

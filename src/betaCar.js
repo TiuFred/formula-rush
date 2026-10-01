@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { addMesh, addBox, makeMaterial } from "./materials.js";
 import { buildBetaCockpit } from "./betaCockpit.js";
 import { makeCarbonMaterial } from "./betaSurfaceMaterials.js";
+import { buildCarFromModel, carModelIfReady, COCKPIT_DROP, COCKPIT_FORWARD, preloadCarModel } from "./betaCarModel.js";
+import { setCockpitFit } from "./onboardCamera.js";
 
 /** Superfície contínua definida por seções: z, largura, altura e centro y. */
 function bodyShell(sections, material, parent, x = 0) {
@@ -47,6 +49,10 @@ function tube(points, radius, material, parent) {
 }
 
 export function buildBetaCar(group, paint, wheels) {
+  // Tudo que é carroceria externa fica em `body`; o cockpit (capacete, halo, volante, braços) fica à parte.
+  const body = new THREE.Group();
+  body.name = "beta-legacy-body";
+  group.add(body);
   const hideOnboard = [];
   paint.metalness = 0.3;
   paint.roughness = 0.27;
@@ -83,7 +89,7 @@ export function buildBetaCar(group, paint, wheels) {
     bevelEnabled: false,
   });
   floor.rotateX(Math.PI / 2);
-  addMesh(floor, carbon, 0, 0.25, 0, group);
+  addMesh(floor, carbon, 0, 0.25, 0, body);
 
   // A casca central é dividida antes/depois do cockpit. Uma única superfície
   // fechada atravessava a banheira; ocultá-la resolvia o interior, mas também
@@ -95,7 +101,7 @@ export function buildBetaCar(group, paint, wheels) {
       [-0.7, 0.45, 0.31, 0.64],
     ],
     paint,
-    group,
+    body,
   );
   rearBody.name = "beta-rear-body";
   // Cobertura do motor estreita; o cockpit permanece aberto e legível.
@@ -108,7 +114,7 @@ export function buildBetaCar(group, paint, wheels) {
       [-0.4, 0.1, 0.18, 0.88],
     ],
     carbon,
-    group,
+    body,
   );
   for (const side of [-1, 1]) {
     bodyShell(
@@ -121,12 +127,12 @@ export function buildBetaCar(group, paint, wheels) {
         [0.57, 0.2, 0.08, 0.6],
       ],
       paint,
-      group,
+      body,
       side * 0.61,
     );
     // Entrada de ar e lâmina lateral: recorte escuro dá profundidade ao sidepod.
-    addBox(0.36, 0.17, 0.035, carbon, side * 0.64, 0.61, 0.574, group);
-    addBox(0.03, 0.08, 1.46, accent, side * 0.97, 0.47, -0.55, group);
+    addBox(0.36, 0.17, 0.035, carbon, side * 0.64, 0.61, 0.574, body);
+    addBox(0.03, 0.08, 1.46, accent, side * 0.97, 0.47, -0.55, body);
     for (const z of [-1.52, 1.45]) {
       // Pneus dianteiros de F1 são mais estreitos e de menor diâmetro que os traseiros.
       const front = z > 0;
@@ -135,7 +141,7 @@ export function buildBetaCar(group, paint, wheels) {
       const wheel = new THREE.Group();
       wheel.position.set(side * axleX, axleY, z);
       if (front) wheel.scale.set(0.78, 0.86, 0.86);
-      group.add(wheel);
+      body.add(wheel);
       wheels.push(wheel);
       const profile = [
         new THREE.Vector2(0.26, -0.235),
@@ -206,7 +212,7 @@ export function buildBetaCar(group, paint, wheels) {
           ],
           0.019,
           carbon,
-          group,
+          body,
         );
         tube(
           [
@@ -216,13 +222,13 @@ export function buildBetaCar(group, paint, wheels) {
           ],
           0.019,
           carbon,
-          group,
+          body,
         );
       }
     }
-    addBox(0.045, 0.26, 0.58, paint, side * 1.18, 0.36, 2.31, group);
-    addBox(0.045, 0.43, 0.67, paint, side * 1.02, 1.09, -2.1, group);
-    addBox(0.055, 0.63, 0.13, carbon, side * 0.34, 0.68, -2.06, group);
+    addBox(0.045, 0.26, 0.58, paint, side * 1.18, 0.36, 2.31, body);
+    addBox(0.045, 0.43, 0.67, paint, side * 1.02, 1.09, -2.1, body);
+    addBox(0.055, 0.63, 0.13, carbon, side * 0.34, 0.68, -2.06, body);
   }
   // Perfil de asa abaulado, três elementos dianteiros e dois traseiros.
   for (let flap = 0; flap < 3; flap++) {
@@ -232,7 +238,7 @@ export function buildBetaCar(group, paint, wheels) {
       0,
       0.27 + flap * 0.08,
       2.51 - flap * 0.19,
-      group,
+      body,
     );
     wing.rotation.x = -0.14;
   }
@@ -245,20 +251,25 @@ export function buildBetaCar(group, paint, wheels) {
       0,
       0.94 + flap * 0.2,
       -2.1 - flap * 0.14,
-      group,
+      body,
     );
     wing.rotation.x = 0.18;
   }
   for (let x = -0.6; x <= 0.6; x += 0.2)
-    addBox(0.024, 0.18, 0.55, carbon, x, 0.3, -1.98, group);
+    addBox(0.024, 0.18, 0.55, carbon, x, 0.3, -1.98, body);
 
+  // Cockpit (capacete, halo, volante, braços) num grupo próprio: ele desce junto com a
+  // câmera quando o carro 3D de terceiros substitui a carroceria procedural.
+  const cockpitRoot = new THREE.Group();
+  cockpitRoot.name = "beta-cockpit-root";
+  group.add(cockpitRoot);
   const helmet = addMesh(
     new THREE.SphereGeometry(0.225, 32, 20),
     accent,
     0,
     1.06,
     0.02,
-    group,
+    cockpitRoot,
   );
   helmet.scale.set(0.92, 1, 1);
   // A esfera parcial ocupa apenas a frente (+z) do capacete.
@@ -268,31 +279,55 @@ export function buildBetaCar(group, paint, wheels) {
     0,
     1.06,
     0.025,
-    group,
+    cockpitRoot,
   );
   group.userData.hideOnboard = [helmet, visor, ...hideOnboard];
-  buildBetaCockpit(group, carbon, paint);
+  buildBetaCockpit(cockpitRoot, carbon, paint);
+  group.userData.betaCockpit = cockpitRoot.userData.betaCockpit;
   const intake = addMesh(
     new THREE.TorusGeometry(0.12, 0.035, 8, 24),
     carbon,
     0,
     1.17,
     -0.45,
-    group,
+    body,
   );
   intake.scale.set(0.78, 1, 1);
-  addBox(
-    0.08,
-    0.13,
-    0.035,
-    new THREE.MeshStandardMaterial({
-      color: "#b62014",
-      emissive: "#ff1708",
-      emissiveIntensity: 2,
-    }),
-    0,
-    0.47,
-    -2.29,
-    group,
-  );
+  // Luz de chuva traseira: acende forte ao frear (ver updateBetaCockpit).
+  const rainLight = new THREE.MeshStandardMaterial({ color: "#5a1410", emissive: "#ff1708", emissiveIntensity: 0.6 });
+  const rain = addBox(0.1, 0.13, 0.035, rainLight, 0, 0.47, -2.0, group);
+  rain.name = "beta-rain-light";
+  group.userData.betaRainLight = rainLight;
+
+  // Carro 3D: troca a carroceria procedural e desce o cockpit para a altura real do piloto.
+  // Se o arquivo não chegar, a carroceria procedural continua valendo.
+  const useModel = (source) => {
+    const { holder, wheelPivots, onboardHidden } = buildCarFromModel(source, paint);
+    group.userData.hideOnboard.push(...onboardHidden);
+    // Por dentro vale o cockpit do jogo; por fora, o do modelo (halo, painel, volante) e só o
+    // capacete e os retrovisores do jogo. `applyBetaCarView` alterna entre os dois.
+    group.userData.betaView = {
+      onboardOnly: cockpitRoot.children.filter((child) => child !== helmet && child !== visor && !child.name.startsWith("beta-mirror")),
+    };
+    body.visible = false;
+    group.add(holder);
+    wheels.length = 0;
+    wheels.push(...wheelPivots.map(({ pivot }) => pivot));
+    cockpitRoot.position.y = -COCKPIT_DROP;
+    setCockpitFit({ drop: COCKPIT_DROP, forward: COCKPIT_FORWARD });
+  };
+  const ready = carModelIfReady();
+  if (ready) useModel(ready);
+  else if (typeof window !== "undefined") preloadCarModel().then(useModel).catch((error) => console.warn("Carro 3D indisponível, usando o procedural:", error?.message ?? error));
+}
+
+/**
+ * Liga a visão de dentro (cockpit do jogo, sem monocoque, halo e volante do modelo) ou a de fora
+ * (o inverso). Chamar a cada quadro: é só uma troca de `visible`.
+ */
+export function applyBetaCarView(group, onboard) {
+  const view = group.userData.betaView;
+  if (!view) return;
+  for (const piece of view.onboardOnly) piece.visible = onboard;
+  for (const mesh of group.userData.hideOnboard ?? []) mesh.visible = !onboard;
 }

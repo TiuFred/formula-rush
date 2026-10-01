@@ -5,7 +5,17 @@ import { prefersReducedMotion } from "./accessibility.js";
 // halo. Não usar lerp de posição no mundo: isso faz o olho atravessar o capacete
 // e o halo durante acelerações e curvas. Todo movimento de cabeça abaixo é
 // calculado em espaço local e limitado a poucos centímetros e graus.
-export const ONBOARD_EYE = new THREE.Vector3(0, 1.0, -0.22);
+const BASE_EYE = { y: 1.0, z: -0.22 };
+export const ONBOARD_EYE = new THREE.Vector3(0, BASE_EYE.y, BASE_EYE.z);
+
+/**
+ * Ajusta o olho ao carro 3D de terceiros: o piloto senta mais baixo (`drop`) e mais à
+ * frente (`forward`), logo adiante da caixa de ar do motor, como num F1 de verdade.
+ */
+export function setCockpitFit({ drop = 0, forward = 0 } = {}) {
+  ONBOARD_EYE.y = BASE_EYE.y - drop;
+  ONBOARD_EYE.z = BASE_EYE.z + forward;
+}
 export const ONBOARD_PITCH = -0.05;
 export const ONBOARD_FORWARD = new THREE.Vector3(0, Math.sin(ONBOARD_PITCH), Math.cos(ONBOARD_PITCH));
 export const ONBOARD_FOV = 68;

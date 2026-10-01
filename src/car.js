@@ -118,8 +118,9 @@ export function createCar(color, index) {
     index === 0 ? state.playerNumber : F1_DRIVERS_2026[index - 1].number,
     1.1, .6, "#162119", "#f5f7e8"
   );
-  numberPanel.position.set(0, 1.15, state.graphicsBeta ? -2.42 : -2.4);
-  if (state.graphicsBeta) numberPanel.scale.set(.55, .45, 1);
+  // Na 2.0 o número fica pequeno, na asa traseira, em vez de uma placa flutuando atrás do carro.
+  numberPanel.position.set(0, state.graphicsBeta ? .86 : 1.15, state.graphicsBeta ? -2.12 : -2.4);
+  if (state.graphicsBeta) numberPanel.scale.set(.3, .24, 1);
   numberPanel.rotation.y = Math.PI;
   group.add(numberPanel);
 

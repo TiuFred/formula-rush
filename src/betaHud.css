@@ -961,6 +961,15 @@ footer .disclaimer {
   color: #8a8a96;
 }
 
+.bm-legal-box {
+  display: grid;
+  gap: 6px;
+}
+
+.bm-credit a {
+  color: #c9c9d3;
+}
+
 .bm-actions {
   display: flex;
   align-items: center;
@@ -1047,4 +1056,80 @@ footer .disclaimer {
   .bm-loading-bar i {
     transition: none;
   }
+}
+
+.bm-guide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 16px;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  color: #c9c9d3;
+}
+
+.bm-guide-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bm-guide-item i {
+  width: 22px;
+  height: 8px;
+  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+
+.bm-guide-item.go i {
+  background: #19e06d;
+}
+
+.bm-guide-item.lift i {
+  background: #ffcf2e;
+}
+
+.bm-guide-item.brake i {
+  background: #ff2a22;
+}
+
+.bm-guide-item b {
+  font-family: "Barlow Condensed", Impact, sans-serif;
+  letter-spacing: 0.1em;
+  color: var(--f1-text);
+}
+
+/* Drift e turbo não existem na 2.0: o botão de drift do toque some. */
+body.beta-racing .driftkey {
+  display: none;
+}
+
+.f1-cue {
+  position: absolute;
+  left: 18px;
+  top: -29px;
+  padding: 2px 14px;
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  color: var(--f1-ink);
+  background: #2a2a36;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+
+.f1-cue:empty {
+  display: none;
+}
+
+.f1-cue.go {
+  background: #19e06d;
+}
+
+.f1-cue.lift {
+  background: #ffcf2e;
+}
+
+.f1-cue.brake {
+  background: #ff2a22;
+  color: #fff;
 }

@@ -96,7 +96,12 @@ Posição das arquibancadas, dos boxes, da passarela e da torre de Interlagos na
 [OpenStreetMap](https://www.openstreetmap.org/copyright) (© colaboradores do OpenStreetMap, licença ODbL) e sobre
 o mapa oficial dos setores do GP São Paulo; ver `docs/interlagos-2.0.md`.
 O volante, o halo, as luvas e demais peças do cockpit da 2.0 são modelados no
-código; nenhum modelo 3D de terceiros é distribuído.
+código. A carroceria e as rodas do carro da 2.0 usam o modelo
+**F1 2022 {FREE!!}**, de [3dblenderlol](https://sketchfab.com/3dblenderlol),
+licença [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+([fonte](https://sketchfab.com/3d-models/f1-2022-free-013c9e89d2244e37924031dfe4ccf4c3)),
+reescalado, recolorido e otimizado; detalhes em
+`public/assets/cars/CREDITS.md`. O crédito também aparece no menu da 2.0.
 
 Antes de enviar mudanças, rode a barreira completa de qualidade:
 

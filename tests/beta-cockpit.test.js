@@ -211,3 +211,33 @@ test("retrovisores renderizam a vista traseira refletida e restauram o estado", 
     restoreDocument();
   }
 });
+
+test("braços: cotovelo respeita o comprimento dos ossos e o pulso fica preso à luva em todo o esterço", () => {
+  const restoreDocument = installCanvasMock();
+  try {
+    const parent = new THREE.Group();
+    const cockpit = buildBetaCockpit(parent, makeCarbonMaterial(), new THREE.MeshStandardMaterial({ color: "#d22b25" }));
+    const car = { group: parent, speed: 40, steer: 0, betaAcceleration: 0, betaGear: 4, betaThrottle: 1, currentLapValid: true };
+    for (const steer of [-1, -0.5, 0, 0.5, 1]) {
+      car.steer = steer;
+      for (let i = 0; i < 90; i++) updateBetaCockpit(car, i / 60, i / 60, 1 / 60);
+      parent.updateMatrixWorld(true);
+      for (const arm of cockpit.arms) {
+        const wrist = new THREE.Vector3(0, 0.5, 0).applyMatrix4(arm.mesh.matrixWorld);
+        const upper = arm.shoulder.distanceTo(arm.elbow);
+        const fore = arm.elbow.distanceTo(wrist);
+        assert.ok(Math.abs(upper - 0.34) < 1e-6, `braço mudou de tamanho (${upper})`);
+        assert.ok(Math.abs(fore - 0.34) < 0.02, `antebraço mudou de tamanho (${fore})`);
+        assert.ok(arm.elbow.y < arm.shoulder.y + 0.05, "cotovelo deveria cair, não subir");
+        assert.ok(Math.sign(arm.elbow.x) === arm.side || Math.abs(arm.elbow.x) < 0.05, "cotovelo do lado errado");
+      }
+    }
+    for (const side of ["left", "right"]) {
+      assert.ok(parent.getObjectByName(`beta-glove-back-${side}`), "dorso da luva ausente");
+      assert.ok(parent.getObjectByName(`beta-glove-thumb-${side}`), "polegar ausente");
+      for (let finger = 0; finger < 4; finger++) assert.ok(parent.getObjectByName(`beta-glove-finger-${side}-${finger}`), `dedo ${finger} ausente`);
+    }
+  } finally {
+    restoreDocument();
+  }
+});
