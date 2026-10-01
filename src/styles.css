@@ -801,6 +801,15 @@ kbd {
   color: var(--lime);
 }
 
+/* Botões de marcha: só aparecem na 2.0 com o câmbio manual (ver betaMenu/betaApply). */
+.touch .gearkeys {
+  display: none;
+}
+
+body.beta-racing.gear-manual .touch .gearkeys {
+  display: flex;
+}
+
 @media (min-width: 1600px) {
   main {
     grid-template-columns: minmax(0, 1fr) 370px;

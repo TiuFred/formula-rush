@@ -68,7 +68,7 @@ npx vercel --prod      # ou apenas dê push na main, se a integração com o Git
   pulam quadros lentos.
 - Quem usa `prefers-reduced-motion` recebe balanço de cabeça, tremor, abertura
   de FOV e desfoque de velocidade bastante reduzidos.
-- Ajustes da 2.0 (qualidade, horário, FOV, balanço, unidade) ficam no menu de
+- Ajustes da 2.0 (qualidade, horário, câmbio, FOV, balanço, unidade) ficam no menu de
   preparação e na pausa. `VITE_FEEDBACK_URL` (opcional) define para onde vai o
   botão de feedback; sem ela, usa as _issues_ do repositório no GitHub.
 - Se o navegador perder o contexto WebGL, o jogo avisa e recarrega ao restaurar.
@@ -83,12 +83,18 @@ npx vercel --prod      # ou apenas dê push na main, se a integração com o Git
 - Pintura do cockpit com textura de librea (faixa, frisos, linhas de painel e
   parafusos); forro interno em alcantara com costura. Os perfis das laterais e
   do nariz são curvas suaves (Catmull-Rom), sem facetas.
+- Arquibancadas com público animado no shader (pulos, braços para o alto,
+  bandeiras e uma "ola") e placas de patrocinadores fictícios ao longo da pista
+  (`src/crowd.js`, `src/sponsors.js`; detalhes em `docs/interlagos-2.0.md`).
 - Pós-processamento final com nitidez, ruído anti-banding no céu e aberração
   cromática mais discreta.
 
 ### Créditos e licenças
 
 Traçados dos circuitos: [bacinger/f1-circuits](https://github.com/bacinger/f1-circuits) (MIT).
+Posição das arquibancadas, dos boxes, da passarela e da torre de Interlagos na 2.0: medidas sobre dados do
+[OpenStreetMap](https://www.openstreetmap.org/copyright) (© colaboradores do OpenStreetMap, licença ODbL) e sobre
+o mapa oficial dos setores do GP São Paulo; ver `docs/interlagos-2.0.md`.
 O volante, o halo, as luvas e demais peças do cockpit da 2.0 são modelados no
 código; nenhum modelo 3D de terceiros é distribuído.
 
@@ -164,16 +170,18 @@ formula-rush/
 
 ## Controles
 
-| Ação                  | Teclado              | Toque                |
-| --------------------- | -------------------- | -------------------- |
-| Acelerar / Frear      | `↑` `↓` (ou `W` `S`) | botões na tela       |
-| Direção               | `←` `→` (ou `A` `D`) | botões na tela       |
-| Drift                 | `Shift`              | botão "DRIFT"        |
-| Usar item             | `Espaço`             | toque no item no HUD |
-| Trocar câmera         | `C`                  | botão "CÂMERA"       |
-| Reposicionar na pista | `R`                  | botão "↺"            |
-| Pausar                | `P` / `Esc`          | botão "Ⅱ"            |
-| Tempos de volta       | `T`                  | botão "VER TEMPOS"   |
+| Ação                                 | Teclado              | Toque                |
+| ------------------------------------ | -------------------- | -------------------- |
+| Acelerar / Frear                     | `↑` `↓` (ou `W` `S`) | botões na tela       |
+| Direção                              | `←` `→` (ou `A` `D`) | botões na tela       |
+| Drift                                | `Shift`              | botão "DRIFT"        |
+| Usar item                            | `Espaço`             | toque no item no HUD |
+| Subir / reduzir marcha (2.0, manual) | `J` / `H`            | botões `+` / `−`     |
+| Câmbio automático ↔ manual (2.0)     | `G`                  | menu de ajustes      |
+| Trocar câmera                        | `C`                  | botão "CÂMERA"       |
+| Reposicionar na pista                | `R`                  | botão "↺"            |
+| Pausar                               | `P` / `Esc`          | botão "Ⅱ"            |
+| Tempos de volta                      | `T`                  | botão "VER TEMPOS"   |
 
 ## Contra-relógio e limites de pista
 

@@ -39,6 +39,7 @@ import {
 import { applyBetaLighting, BETA_SUN_DIRECTION, makeBetaGroundMaterial } from "./betaNature.js";
 import { getSettings, qualityPreset } from "./betaSettings.js";
 import { renderBetaMirrors, updateBetaCockpit } from "./betaCockpit.js";
+import { updateCrowd } from "./crowd.js";
 import { detailSurface, makeRubberLineMaterial } from "./betaSurfaceMaterials.js";
 
 /** Escala dos elementos "de mundo" (terreno, dispersão de árvores/morros,
@@ -957,6 +958,7 @@ const _drawingSize = new THREE.Vector2();
 /** Mantém a janela de sombras do beta concentrada ao redor do carro. */
 export function updateBetaGraphics(dt = 0) {
   if (!state.graphicsBeta || !state.betaSun || !state.player) return;
+  updateCrowd(state.clockTime, state.player.group.position);
   updateBetaCockpit(state.player, state.raceTime, state.clockTime, dt);
   renderBetaMirrors(state.renderer, state.scene, state.camera, state.player, dt);
   const grade = state.composer?.passes.find((pass) => pass.uniforms?.uSaturation);
@@ -1318,7 +1320,8 @@ export function buildScene() {
   if (SCENERY.yasHotelStation != null) buildYasHotel(SCENERY.yasHotelStation);
 
   if (SCENERY.skyline && !state.graphicsBeta) buildSkyline(rng, scale, SCENERY.skyline, night);
-  if (SCENERY.banners) buildBanners(SCENERY.banners);
+  // Na 2.0 os patrocinadores fictícios (sponsors.js) substituem as faixas genéricas.
+  if (SCENERY.banners && !state.graphicsBeta) buildBanners(SCENERY.banners);
 
   if (state.graphicsBeta) buildBetaTrackDetails(rng);
 

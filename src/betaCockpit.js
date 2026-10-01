@@ -15,11 +15,12 @@ const WHEEL_LOCK = 0.6;
 export function cockpitTelemetry(car, raceTime) {
   const speed = Math.max(0, Number.isFinite(car.speed) ? car.speed : 0);
   const powertrain = betaPowertrainTelemetry(car);
-  const gear = speed < 0.5 ? "N" : powertrain.gear;
+  const gear = powertrain.label;
   return {
     speed: Math.round(speed * 3.6),
     gear,
-    shift: gear === "N" ? 0 : powertrain.rpm,
+    manual: powertrain.manual,
+    shift: gear === "N" ? 0 : powertrain.shift,
     throttle: powertrain.throttle,
     lap: Math.max(0, car.finish ? car.lastLap || 0 : raceTime - (car.lapStarted || 0)),
     status: car.currentLapValid === false
@@ -630,7 +631,7 @@ function drawTelemetry(data, telemetry) {
   // Centro: marcha.
   ctx.fillStyle = "#6f8d9b";
   ctx.font = "bold 22px monospace";
-  ctx.fillText("MARCHA", 400, 52);
+  ctx.fillText(telemetry.manual ? "MARCHA · MANUAL" : "MARCHA", 400, 52);
   ctx.fillStyle = "#f7faf7";
   ctx.font = "bold 300px monospace";
   ctx.fillText(String(telemetry.gear), 400, 330);

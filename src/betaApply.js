@@ -43,8 +43,11 @@ function applyCamera() {
 /** Liga os ajustes à cena: chamar uma vez na inicialização. */
 export function installBetaSettings() {
   applyCamera();
+  const syncTransmission = (settings) => document.body.classList.toggle("gear-manual", settings.transmission === "manual");
+  syncTransmission(getSettings());
   onSettingsChange((now, before) => {
     if (now.fov !== before.fov || now.shake !== before.shake) applyCamera();
+    if (now.transmission !== before.transmission) syncTransmission(now);
     if (state.graphicsBeta && now.quality !== before.quality) applyQuality();
     if (state.graphicsBeta && now.time !== before.time) applyBetaTimeOfDay(now.time);
   });

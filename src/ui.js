@@ -310,7 +310,7 @@ export function updateHud() {
   setVisible("drsIndicator", player.drsActive);
   // A 2.0 tem câmbio próprio; o HUD precisa mostrar a mesma marcha do volante.
   const classicGear = Math.min(8, Math.floor(player.speed * 3.6 / 43) + 1);
-  byId("gear").textContent = player.speed < .5 ? "N" : state.graphicsBeta ? betaPowertrainTelemetry(player).gear : classicGear;
+  byId("gear").textContent = state.graphicsBeta ? String(betaPowertrainTelemetry(player).label) : player.speed < .5 ? "N" : classicGear;
 
   // Gap (em metros) para o carro imediatamente à frente — só faz sentido
   // com outros carros VISÍVEIS na pista (corrida normal; não no

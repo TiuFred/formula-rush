@@ -21,8 +21,11 @@ export const TIMES_OF_DAY = ["day", "sunset"];
 
 export const FOV_RANGE = [60, 80];
 
+/** Câmbio da 2.0: automático (padrão) ou manual com H (reduz) e J (sobe). */
+export const TRANSMISSION_MODES = ["auto", "manual"];
+
 export function defaultSettings({ touch = false } = {}) {
-  return { quality: touch ? "medium" : "high", fov: 68, shake: 100, units: "kmh", time: "day", skipIntro: false };
+  return { quality: touch ? "medium" : "high", fov: 68, shake: 100, units: "kmh", time: "day", transmission: "auto", skipIntro: false };
 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -37,6 +40,7 @@ export function normalizeSettings(raw, base = defaultSettings()) {
     shake: Math.round(clamp(number(source.shake, base.shake), 0, 100)),
     units: source.units in SPEED_UNITS ? source.units : base.units,
     time: TIMES_OF_DAY.includes(source.time) ? source.time : base.time,
+    transmission: TRANSMISSION_MODES.includes(source.transmission) ? source.transmission : base.transmission,
     skipIntro: typeof source.skipIntro === "boolean" ? source.skipIntro : base.skipIntro,
   };
 }

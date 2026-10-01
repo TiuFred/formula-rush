@@ -20,6 +20,7 @@ import { showNotice } from "./dom.js";
 import { addMesh } from "./materials.js";
 import { playerTurboSettings } from "./turbo.js";
 import { updateBetaPowertrain } from "./betaPowertrain.js";
+import { getSettings } from "./betaSettings.js";
 
 /** Faísca visual de drift (cor conforme o nível de miniturbo carregado). */
 function spawnDriftSpark(car, color) {
@@ -139,6 +140,7 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
       stunned: car.stun > 0,
       drs: car.drsActive,
       underYellow: car.underYellow,
+      transmission: getSettings().transmission,
     }, dt);
   } else {
     let accel = throttle ? 27 : -7;

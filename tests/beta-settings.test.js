@@ -19,6 +19,13 @@ test("normaliza lixo do armazenamento para valores válidos", () => {
   assert.equal(settings.normalizeSettings({ fov: null }, base).fov, base.fov);
 });
 
+test("câmbio aceita só automático ou manual e começa no automático", () => {
+  const base = settings.defaultSettings();
+  assert.equal(base.transmission, "auto");
+  assert.equal(settings.normalizeSettings({ transmission: "manual" }, base).transmission, "manual");
+  assert.equal(settings.normalizeSettings({ transmission: "cvt" }, base).transmission, "auto");
+});
+
 test("celular começa em qualidade média e desktop em alta", () => {
   assert.equal(settings.defaultSettings({ touch: true }).quality, "medium");
   assert.equal(settings.defaultSettings().quality, "high");

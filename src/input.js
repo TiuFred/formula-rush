@@ -3,14 +3,32 @@
 // corrida (tecla P/Esc, perda de foco da janela, aba oculta).
 
 import { state } from "./state.js";
-import { byId, setVisible } from "./dom.js";
+import { byId, setVisible, showNotice } from "./dom.js";
 import { recoverCar, resolveLaunch } from "./player.js";
 import { useItem } from "./items.js";
 import { openTimesPanel, closeTimesPanel } from "./timing.js";
+import { queueGearShift } from "./betaPowertrain.js";
+import { getSettings, updateSettings } from "./betaSettings.js";
 
 /** Solta todas as teclas (usado ao pausar/perder foco, para não "grudar" uma tecla). */
 export function resetKeys() {
   for (const key in state.keys) state.keys[key] = false;
+  if (state.player) state.player.betaShiftQueue = 0;
+}
+
+/** Pede uma troca de marcha (+1 sobe, −1 desce). No automático só avisa como mudar para o manual. */
+export function requestGearShift(direction) {
+  if (!state.graphicsBeta || !["race", "countdown"].includes(state.gameState)) return;
+  if (getSettings().transmission === "manual") queueGearShift(state.player, direction);
+  else showNotice("CÂMBIO AUTOMÁTICO · TECLA G PARA O MANUAL");
+}
+
+/** Alterna câmbio automático/manual (tecla G e botão do menu). */
+export function toggleTransmission() {
+  if (!state.graphicsBeta) return;
+  const manual = getSettings().transmission !== "manual";
+  updateSettings({ transmission: manual ? "manual" : "auto" });
+  showNotice(manual ? "CÂMBIO MANUAL · H REDUZ · J SOBE" : "CÂMBIO AUTOMÁTICO");
 }
 
 /** Alterna entre corrida/contagem regressiva e pausado. */
@@ -64,6 +82,9 @@ function handleKeyDown(e) {
     if (["p", "P", "Escape"].includes(e.key)) togglePause();
     if (["r", "R"].includes(e.key) && state.gameState === "race") recoverCar(state.player);
     if (["c", "C"].includes(e.key) && state.gameState !== "menu") byId("cameraMode").click();
+    if (["j", "J"].includes(e.key)) requestGearShift(1);
+    if (["h", "H"].includes(e.key)) requestGearShift(-1);
+    if (["g", "G"].includes(e.key) && ["race", "countdown"].includes(state.gameState)) toggleTransmission();
   }
 }
 
@@ -88,6 +109,7 @@ export function attachInputHandlers() {
       btn.setPointerCapture(e.pointerId);
       state.keys[btn.dataset.key] = true;
       btn.classList.add("pressed");
+      if (btn.dataset.shift) requestGearShift(Number(btn.dataset.shift));
     };
     btn.onpointerup = btn.onpointercancel = () => {
       state.keys[btn.dataset.key] = false;

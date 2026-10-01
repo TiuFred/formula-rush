@@ -184,3 +184,84 @@ autódromo, carro) e cede ao navegador entre elas para pintar o progresso.
 horário, tela, navegador e os últimos 3 erros (`src/betaDiagnostics.js`). Nada
 é enviado sozinho. A URL padrão é a de *issues* do repositório no GitHub;
 defina `VITE_FEEDBACK_URL` para usar outro formulário.
+
+## Público animado e patrocinadores
+
+**Público** (`src/crowd.js`). Cada torcedor é uma instância de uma malha
+estática (tronco hexagonal com dois braços, cabeça octaédrica, ~44 triângulos).
+A animação roda no vertex shader: a fase vem da posição da instância, então
+nenhuma matriz é reescrita na CPU e os blocos espaciais de `instanceChunks.js`
+continuam valendo. Cada pessoa pula no próprio ritmo, uma "ola" lenta atravessa
+as arquibancadas e quem está a menos de ~140 m do carro do jogador se anima
+mais, levantando os braços. Cerca de 4,5% levam bandeira (Brasil e três lisas)
+e têm o braço direito sempre erguido. Camisetas e tons de pele vêm de paletas
+(`SHIRT_COLORS`, `SKIN_TONES`); cadeiras têm listras diagonais por setor.
+Com `prefers-reduced-motion` a amplitude vai a zero e o público fica parado. O
+relógio é `state.clockTime`, que para na pausa.
+
+**Patrocinadores** (`src/sponsors.js`). Marcas **fictícias**, inspiradas no tipo
+de anunciante das transmissões de F1 (relógios, pneus, cerveja, companhias
+aéreas, nuvem, logística, bancos...), com nomes e logotipos desenhados em
+código; nada de marcas reais é reproduzido. Todas as placas partilham um atlas
+de 20 células (18 marcas + as placas da casa "FORMULA RUSH" e "INTERLAGOS") e
+viram uma única malha. Ficam coladas ao muro (blocos de 4–7 placas, contínuas
+na reta dos boxes), na grade frontal de cada arquibancada, sobre os vãos das
+garagens, no vidro da passarela e no pórtico de largada. Ao trocar uma marca,
+edite `SPONSORS` e o respectivo desenho em `PAINTERS`.
+
+## Posições medidas (OpenStreetMap)
+
+As estruturas de Interlagos 2.0 usam coordenadas **medidas**, não estimadas à
+mão, para os elementos que o OpenStreetMap descreve. Método (reprodutível):
+
+1. Consulta Overpass na caixa do autódromo (`building=grandstand`,
+   `leisure=bleachers`, `building=pavilion`, `bridge=yes`, `man_made=tower`,
+   `highway=raceway` com os nomes das curvas e a pit lane), em 01/10/2026.
+2. O traçado do jogo (`public/interlagos.geojson`) foi encaixado nas
+   coordenadas do OSM por mínimos quadrados com escala uniforme: escala
+   1,0009, erro médio de 17 cm e máximo de 81 cm entre os 171 pontos.
+3. Cada polígono foi projetado em (`s`, `lane`) com `track.nearest`, a mesma
+   função usada pelo jogo; o resultado está em `src/interlagosReal.js`.
+
+O que mudou em relação à primeira reconstrução:
+
+| Elemento | Antes | Agora (fonte) |
+| --- | --- | --- |
+| Setor A | s −650…−160 | s −638…−389, 15 filas (OSM `bleachers`) |
+| Setor B | s −130…14 | s −100…0 (OSM `grandstand`) |
+| Setor M | s 40…238, 21 filas | s 22…254, 26 filas: o maior setor, ≈25 m de profundidade (OSM `grandstand` "M") |
+| Setor D | s 270…378 | s 274…352 (OSM `construction`) |
+| Passarela | s 710 | s 262, pilares em lane ±24 e rampas até ±40 (OSM `bridge`) |
+| Boxes | s −245…195 | s −8…392; a faixa é interrompida onde a rampa da passarela desce (OSM `pavilion`) |
+| Centro de controle | s −275 | s −42, lane −35, junto ao início do complexo (prédio OSM de 1.236 m²) |
+| Torre de cronometragem | s −115, junto à pista | s −224, lane +57, atrás do muro (OSM `tower`) |
+
+Setores H, R, G e Porto não têm polígono no OSM; mantêm as posições do mapa
+oficial. As alturas, o número de filas e os detalhes das estruturas continuam
+estimados. Os vídeos de transmissão não foram usados (não são analisáveis
+automaticamente); a única fonte visual externa foi o texto dos setores no site
+oficial. Também corrigido: a placa "INTERLAGOS · SÃO PAULO" da passarela saía
+espelhada, e a faixa com o nome da torre olhava para longe da pista.
+
+**Patrocínios.** Placas contínuas na reta dos boxes e na Subida dos Boxes
+(trechos mais mostrados pela TV), em blocos densos no lado de fora das curvas
+e esparsas no resto. Painéis grandes sobre postes ficam atrás do muro, do lado
+de fora das principais frenagens, sem cobrir as placas de distância e de nome
+de curva. O alambrado agora cobre também a frente de todos os setores e é uma
+única malha.
+
+## Câmbio (2.0)
+
+Menu de ajustes → CÂMBIO, ou a tecla `G` durante a corrida, alterna entre:
+
+- **Automático** (padrão): o comportamento anterior, sem mudanças.
+- **Manual**: `J` sobe e `H` reduz uma marcha (botões `+`/`−` no celular).
+
+No manual o giro do motor é proporcional à velocidade na marcha engatada
+(`rpmAt`). As luzes de troca (HUD e volante) só acendem na faixa alta do giro;
+o número da marcha pisca perto do limite. No limite de giro o motor corta a
+força até você subir. Marcha curta acelera mais e segura mais sem acelerar
+(freio-motor); marcha longa em baixa rotação perde força. Para facilitar:
+a embreagem patina na saída, uma redução que estouraria o motor (> 106% do
+giro) é recusada com um tremor no número, e quase parado o câmbio reduz
+sozinho (anti-stall). O som do motor segue o mesmo giro.

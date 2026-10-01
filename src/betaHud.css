@@ -301,6 +301,38 @@ body.beta-racing #driftFlash {
   color: var(--f1-ink);
 }
 
+.f1-gear.manual {
+  background: var(--lime, #d5fc51);
+}
+
+.f1-gear.manual small {
+  color: #3d4a10;
+}
+
+.f1-gear.limit b {
+  color: #d6001c;
+  animation: f1-limit 0.16s steps(2) infinite;
+}
+
+.f1-gear.denied {
+  animation: f1-denied 0.2s linear 2;
+}
+
+@keyframes f1-limit {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes f1-denied {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
 .f1-gear small,
 .f1-speed small,
 .f1-pedal small,
@@ -678,6 +710,11 @@ body.beta-racing .modal .secondary {
   .f1-banner,
   .f1-drs {
     transition: none;
+  }
+
+  .f1-gear.limit b,
+  .f1-gear.denied {
+    animation: none;
   }
 }
 

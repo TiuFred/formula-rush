@@ -1,6 +1,9 @@
 // Áudio procedural via WebAudio API: som de motor (sintetizado, sem samples
 // de arquivo), efeitos sonoros curtos (cue) e bipes de contagem regressiva.
-// Extraído 1:1 da classe original do bundle (nenhum valor foi alterado).
+// Extraído 1:1 da classe original do bundle; a 2.0 só troca a fonte do giro (ver update).
+
+import { state } from "./state.js";
+import { betaPowertrainTelemetry } from "./betaPowertrain.js";
 
 export class EngineAudio {
   constructor() {
@@ -117,13 +120,15 @@ export class EngineAudio {
     if (!this.ready) return;
     const ctx = this.ctx;
     const running = this.enabled && engineOn;
-    const gear = Math.max(1, Math.min(8, Math.floor(car.speed * 3.6 / 43) + 1));
+    // Na 2.0 o som segue a marcha e o giro do câmbio (manual ou automático).
+    const beta = state.graphicsBeta ? betaPowertrainTelemetry(car) : null;
+    const gear = beta ? beta.gear : Math.max(1, Math.min(8, Math.floor(car.speed * 3.6 / 43) + 1));
     if (gear !== this.gear && running) {
       this.nextShift = ctx.currentTime + .07;
       this.gear = gear;
       this.tone(110, .04, "triangle", .12);
     }
-    const baseFreq = 120 + (car.speed * 3.6 - (gear - 1) * 43) * 2.6;
+    const baseFreq = beta ? 118 + beta.rpm * 118 : 120 + (car.speed * 3.6 - (gear - 1) * 43) * 2.6;
     for (const voice of this.voices) {
       voice.o.frequency.setTargetAtTime(baseFreq * voice.ratio, ctx.currentTime, .06);
     }

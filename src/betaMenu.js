@@ -17,6 +17,9 @@ const CONTROLS = [
   ["↑  W", "Acelerar"],
   ["↓  S", "Frear"],
   ["←  →   A  D", "Esterçar"],
+  ["J", "Subir marcha (câmbio manual)"],
+  ["H", "Reduzir marcha (câmbio manual)"],
+  ["G", "Alternar câmbio automático / manual"],
   ["ESPAÇO", "Segure na contagem e solte no apagão"],
   ["R", "Voltar ao centro da pista"],
   ["P  ESC", "Pausar"],
@@ -25,6 +28,7 @@ const CONTROLS = [
 
 const TIPS = [
   "O DRS abre sozinho nas zonas marcadas e solta ao frear.",
+  "Câmbio manual: suba com J perto das luzes de troca; H reduz, mas é recusado se o motor passaria do limite.",
   "Sair dos limites da pista invalida a volta (a HUD fica vermelha).",
   "No celular, use os botões na tela. Gire o aparelho para ver mais pista.",
 ];
@@ -36,6 +40,10 @@ const SEGMENTS = {
     ["sunset", "PÔR DO SOL"],
   ],
   units: Object.entries(SPEED_UNITS).map(([value, unit]) => [value, unit.label]),
+  transmission: [
+    ["auto", "AUTOMÁTICO"],
+    ["manual", "MANUAL"],
+  ],
 };
 
 let root = null;
@@ -123,6 +131,7 @@ function build() {
   settings.append(
     segmented("quality", "QUALIDADE"),
     segmented("time", "HORÁRIO"),
+    segmented("transmission", "CÂMBIO"),
     slider("fov", "CAMPO DE VISÃO", FOV_RANGE[0], FOV_RANGE[1], 1, (v) => v + "°"),
     slider("shake", "BALANÇO DA CÂMERA", 0, 100, 5, (v) => v + "%"),
     segmented("units", "VELOCIDADE"),

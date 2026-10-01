@@ -43,7 +43,7 @@ const SKELETON = `
   <div class="f1-telemetry">
     <div class="f1-leds" data-ref="leds"></div>
     <div class="f1-tel-main">
-      <div class="f1-gear"><small>MARCHA</small><b data-ref="gear">N</b></div>
+      <div class="f1-gear" data-ref="gearBox"><small data-ref="tx">AUTO</small><b data-ref="gear">N</b></div>
       <div class="f1-speed"><b data-ref="speed">0</b><small data-ref="unit">KM/H</small></div>
       <div class="f1-pedals">
         <div class="f1-pedal thr"><small>ACEL</small><div class="f1-bar"><i data-ref="throttle"></i></div></div>
@@ -201,14 +201,19 @@ export function updateBetaHud(dt) {
   const unit = speedUnit();
   setText("speed", String(Math.round(player.speed * unit.factor)));
   setText("unit", unit.label);
-  setText("gear", player.speed < 0.5 ? "N" : String(telemetry.gear));
+  setText("gear", String(telemetry.label));
+  setText("tx", telemetry.manual ? "MANUAL" : "AUTO");
+  setClass("gearBox", "manual", telemetry.manual);
+  // Manual: o número pisca perto do limite de giro e treme quando a redução é recusada.
+  setClass("gearBox", "limit", telemetry.manual && telemetry.shift > 0.92);
+  setClass("gearBox", "denied", telemetry.denied);
   const brakeTarget = state.keys.ArrowDown || state.keys.s || state.keys.S ? 1 : 0;
   const blend = 1 - Math.exp(-dt * 16);
   tracked.throttle += (telemetry.throttle - tracked.throttle) * blend;
   tracked.brake += (brakeTarget - tracked.brake) * blend;
   setStyle("throttle", "--v", tracked.throttle.toFixed(3));
   setStyle("brake", "--v", tracked.brake.toFixed(3));
-  const lit = Math.round(telemetry.rpm * LED_COUNT);
+  const lit = Math.round(telemetry.shift * LED_COUNT);
   if (cache.get("leds") !== lit) {
     cache.set("leds", lit);
     [...refs.leds.children].forEach((led, i) => led.classList.toggle("on", i < lit));
