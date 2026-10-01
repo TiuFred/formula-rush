@@ -9,6 +9,11 @@
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { createBetaGradePass, updateBetaGrade } from "./betaPostFx.js";
+import { chunkInstancedMeshes } from "./instanceChunks.js";
+import { makeAsphaltMaps } from "./betaTextures.js";
+import { createAdaptiveResolution } from "./adaptiveResolution.js";
+import { prefersReducedMotion } from "./accessibility.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { state } from "./state.js";
@@ -24,15 +29,16 @@ import {
   cornerWideningAt,
 } from "./track.js";
 import { wrapAngle } from "./mathUtils.js";
-import { byId } from "./dom.js";
+import { byId, showNotice } from "./dom.js";
 import { MATERIALS, makeMaterial, addMesh, addBox, makeTextPanel } from "./materials.js";
 import {
   buildBetaAtmosphere,
   buildBetaTrackDetails,
   setupBetaEnvironment,
 } from "./betaGraphics.js";
-import { BETA_SUN_DIRECTION, makeBetaGroundMaterial } from "./betaNature.js";
-import { updateBetaCockpit } from "./betaCockpit.js";
+import { applyBetaLighting, BETA_SUN_DIRECTION, makeBetaGroundMaterial } from "./betaNature.js";
+import { getSettings, qualityPreset } from "./betaSettings.js";
+import { renderBetaMirrors, updateBetaCockpit } from "./betaCockpit.js";
 import { detailSurface, makeRubberLineMaterial } from "./betaSurfaceMaterials.js";
 
 /** Escala dos elementos "de mundo" (terreno, dispersão de árvores/morros,
@@ -113,9 +119,13 @@ export function addAlignedBox(s, lane, w, h, d, material, yOffset = 0) {
 function generateAsphaltTexture(renderer) {
   if (MATERIALS.road.map) MATERIALS.road.map.dispose(); // textura de uma troca de circuito anterior
   if (MATERIALS.road.bumpMap && MATERIALS.road.bumpMap !== MATERIALS.road.map) MATERIALS.road.bumpMap.dispose();
+  // Mapas de uma troca de circuito anterior (normal/rugosidade procedurais da 2.0).
+  MATERIALS.road.normalMap?.dispose();
+  if (MATERIALS.road.roughnessMap && MATERIALS.road.roughnessMap !== MATERIALS.road.bumpMap) MATERIALS.road.roughnessMap.dispose();
   MATERIALS.road.map = null;
   MATERIALS.road.bumpMap = null;
   MATERIALS.road.roughnessMap = null;
+  MATERIALS.road.normalMap = null;
   MATERIALS.road.onBeforeCompile = () => {};
   MATERIALS.road.customProgramCacheKey = () => "classic-road";
 
@@ -125,30 +135,44 @@ function generateAsphaltTexture(renderer) {
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(repeatX, repeatY);
       texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
       return texture;
     };
     const asphalt = configure(loader.load("./assets/beta/asphalt-albedo.jpg"), 2, 2);
-    const detailCanvas = document.createElement("canvas");
-    detailCanvas.width = detailCanvas.height = 256;
-    const detailContext = detailCanvas.getContext("2d");
-    const image = detailContext.createImageData(256, 256);
-    let seed = 74923;
-    for (let i = 0; i < image.data.length; i += 4) {
-      seed = seed * 16807 % 2147483647;
-      const grain = 92 + seed % 145;
-      image.data[i] = image.data[i + 1] = image.data[i + 2] = grain;
-      image.data[i + 3] = 255;
-    }
-    detailContext.putImageData(image, 0, 0);
-    const detail = new THREE.CanvasTexture(detailCanvas);
-    detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
-    detail.repeat.set(6, 6);
-    detail.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const maxAniso = renderer.capabilities.getMaxAnisotropy();
+    const detailMaps = makeAsphaltMaps();
     MATERIALS.road.map = asphalt;
-    MATERIALS.road.bumpMap = detail;
-    MATERIALS.road.roughnessMap = detail;
-    MATERIALS.road.bumpScale = .026;
+    if (detailMaps) {
+      // Agregado procedural: normal + rugosidade em alta frequência, sem emendas.
+      for (const texture of [detailMaps.normal, detailMaps.roughness]) {
+        texture.repeat.set(6, 6);
+        texture.anisotropy = maxAniso;
+      }
+      MATERIALS.road.normalMap = detailMaps.normal;
+      MATERIALS.road.normalScale.set(1.15, 1.15);
+      MATERIALS.road.roughnessMap = detailMaps.roughness;
+      MATERIALS.road.bumpMap = null;
+    } else {
+      const detailCanvas = document.createElement("canvas");
+      detailCanvas.width = detailCanvas.height = 256;
+      const detailContext = detailCanvas.getContext("2d");
+      const image = detailContext.createImageData(256, 256);
+      let seed = 74923;
+      for (let i = 0; i < image.data.length; i += 4) {
+        seed = seed * 16807 % 2147483647;
+        const grain = 92 + seed % 145;
+        image.data[i] = image.data[i + 1] = image.data[i + 2] = grain;
+        image.data[i + 3] = 255;
+      }
+      detailContext.putImageData(image, 0, 0);
+      const detail = new THREE.CanvasTexture(detailCanvas);
+      detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
+      detail.repeat.set(6, 6);
+      detail.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      MATERIALS.road.bumpMap = detail;
+      MATERIALS.road.roughnessMap = detail;
+      MATERIALS.road.bumpScale = .026;
+    }
     MATERIALS.road.color.set("#a5aaac");
     MATERIALS.road.roughness = .88;
     MATERIALS.road.metalness = 0;
@@ -888,6 +912,36 @@ function buildDesertScenery(rng, scale, groundHeightAt, inWater) {
 }
 
 /** Ajusta o tamanho do renderer/câmera ao tamanho atual do elemento <canvas>. */
+/** Perda de contexto WebGL (GPU reiniciada, aba em segundo plano muito tempo): avisa e recarrega ao voltar. */
+function guardWebGLContext(canvas) {
+  if (canvas.dataset.contextGuard) return;
+  canvas.dataset.contextGuard = "1";
+  canvas.addEventListener("webglcontextlost", (event) => {
+    event.preventDefault();
+    showNotice("Os gráficos foram interrompidos. Aguarde…");
+  });
+  canvas.addEventListener("webglcontextrestored", () => location.reload());
+}
+
+/** Aplica um novo pixel ratio ao renderer e ao composer sem recriar a cena. */
+export function applyPixelRatio(ratio) {
+  state.renderer.setPixelRatio(ratio);
+  state.composer?.setPixelRatio(ratio);
+  resizeRenderer();
+}
+
+/**
+ * Chamar uma vez por quadro com o dt real. Reduz a resolução se o jogo ficar
+ * lento e a devolve quando sobra folga. `?fixedres` na URL desliga (diagnóstico).
+ */
+export function adaptResolution(dt) {
+  const controller = state.adaptiveResolution;
+  if (!controller || !state.renderer || !["race", "countdown"].includes(state.gameState)) return;
+  if (location.search.includes("fixedres")) return;
+  const next = controller.update(dt);
+  if (next !== null) applyPixelRatio(next);
+}
+
 export function resizeRenderer() {
   if (!state.renderer) return;
   const w = byId("race").clientWidth;
@@ -898,10 +952,18 @@ export function resizeRenderer() {
   state.camera.updateProjectionMatrix();
 }
 
+const _drawingSize = new THREE.Vector2();
+
 /** Mantém a janela de sombras do beta concentrada ao redor do carro. */
 export function updateBetaGraphics(dt = 0) {
   if (!state.graphicsBeta || !state.betaSun || !state.player) return;
   updateBetaCockpit(state.player, state.raceTime, state.clockTime, dt);
+  renderBetaMirrors(state.renderer, state.scene, state.camera, state.player, dt);
+  const grade = state.composer?.passes.find((pass) => pass.uniforms?.uSaturation);
+  if (grade) {
+    const size = state.renderer.getDrawingBufferSize(_drawingSize);
+    updateBetaGrade(grade, prefersReducedMotion() ? 0 : state.player.speed, state.camera.aspect, size.x, size.y);
+  }
   const target = state.player.group.position;
   state.betaSun.position.copy(target).addScaledVector(BETA_SUN_DIRECTION, 125);
   state.betaSun.target.position.copy(target);
@@ -928,7 +990,7 @@ export function buildScene() {
   // Ardenas. Noturna: céu quase negro (nunca preto puro — cidade/estádio ao
   // redor sempre reflete um pouco de luz) e névoa mais curta/escura, pra não
   // "queimar" o preto do céu na distância como a névoa diurna faria.
-  const daySky = state.graphicsBeta ? "#93afc0" : street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
+  const daySky = state.graphicsBeta ? "#86a9c4" : street ? "#9ccbea" : forest ? "#a3b2b6" : tropical ? "#a3d0e2" : woodland ? "#c3d0cd" : speedway ? "#a6c8e8" : desert ? "#8fc8df" : alpine ? "#a9c6dc" : "#a9c8c7";
   state.scene.background = new THREE.Color(night ? "#050810" : daySky);
   state.scene.fog = new THREE.Fog(
     night ? "#050810" : daySky,
@@ -936,6 +998,8 @@ export function buildScene() {
     (night ? 1000 : state.graphicsBeta ? 1750 : forest ? 1500 : woodland ? 1400 : 1900) * scale
   );
   state.camera = new THREE.PerspectiveCamera(60, 1, .2, 2500 * Math.max(1, scale));
+  // Além da névoa tudo já está opaco: descartar evita desenhar o que ninguém vê.
+  if (state.graphicsBeta) state.camera.far = state.scene.fog.far + 60;
   if (state.composer) {
     for (const pass of state.composer.passes) pass.dispose?.();
     state.composer.dispose();
@@ -947,10 +1011,14 @@ export function buildScene() {
     antialias: true,
     powerPreference: "high-performance",
   });
-  state.renderer.setPixelRatio(Math.min(devicePixelRatio, state.graphicsBeta ? 1.5 : 1.7));
+  // A 2.0 rende em até 2× (telas retina); a resolução adaptativa recua se o quadro ficar lento.
+  const maxPixelRatio = Math.min(devicePixelRatio, state.graphicsBeta ? qualityPreset().pixelRatio : 1.7);
+  state.renderer.setPixelRatio(maxPixelRatio);
+  state.adaptiveResolution = createAdaptiveResolution({ max: maxPixelRatio });
+  guardWebGLContext(byId("race"));
   state.renderer.outputColorSpace = THREE.SRGBColorSpace;
   state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  state.renderer.toneMappingExposure = state.graphicsBeta ? .84 : night ? .95 : 1.15;
+  state.renderer.toneMappingExposure = state.graphicsBeta ? .9 : night ? .95 : 1.15;
   state.renderer.shadowMap.enabled = state.graphicsBeta;
   state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   if (state.graphicsBeta) setupBetaEnvironment();
@@ -958,7 +1026,9 @@ export function buildScene() {
   // De noite, o "sol" vira luar (bem mais fraco e frio) — a pista em si é
   // iluminada por holofotes emissivos (ver buildFloodlights abaixo), não
   // por luzes dinâmicas de verdade (custaria caro com 23 carros na cena).
-  state.scene.add(new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#46523c" : "#556c39", state.graphicsBeta ? .35 : night ? .55 : 2.6));
+  const hemisphere = new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#5a6650" : "#556c39", state.graphicsBeta ? .62 : night ? .55 : 2.6);
+  state.scene.add(hemisphere);
+  state.betaHemi = state.graphicsBeta ? hemisphere : null;
   const sun = new THREE.DirectionalLight(night ? "#9db8ff" : state.graphicsBeta ? "#fff0d1" : "#fff2d1", state.graphicsBeta ? 2.85 : night ? .4 : 2.5);
   sun.position.set(-300, 700, 100);
   state.scene.add(sun);
@@ -966,7 +1036,9 @@ export function buildScene() {
   state.betaSun = null;
   if (state.graphicsBeta) {
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    // 4096 dá sombras nítidas do halo e do volante; o preset de qualidade e o limite da GPU decidem.
+    const shadowSize = Math.min(qualityPreset().shadow, state.renderer.capabilities.maxTextureSize);
+    sun.shadow.mapSize.set(shadowSize, shadowSize);
     sun.shadow.camera.left = sun.shadow.camera.bottom = -42;
     sun.shadow.camera.right = sun.shadow.camera.top = 42;
     sun.shadow.camera.near = 8;
@@ -975,8 +1047,7 @@ export function buildScene() {
     sun.shadow.normalBias = .018;
     sun.shadow.radius = 1.5;
     state.betaSun = sun;
-
-
+    applyBetaLighting(getSettings().time);
   }
 
   // Materiais por ambiente. Autódromo ("park", o visual original): gramado
@@ -1294,19 +1365,24 @@ export function buildScene() {
 
   buildTrackDecorations();
   mergeStaticMeshesByMaterial();
+  chunkInstancedMeshes(state.scene, { cellSize: 360 * worldScale() });
   buildRacingLineMesh();
 
   if (state.graphicsBeta) {
     state.racingLineMesh.visible = false;
     const composer = new EffectComposer(state.renderer);
-    composer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    composer.setPixelRatio(state.renderer.getPixelRatio());
     composer.addPass(new RenderPass(state.scene, state.camera));
     // MSAA moderado + bloom são previsíveis em GPUs integradas. GTAO,
     // SMAA redundante e persistência temporal causavam ghosting e stutter.
-    composer.renderTarget1.samples = 2;
-    composer.renderTarget2.samples = 2;
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.055, 0.28, 1.35));
+    const msaa = Math.min(qualityPreset().msaa, state.renderer.capabilities.maxSamples);
+    composer.renderTarget1.samples = msaa;
+    composer.renderTarget2.samples = msaa;
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.055, 0.28, 1.35);
+    bloom.enabled = qualityPreset().bloom;
+    composer.addPass(bloom);
     composer.addPass(new OutputPass());
+    composer.addPass(createBetaGradePass());
     state.composer = composer;
   }
 

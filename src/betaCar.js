@@ -52,7 +52,7 @@ export function buildBetaCar(group, paint, wheels) {
   paint.roughness = 0.27;
   paint.envMapIntensity = 0.95;
   const carbon = makeCarbonMaterial();
-  const tireMaterial = makeMaterial("#222326", { roughness: 0.88 });
+  const tireMaterial = makeMaterial("#2a2b2e", { roughness: 0.68 });
   const alloy = makeMaterial("#8a9298", { metalness: 0.86, roughness: 0.27 });
   const accent = makeMaterial("#eee9dc", { metalness: 0.25, roughness: 0.3 });
   const visorMaterial = new THREE.MeshPhysicalMaterial({
@@ -98,19 +98,6 @@ export function buildBetaCar(group, paint, wheels) {
     group,
   );
   rearBody.name = "beta-rear-body";
-  const centerBody = bodyShell(
-    [
-      [0.72, 0.34, 0.24, 0.63],
-      [0.8, 0.32, 0.23, 0.62],
-      [1.3, 0.22, 0.14, 0.54],
-      [2.1, 0.15, 0.08, 0.4],
-      [2.5, 0.1, 0.045, 0.34],
-      [2.56, 0.015, 0.01, 0.34],
-    ],
-    paint,
-    group,
-  );
-  centerBody.name = "beta-center-body";
   // Cobertura do motor estreita; o cockpit permanece aberto e legível.
   bodyShell(
     [
@@ -123,16 +110,6 @@ export function buildBetaCar(group, paint, wheels) {
     carbon,
     group,
   );
-  const cockpit = addMesh(
-    new THREE.SphereGeometry(1, 32, 16),
-    carbon,
-    0,
-    0.89,
-    0.05,
-    group,
-  );
-  cockpit.scale.set(0.34, 0.095, 0.49);
-  hideOnboard.push(cockpit);
   for (const side of [-1, 1]) {
     bodyShell(
       [
@@ -150,9 +127,14 @@ export function buildBetaCar(group, paint, wheels) {
     // Entrada de ar e lâmina lateral: recorte escuro dá profundidade ao sidepod.
     addBox(0.36, 0.17, 0.035, carbon, side * 0.64, 0.61, 0.574, group);
     addBox(0.03, 0.08, 1.46, accent, side * 0.97, 0.47, -0.55, group);
-    for (const z of [-1.52, 1.5]) {
+    for (const z of [-1.52, 1.45]) {
+      // Pneus dianteiros de F1 são mais estreitos e de menor diâmetro que os traseiros.
+      const front = z > 0;
+      const axleX = front ? 0.97 : 1.03;
+      const axleY = front ? 0.36 : 0.42;
       const wheel = new THREE.Group();
-      wheel.position.set(side * 1.03, 0.42, z);
+      wheel.position.set(side * axleX, axleY, z);
+      if (front) wheel.scale.set(0.78, 0.86, 0.86);
       group.add(wheel);
       wheels.push(wheel);
       const profile = [
@@ -192,15 +174,6 @@ export function buildBetaCar(group, paint, wheels) {
         wheel,
       );
       ring.rotation.y = Math.PI / 2;
-      const sidewall = addMesh(
-        new THREE.TorusGeometry(0.347, 0.012, 6, 48),
-        makeMaterial("#b6a24d", { roughness: 0.65 }),
-        side * 0.215,
-        0,
-        0,
-        wheel,
-      );
-      sidewall.rotation.y = Math.PI / 2;
       for (let spoke = 0; spoke < 10; spoke++) {
         const angle = (spoke * Math.PI) / 5;
         const bar = addBox(
@@ -229,7 +202,7 @@ export function buildBetaCar(group, paint, wheels) {
           [
             [side * 0.3, y, z - 0.48],
             [side * 0.64, y - 0.025, z - 0.23],
-            [side * 0.99, 0.44, z],
+            [side * (axleX - 0.04), axleY + 0.02, z],
           ],
           0.019,
           carbon,
@@ -239,7 +212,7 @@ export function buildBetaCar(group, paint, wheels) {
           [
             [side * 0.3, y, z + 0.35],
             [side * 0.65, y - 0.015, z + 0.16],
-            [side * 0.99, 0.44, z],
+            [side * (axleX - 0.04), axleY + 0.02, z],
           ],
           0.019,
           carbon,
@@ -247,30 +220,7 @@ export function buildBetaCar(group, paint, wheels) {
         );
       }
     }
-    // Espelhos e suportes finos, sem duplicar os retrovisores clássicos.
-    const mirrorSupport = tube(
-      [
-        [side * 0.35, 0.84, 0.48],
-        [side * 0.59, 0.94, 0.53],
-        [side * 0.78, 0.96, 0.56],
-      ],
-      0.021,
-      carbon,
-      group,
-    );
-    hideOnboard.push(mirrorSupport);
-    const mirror = addMesh(
-      new THREE.SphereGeometry(1, 16, 10),
-      paint,
-      side * 0.8,
-      0.97,
-      0.56,
-      group,
-    );
-    mirror.scale.set(0.19, 0.075, 0.09);
-    const mirrorGlass = addBox(0.22, 0.08, 0.015, visorMaterial, side * 0.8, 0.97, 0.475, group);
-    hideOnboard.push(mirror, mirrorGlass);
-    addBox(0.045, 0.38, 0.58, paint, side * 1.18, 0.43, 2.31, group);
+    addBox(0.045, 0.26, 0.58, paint, side * 1.18, 0.36, 2.31, group);
     addBox(0.045, 0.43, 0.67, paint, side * 1.02, 1.09, -2.1, group);
     addBox(0.055, 0.63, 0.13, carbon, side * 0.34, 0.68, -2.06, group);
   }

@@ -9,6 +9,7 @@ import { byId, setVisible, showNotice, textElement } from "./dom.js";
 import { clamp, progressDelta } from "./mathUtils.js";
 import { sectorNameAt } from "./track.js";
 import { driftLevel } from "./items.js";
+import { betaPowertrainTelemetry } from "./betaPowertrain.js";
 import { formatRaceClock, formatLapTime, clampLapCount } from "./timing.js";
 import { drawTrackMap } from "./minimap.js";
 import { engineAudio, syncEngineAudioEnabled } from "./audio.js";
@@ -307,7 +308,9 @@ export function updateHud() {
   byId("bestLapTime").textContent = formatLapTime(player.bestLap);
   byId("speed").textContent = Math.round(player.speed * 3.6);
   setVisible("drsIndicator", player.drsActive);
-  byId("gear").textContent = player.speed < .5 ? "N" : Math.min(8, Math.floor(player.speed * 3.6 / 43) + 1);
+  // A 2.0 tem câmbio próprio; o HUD precisa mostrar a mesma marcha do volante.
+  const classicGear = Math.min(8, Math.floor(player.speed * 3.6 / 43) + 1);
+  byId("gear").textContent = player.speed < .5 ? "N" : state.graphicsBeta ? betaPowertrainTelemetry(player).gear : classicGear;
 
   // Gap (em metros) para o carro imediatamente à frente — só faz sentido
   // com outros carros VISÍVEIS na pista (corrida normal; não no

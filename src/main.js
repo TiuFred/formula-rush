@@ -8,7 +8,13 @@ import { CHAMPIONSHIP_CALENDAR, DRIVER_COLORS } from "./constants.js";
 import { CIRCUITS, applyCircuitProfile } from "./circuits.js";
 import { byId, setVisible, tickNotice, showNotice } from "./dom.js";
 import { buildTrackModel } from "./track.js";
-import { buildScene, resizeRenderer, updateBetaGraphics } from "./scene.js";
+import { adaptResolution, buildScene, resizeRenderer, updateBetaGraphics } from "./scene.js";
+import { updateBetaHud } from "./betaHud.js";
+import { installBetaSettings } from "./betaApply.js";
+import { closeBetaMenu, openBetaMenu, showBetaLoading } from "./betaMenu.js";
+import { getSettings } from "./betaSettings.js";
+import { installErrorCollector } from "./betaDiagnostics.js";
+import "./betaHud.css";
 import { setupGrid, applyRenderInterpolation, setPlayerIdentity } from "./car.js";
 import { setupItemBoxes, advanceSimulation, endTimeTrial } from "./simulation.js";
 import { updateCamera } from "./camera.js";
@@ -311,7 +317,15 @@ async function startGraphicsBeta() {
   byId("back").textContent = "VOLTAR AO MENU";
   byId("exit").textContent = "VOLTAR AO MENU";
 
-  const loaded = await loadCircuit("interlagos");
+  loadProgress = showBetaLoading;
+  showBetaLoading(2, "INICIANDO");
+  let loaded;
+  try {
+    loaded = await loadCircuit("interlagos");
+  } finally {
+    loadProgress = null;
+    closeBetaMenu();
+  }
   button.disabled = false;
   button.classList.remove("loading");
   if (!loaded || !state.graphicsBeta) {
@@ -426,7 +440,11 @@ function wireLifecycleButtons() {
   };
   byId("nextRound").onclick = advanceChampionship;
   byId("startChampionship").onclick = openChampionshipSetup;
-  byId("startBeta").onclick = startGraphicsBeta;
+  byId("startBeta").onclick = () => {
+    if (getSettings().skipIntro) startGraphicsBeta();
+    else openBetaMenu({ mode: "launch", confirm: startGraphicsBeta });
+  };
+  byId("betaSettings").onclick = () => openBetaMenu({ mode: "pause" });
   byId("backFromChampionship").onclick = closeChampionshipSetup;
   byId("championshipForm").onsubmit = startChampionship;
   byId("championshipLapCount").onchange = (event) => updateChampionshipLapCount(event.target.value);
@@ -469,6 +487,7 @@ function animate(now) {
   const dt = Math.min(.25, Math.max(0, (now - state.lastFrameTime) / 1000) || .016);
   state.lastFrameTime = now;
   if (state.gameState !== "paused") state.clockTime += dt;
+  adaptResolution(dt);
 
   if (state.gameState === "countdown") {
     // Largada estilo F1: cada luz acende conforme o tempo decorrido desde
@@ -541,6 +560,7 @@ function animate(now) {
 
   engineAudio.update(state.player, state.gameState === "race", state.player.wasDrifting);
   updateBetaGraphics(dt);
+  updateBetaHud(dt);
   if (state.composer) state.composer.render();
   else state.renderer.render(state.scene, state.camera);
 }
@@ -550,6 +570,17 @@ function animate(now) {
  * (re)constrói a cena e o grid) e inicia o loop principal se ainda não
  * estiver rodando. Chamado na inicialização e ao trocar de circuito no menu.
  */
+/** Recebe (percentual, texto) enquanto a pista é montada; usado pelo menu da 2.0. */
+let loadProgress = null;
+
+/** Cede ao navegador para ele pintar a barra entre duas etapas pesadas (com saída se a aba estiver oculta). */
+function paintFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(resolve);
+    setTimeout(resolve, 60);
+  });
+}
+
 async function loadCircuit(circuitId) {
   const loadSequence = ++circuitLoadSequence;
   circuitLoadController?.abort();
@@ -561,6 +592,7 @@ async function loadCircuit(circuitId) {
     if (!circuit) throw new Error("Circuito desconhecido: " + circuitId);
     byId("startRace").textContent = "PREPARANDO " + circuit.label.toUpperCase() + "…";
 
+    loadProgress?.(8, "BAIXANDO O TRAÇADO");
     const [geoRes, elevationRes] = await Promise.all([
       fetch(circuit.geojsonPath, { signal }),
       fetch(circuit.elevationPath, { signal }),
@@ -570,13 +602,21 @@ async function loadCircuit(circuitId) {
     const [geoJson, elevationJson] = await Promise.all([geoRes.json(), elevationRes.json()]);
     if (signal.aborted || loadSequence !== circuitLoadSequence) return;
 
+    loadProgress?.(30, "MODELANDO A PISTA");
+    await paintFrame();
+    if (signal.aborted || loadSequence !== circuitLoadSequence) return;
     const hadTrack = Boolean(state.track);
     applyCircuitProfile(circuitId);
     state.circuitId = circuitId;
     if (hadTrack) disposeObject3D(state.scene); // limpa a cena do circuito anterior
     state.track = buildTrackModel(geoJson, elevationJson);
+    loadProgress?.(45, "CONSTRUINDO O AUTÓDROMO");
+    await paintFrame();
     buildScene();
+    loadProgress?.(88, "PREPARANDO O CARRO");
+    await paintFrame();
     setupGrid();
+    loadProgress?.(100, "PRONTO");
     updateCircuitInfoUI(circuit);
 
     byId("startRace").disabled = false;
@@ -614,6 +654,8 @@ DRIVER_COLORS.forEach((color) => {
   };
   byId("championshipColors").append(button);
 });
+installBetaSettings();
+installErrorCollector();
 wireLifecycleButtons();
 attachInputHandlers();
 loadCircuit(state.circuitId);

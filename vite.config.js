@@ -6,9 +6,9 @@ export default defineConfig({
   build: {
     outDir: "dist",
     assetsDir: "assets",
-    // O vendor Three.js isolado fica em ~513 kB minificado (≈130 kB gzip).
+    // O vendor Three.js isolado fica em ~553 kB minificado (≈141 kB gzip).
     // O limite evita tratar esse chunk estável e cacheável como regressão.
-    chunkSizeWarningLimit: 550,
+    chunkSizeWarningLimit: 600,
     rolldownOptions: {
       output: {
         codeSplitting: {

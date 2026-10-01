@@ -3,25 +3,124 @@ import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { state } from "./state.js";
 import { TRACK_LENGTH } from "./constants.js";
 import { asphaltClearanceAt, trackHalfWidthAt } from "./track.js";
+import { getSettings } from "./betaSettings.js";
 
-// O mesmo sol orienta o céu, os reflexos e as sombras do autódromo.
-export const BETA_SUN_DIRECTION = new THREE.Vector3(
-  -0.57,
-  0.61,
-  -0.55,
-).normalize();
+/**
+ * Horários do dia da 2.0. O mesmo sol orienta o céu, os reflexos e as sombras do
+ * autódromo; `sun` é a direção até o sol. No pôr do sol ele fica a ~6° do horizonte,
+ * com luz alaranjada, sombras longas e névoa quente.
+ */
+export const BETA_TIMES = {
+  day: {
+    sun: [-0.57, 0.61, -0.55],
+    sky: { turbidity: 0.9, rayleigh: 3.0, mie: 0.0035, mieG: 0.79 },
+    warm: 0,
+    sunColor: "#fff0d1",
+    sunIntensity: 2.85,
+    hemiSky: "#d7f0ff",
+    hemiGround: "#5a6650",
+    hemiIntensity: 0.62,
+    fog: "#86a9c4",
+    exposure: 0.9,
+    envIntensity: 0.85,
+  },
+  sunset: {
+    sun: [-0.42, 0.075, 0.9],
+    sky: { turbidity: 11, rayleigh: 2.4, mie: 0.005, mieG: 0.82 },
+    warm: 1,
+    sunColor: "#ff8a3d",
+    sunIntensity: 4.2,
+    hemiSky: "#ffc9a0",
+    hemiGround: "#6a5048",
+    hemiIntensity: 1.0,
+    fog: "#d98f68",
+    exposure: 1.0,
+    envIntensity: 1.1,
+  },
+};
+
+export const BETA_SUN_DIRECTION = new THREE.Vector3(...BETA_TIMES.day.sun).normalize();
+
+function currentTime(mode) {
+  return BETA_TIMES[mode] ?? BETA_TIMES.day;
+}
+
+function applySkyParameters(sky, time) {
+  const u = sky.material.uniforms;
+  u.turbidity.value = time.sky.turbidity;
+  u.rayleigh.value = time.sky.rayleigh;
+  u.mieCoefficient.value = time.sky.mie;
+  u.mieDirectionalG.value = time.sky.mieG;
+  u.uWarm.value = time.warm;
+  BETA_SUN_DIRECTION.set(...time.sun).normalize();
+  u.sunPosition.value.copy(BETA_SUN_DIRECTION);
+}
+
+/** Gera o mapa de reflexos a partir do céu atual e devolve o alvo PMREM. */
+function renderEnvironment(sky) {
+  const environment = new THREE.Scene();
+  environment.add(sky.clone());
+  const generator = new THREE.PMREMGenerator(state.renderer);
+  const target = generator.fromScene(environment, 0.04, 0.1, 6000);
+  generator.dispose();
+  return target;
+}
+
+/** Luz, névoa, fundo e exposição do horário escolhido (o céu e o reflexo são tratados à parte). */
+export function applyBetaLighting(mode) {
+  const time = currentTime(mode);
+  const { betaSun: sun, betaHemi: hemi, scene, renderer } = state;
+  if (sun) {
+    sun.color.set(time.sunColor);
+    sun.intensity = time.sunIntensity;
+  }
+  if (hemi) {
+    hemi.color.set(time.hemiSky);
+    hemi.groundColor.set(time.hemiGround);
+    hemi.intensity = time.hemiIntensity;
+  }
+  if (scene) {
+    scene.fog?.color.set(time.fog);
+    if (scene.background?.isColor) scene.background.set(time.fog);
+    scene.environmentIntensity = time.envIntensity;
+  }
+  if (renderer) renderer.toneMappingExposure = time.exposure;
+}
+
+/**
+ * Troca o horário com a corrida em andamento: céu, reflexos e iluminação. Os
+ * materiais que guardam o mapa de reflexos (pintura do cockpit) são religados
+ * ao novo e o antigo é liberado.
+ */
+export function applyBetaTimeOfDay(mode) {
+  const sky = state.betaSky;
+  if (!sky || !state.scene) return;
+  const time = currentTime(mode);
+  applySkyParameters(sky, time);
+  const previous = state.betaEnvironment;
+  const previousTarget = state.scene.userData.environmentTarget;
+  const target = renderEnvironment(sky);
+  state.scene.userData.environmentTarget = target;
+  state.betaEnvironment = target.texture;
+  state.scene.environment = target.texture;
+  state.scene.traverse((object) => {
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      if (material && material.envMap === previous) material.envMap = target.texture;
+    }
+  });
+  applyBetaLighting(mode);
+  previousTarget?.dispose();
+}
 
 export function setupBetaEnvironment() {
   const sky = new Sky();
   sky.scale.setScalar(4200);
-  sky.material.uniforms.turbidity.value = 2.45;
-  sky.material.uniforms.rayleigh.value = 1.85;
-  sky.material.uniforms.mieCoefficient.value = 0.0035;
-  sky.material.uniforms.mieDirectionalG.value = 0.79;
-  sky.material.uniforms.sunPosition.value.copy(BETA_SUN_DIRECTION);
+  sky.material.uniforms.uWarm = { value: 0 };
+  applySkyParameters(sky, currentTime(getSettings().time));
   // Nuvens altas integradas à abóbada celeste, sem quads voltados à câmera.
   sky.material.fragmentShader =
     `
+    uniform float uWarm;
     float skyHash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
     float skyNoise(vec2 p) { vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(skyHash(i),skyHash(i+vec2(1,0)),f.x),mix(skyHash(i+vec2(0,1)),skyHash(i+vec2(1,1)),f.x),f.y); }
     float cloudField(vec2 p) { float sum=0., amp=.5; for(int i=0;i<5;i++){sum+=amp*skyNoise(p);p=p*2.03+vec2(4.1,8.3);amp*=.5;} return sum; }
@@ -31,19 +130,17 @@ export function setupBetaEnvironment() {
     `vec2 cloudUv=direction.xz/max(direction.y,.13)*1.1;
      float cloud=smoothstep(.54,.76,cloudField(cloudUv))*smoothstep(.06,.3,direction.y);
      retColor=mix(retColor,vec3(.76,.80,.81),cloud*.36);
+     retColor*=mix(mix(vec3(.8,.89,1.02),vec3(.76,.9,1.18),smoothstep(.02,.45,direction.y)),vec3(1.),uWarm);
      gl_FragColor=vec4(retColor,1.0);`,
   );
   sky.userData.keepSeparate = true;
   state.scene.add(sky);
-  const environment = new THREE.Scene();
-  environment.add(sky.clone());
-  const generator = new THREE.PMREMGenerator(state.renderer);
-  const target = generator.fromScene(environment, 0.04, 0.1, 6000);
+  state.betaSky = sky;
+  const target = renderEnvironment(sky);
   state.scene.userData.environmentTarget = target;
   state.betaEnvironment = target.texture;
   state.scene.environment = target.texture;
-  state.scene.environmentIntensity = 0.62;
-  generator.dispose();
+  state.scene.environmentIntensity = currentTime(getSettings().time).envIntensity;
 }
 
 function instances(geometry, material, count, name) {

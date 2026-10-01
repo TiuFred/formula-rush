@@ -4,11 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#101514" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta
       name="description"
       content="Formula Rush: corrida arcade com monopostos, drift, turbo e itens em circuitos inspirados na F1."
     />
     <title>Formula Rush — Grand Prix Arcade</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Formula Rush — Grand Prix Arcade" />
+    <meta
+      property="og:description"
+      content="Corrida arcade com monopostos, drift, turbo e itens em circuitos inspirados na F1."
+    />
+    <meta name="color-scheme" content="dark" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@400;500;600;700;800&display=swap"
+    />
     <script type="module" src="/src/main.js"></script>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
@@ -157,6 +171,8 @@
               VER TEMPOS DE VOLTA</button
             ><button id="finishTimeTrial" class="secondary hidden">
               ENCERRAR CONTRA-RELÓGIO</button
+            ><button id="betaSettings" class="secondary beta-only">
+              AJUSTES E CONTROLES</button
             ><button id="exit" class="secondary">VOLTAR AO GRID</button>
           </div>
         </div>
@@ -628,6 +644,9 @@
         <kbd>R</kbd> REPOSICIONAR <kbd>P</kbd> PAUSAR <kbd>T</kbd> TEMPOS
       </div>
       <span class="mobilehint">CONTROLES NA TELA DURANTE A CORRIDA</span>
+      <small class="disclaimer"
+        >Projeto de fãs, sem vínculo com a Formula 1, a FIA ou equipes.</small
+      >
     </footer>
   </body>
 </html>

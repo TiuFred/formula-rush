@@ -16,7 +16,7 @@ coisa foi reconstruída.
 
 ## Rodando o projeto
 
-Pré-requisito: [Node.js](https://nodejs.org) 18 ou mais recente.
+Pré-requisito: [Node.js](https://nodejs.org) 20.19 ou 22.12+ (exigência do Vite 8; há um `.nvmrc` com a versão 22).
 
 ```bash
 npm install
@@ -33,6 +33,64 @@ Para gerar uma versão de produção (arquivos estáticos otimizados):
 npm run build      # gera a pasta dist/
 npm run preview    # serve a pasta dist/ localmente, para conferir o build
 ```
+
+## Deploy
+
+O projeto é 100% estático (HTML, JS e assets) e já está ligado à Vercel
+(pasta `.vercel/`). Para publicar:
+
+```bash
+npm run check          # lint + testes + formatação + build; precisa passar
+npx vercel --prod      # ou apenas dê push na main, se a integração com o GitHub estiver ativa
+```
+
+- `vercel.json` define cache longo e imutável para `/assets/*` (nomes com hash),
+  cache de 1 h para os traçados `.json`/`.geojson` e cabeçalhos básicos de
+  segurança (`nosniff`, `Referrer-Policy`, `X-Frame-Options`,
+  `Permissions-Policy`).
+- Ranking online (opcional): defina `VITE_SUPABASE_URL` e
+  `VITE_SUPABASE_ANON_KEY` nas variáveis de ambiente do projeto na Vercel
+  (Settings → Environment Variables) e rode `docs/leaderboard-schema.sql` no
+  Supabase. A chave _anon_ é pública por desenho; quem protege os dados são as
+  políticas RLS do SQL. Sem essas variáveis o jogo usa só o ranking local.
+- `.github/workflows/ci.yml` roda `npm run check` em cada push e pull request.
+
+### Desempenho
+
+- Malhas instanciadas grandes (multidão, árvores, prédios) são divididas em
+  blocos espaciais de 360 m (`src/instanceChunks.js`), para que o Three.js
+  descarte o que está fora da câmera e da luz. Na largada de Interlagos 2.0 isso
+  reduziu os triângulos por quadro de ~3,15 M para ~1,36 M.
+- A 2.0 ajusta a resolução sozinha (`src/adaptiveResolution.js`): desce o
+  _pixel ratio_ se a média ficar abaixo de ~48 FPS e o devolve aos poucos quando há
+  folga. Adicione `?fixedres` à URL para desligar.
+- O plano distante da câmera da 2.0 acompanha o fim da névoa, e os retrovisores
+  pulam quadros lentos.
+- Quem usa `prefers-reduced-motion` recebe balanço de cabeça, tremor, abertura
+  de FOV e desfoque de velocidade bastante reduzidos.
+- Ajustes da 2.0 (qualidade, horário, FOV, balanço, unidade) ficam no menu de
+  preparação e na pausa. `VITE_FEEDBACK_URL` (opcional) define para onde vai o
+  botão de feedback; sem ela, usa as _issues_ do repositório no GitHub.
+- Se o navegador perder o contexto WebGL, o jogo avisa e recarrega ao restaurar.
+
+### Qualidade gráfica (2.0)
+
+- Renderiza até 2× o pixel ratio (telas retina), com MSAA 4× quando a GPU
+  suporta, anisotropia máxima nas texturas e sombras de 4096 px no desktop
+  (2048 em telas de toque). A resolução adaptativa recua se o quadro ficar lento.
+- Asfalto com mapas procedurais de normal e rugosidade (`src/betaTextures.js`),
+  sem emendas, que dão agregado e pedrinhas ao chão em vez de ruído plano.
+- Pintura do cockpit com textura de librea (faixa, frisos, linhas de painel e
+  parafusos); forro interno em alcantara com costura. Os perfis das laterais e
+  do nariz são curvas suaves (Catmull-Rom), sem facetas.
+- Pós-processamento final com nitidez, ruído anti-banding no céu e aberração
+  cromática mais discreta.
+
+### Créditos e licenças
+
+Traçados dos circuitos: [bacinger/f1-circuits](https://github.com/bacinger/f1-circuits) (MIT).
+O volante, o halo, as luvas e demais peças do cockpit da 2.0 são modelados no
+código; nenhum modelo 3D de terceiros é distribuído.
 
 Antes de enviar mudanças, rode a barreira completa de qualidade:
 
