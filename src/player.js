@@ -82,7 +82,8 @@ export function resolveLaunch() {
     // Bônus bem mais discreto que o de um miniturbo de verdade (era 1.1s,
     // quase um turbo inteiro) — a largada perfeita deve dar uma vantagem
     // sutil, não decidir a corrida por si só.
-    car.boost = Math.max(car.boost, .35);
+    // A 2.0 não tem turbo: a largada perfeita só é anunciada.
+    if (!state.graphicsBeta) car.boost = Math.max(car.boost, .35);
     showNotice("LARGADA PERFEITA!");
     engineAudio.cue("boost");
   }
@@ -112,7 +113,7 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   // já bastam para entrar em drift — antes exigia `steer > .45`/`speed > 17`,
   // o que na prática só disparava em curvas bem fechadas e rápidas).
   const isDrifting =
-    keys.Shift && Math.abs(car.steer) > .3 && car.speed > 12 && onTrack && car.stun <= 0 && car.driftCooldown === 0;
+    !state.graphicsBeta && keys.Shift && Math.abs(car.steer) > .3 && car.speed > 12 && onTrack && car.stun <= 0 && car.driftCooldown === 0;
 
   // --- Bandeira amarela: zona de cautela ao redor de um incidente forte
   // (ver triggerYellowFlag em physics.js) — sem DRS e com teto de

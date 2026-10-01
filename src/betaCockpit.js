@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { addMesh, makeMaterial } from "./materials.js";
 import { state } from "./state.js";
 import { betaPowertrainTelemetry } from "./betaPowertrain.js";
-import { buildF1Wheel, DISPLAY, GRIP_ANCHOR, wristLocal } from "./betaWheel.js";
+import { buildF1Wheel, DISPLAY, GRIP_ANCHOR, HAND_SCALE, wristLocal } from "./betaWheel.js";
 import { makeAlcantaraTexture, makeLiveryTexture } from "./betaTextures.js";
 import { qualityPreset, speedUnit } from "./betaSettings.js";
 
@@ -363,92 +363,201 @@ function fabricMaterial(base, weave, { repeat = [3, 3], roughness = 0.85, dots =
   return new THREE.MeshStandardMaterial({ map: texture, roughness });
 }
 
-/** Luva de piloto: dorso, quatro dedos que contornam a pegada, polegar e punho. */
-function buildGlove(side, glove, hand) {
-  const knuckle = addMesh(new THREE.SphereGeometry(1, 20, 14), glove, 0, 0.012, -0.066, hand);
-  knuckle.scale.set(0.052, 0.072, 0.03);
-  knuckle.name = `beta-glove-back-${side < 0 ? "left" : "right"}`;
-  const fingerRows = [0.056, 0.028, 0, -0.028];
-  fingerRows.forEach((y, i) => {
-    const curl = i * 0.004;
-    const points = [
-      [-0.03, y + 0.004, -0.07],
-      [0.0, y + 0.006, -0.078 + curl],
-      [0.04, y + 0.004, -0.07],
-      [0.068, y, -0.034],
-      [0.064, y - 0.004, 0.01],
-      [0.04, y - 0.004, 0.042],
-    ].map(([u, yy, z]) => new THREE.Vector3(side * u, yy, z));
-    const finger = addMesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 18, 0.0135 - i * 0.0004, 8, false),
-      glove,
-      0,
-      0,
-      0,
-      hand,
-    );
-    finger.name = `beta-glove-finger-${side < 0 ? "left" : "right"}-${i}`;
-  });
-  const thumbPoints = [
-    [-0.04, 0.05, -0.05],
-    [-0.056, 0.078, -0.012],
-    [-0.046, 0.098, 0.03],
-  ].map(([u, y, z]) => new THREE.Vector3(side * u, y, z));
-  addMesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(thumbPoints), 12, 0.0145, 8, false), glove, 0, 0, 0, hand);
+/** Perfuração fina do dorso da luva (padrão de luvas de piloto), em canvas. */
+function perforatedMaterial(base, color) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, 64, 64);
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  for (let y = 4; y < 64; y += 8) {
+    for (let x = (y / 8) % 2 ? 0 : 4; x < 64; x += 8) {
+      ctx.beginPath();
+      ctx.arc(x + 2, y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(10, 12);
+  texture.anisotropy = 8;
+  return new THREE.MeshStandardMaterial({ map: texture, color, roughness: 0.62, metalness: 0.02 });
 }
 
-function buildDriverArms(parent, wheel, fabric, glove, cuff) {
+function roundedPlate(width, height, radius) {
+  const shape = new THREE.Shape();
+  const x = width / 2;
+  const y = height / 2;
+  shape.moveTo(-x + radius, -y);
+  shape.lineTo(x - radius, -y);
+  shape.quadraticCurveTo(x, -y, x, -y + radius);
+  shape.lineTo(x, y - radius);
+  shape.quadraticCurveTo(x, y, x - radius, y);
+  shape.lineTo(-x + radius, y);
+  shape.quadraticCurveTo(-x, y, -x, y - radius);
+  shape.lineTo(-x, -y + radius);
+  shape.quadraticCurveTo(-x, -y, -x + radius, -y);
+  return shape;
+}
+
+/**
+ * Luva de piloto: dorso perfurado com protetor de nós dos dedos, quatro dedos que
+ * contornam a borda externa da empunhadura (cada um com falange e ponta), polegar
+ * sobre a borda interna e o punho reforçado. Tudo no espaço local da mão.
+ */
+function buildGlove(side, mats, hand) {
+  const name = side < 0 ? "left" : "right";
+  const back = addMesh(
+    new THREE.ExtrudeGeometry(roundedPlate(0.074, 0.106, 0.026), { depth: 0.012, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.008, bevelSegments: 3, curveSegments: 8 }),
+    mats.back,
+    side * 0.006,
+    0.002,
+    -0.108,
+    hand,
+  );
+  back.rotation.z = side * 0.1;
+  back.name = `beta-glove-back-${name}`;
+  // Protetor dos nós dos dedos: faixa em relevo na cor da equipe.
+  const pad = addMesh(new THREE.BoxGeometry(0.016, 0.098, 0.011), mats.accent, side * 0.04, 0, -0.1, hand);
+  pad.rotation.z = side * 0.05;
+  pad.name = `beta-glove-pad-${name}`;
+
+  // Quatro dedos empilhados na vertical; o indicador (topo) é o mais longo.
+  const rows = [
+    { y: 0.043, reach: 1.0, radius: 0.0112 },
+    { y: 0.0145, reach: 1.06, radius: 0.0116 },
+    { y: -0.0145, reach: 1.0, radius: 0.0112 },
+    { y: -0.043, reach: 0.9, radius: 0.0102 },
+  ];
+  rows.forEach(({ y, reach, radius }, i) => {
+    const points = [
+      [0.04, y, -0.1],
+      [0.064 * reach, y, -0.097],
+      [0.08 * reach, y, -0.075],
+      [0.085 * reach, y, -0.04],
+      [0.078 * reach, y, -0.008],
+      [0.056 * reach, y, 0.008],
+    ].map(([u, yy, z]) => new THREE.Vector3(side * u, yy, z));
+    const finger = addMesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, false, "centripetal"), 28, radius, 10, false), mats.finger, 0, 0, 0, hand);
+    finger.name = `beta-glove-finger-${name}-${i}`;
+    const tip = addMesh(new THREE.SphereGeometry(radius, 12, 10), mats.finger, points.at(-1).x, y, points.at(-1).z, hand);
+    tip.name = `beta-glove-tip-${name}-${i}`;
+    // Articulações: anéis finos de costura nas dobras dos dedos.
+    for (const t of [0.34, 0.62]) {
+      const p = new THREE.CatmullRomCurve3(points, false, "centripetal").getPointAt(t);
+      const joint = addMesh(new THREE.SphereGeometry(radius * 1.12, 10, 8), mats.finger, p.x, p.y, p.z, hand);
+      joint.scale.set(1, 1, 0.8);
+    }
+  });
+
+  // Polegar: sai da base interna da mão e sobe pela frente da borda interna.
+  const thumb = [
+    [-0.036, -0.034, -0.104],
+    [-0.05, -0.004, -0.106],
+    [-0.056, 0.03, -0.098],
+    [-0.05, 0.062, -0.082],
+    [-0.04, 0.078, -0.062],
+  ].map(([u, yy, z]) => new THREE.Vector3(side * u, yy, z));
+  addMesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(thumb, false, "centripetal"), 20, 0.0128, 10, false), mats.finger, 0, 0, 0, hand).name = `beta-glove-thumb-${name}`;
+  addMesh(new THREE.SphereGeometry(0.0128, 12, 10), mats.finger, thumb.at(-1).x, thumb.at(-1).y, thumb.at(-1).z, hand);
+
+  // Punho da luva (cano reforçado) descendo do dorso em direção ao antebraço.
+  const gauntlet = addMesh(new THREE.CylinderGeometry(0.031, 0.037, 0.06, 20), mats.cuff, side * 0.006, -0.082, -0.1, hand);
+  gauntlet.rotation.x = 0.35;
+  gauntlet.name = `beta-glove-cuff-${name}`;
+}
+
+const SHOULDER = { x: 0.22, y: 0.86, z: -0.16 };
+const UPPER_ARM = 0.34;
+const FOREARM = 0.34;
+
+function buildDriverArms(parent, wheel, fabric, teamColor) {
   const arms = [];
+  const mats = {
+    back: perforatedMaterial("#2a3036", "#ffffff"),
+    finger: new THREE.MeshStandardMaterial({ color: "#23282e", roughness: 0.55, metalness: 0.02 }),
+    accent: new THREE.MeshStandardMaterial({ color: teamColor, roughness: 0.45, metalness: 0.05 }),
+    cuff: new THREE.MeshStandardMaterial({ color: "#b9b7b0", roughness: 0.85 }),
+  };
   for (const side of [-1, 1]) {
-    const arm = addMesh(
-      new THREE.CylinderGeometry(0.027, 0.04, 1, 18),
-      fabric,
-      0,
-      0,
-      0,
-      parent,
-    );
-    arm.name = `beta-driver-arm-${side < 0 ? "left" : "right"}`;
-    const band = addMesh(new THREE.CylinderGeometry(0.035, 0.035, 0.06, 18), cuff, 0, 0, 0, parent);
-    band.name = `beta-driver-cuff-${side < 0 ? "left" : "right"}`;
+    const name = side < 0 ? "left" : "right";
+    // Antebraço (`mesh`, mantido para quem monitora o pulso), braço, cotovelo e punho da manga.
+    const forearm = addMesh(new THREE.CylinderGeometry(0.029, 0.04, 1, 20), fabric, 0, 0, 0, parent);
+    forearm.name = `beta-driver-arm-${name}`;
+    const upper = addMesh(new THREE.CylinderGeometry(0.04, 0.05, 1, 20), fabric, 0, 0, 0, parent);
+    upper.name = `beta-driver-upper-${name}`;
+    const elbow = addMesh(new THREE.SphereGeometry(0.043, 16, 12), fabric, 0, 0, 0, parent);
+    elbow.name = `beta-driver-elbow-${name}`;
+    const band = addMesh(new THREE.CylinderGeometry(0.0315, 0.0315, 0.04, 20), mats.cuff, 0, 0, 0, parent);
+    band.name = `beta-driver-cuff-${name}`;
+    // Faixa de cor da equipe no antebraço, logo acima do punho.
+    const stripe = addMesh(new THREE.CylinderGeometry(0.0345, 0.0345, 0.022, 20), mats.accent, 0, 0, 0, parent);
+    stripe.name = `beta-driver-stripe-${name}`;
     arms.push({
-      mesh: arm,
+      mesh: forearm,
+      upper,
+      elbowMesh: elbow,
       band,
+      stripe,
       side,
-      base: new THREE.Vector3(side * 0.27, 0.4, 0.3),
-      elbow: new THREE.Vector3(side * 0.27, 0.4, 0.3),
+      shoulder: new THREE.Vector3(side * SHOULDER.x, SHOULDER.y, SHOULDER.z),
+      elbow: new THREE.Vector3(),
     });
 
     const hand = new THREE.Group();
+    hand.name = `beta-hand-${name}`;
     hand.position.set(side * GRIP_ANCHOR.x, GRIP_ANCHOR.y, GRIP_ANCHOR.z);
-    hand.scale.setScalar(0.9);
+    hand.scale.setScalar(HAND_SCALE);
     wheel.add(hand);
-    buildGlove(side, glove, hand);
+    buildGlove(side, mats, hand);
   }
   return arms;
 }
 
 const armUp = new THREE.Vector3(0, 1, 0);
 const armWrist = new THREE.Vector3();
+const armAxis = new THREE.Vector3();
+const armPole = new THREE.Vector3();
 const armDirection = new THREE.Vector3();
 
+/** Orienta um cilindro de altura 1 (eixo Y) do ponto `from` ao ponto `to`. */
+function placeLimb(mesh, from, to) {
+  armDirection.copy(to).sub(from);
+  const length = armDirection.length();
+  mesh.position.copy(from).add(to).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(armUp, armDirection.normalize());
+  mesh.scale.set(1, length, 1);
+}
+
+/**
+ * Cinemática inversa de dois ossos: ombro fixo, pulso preso à empunhadura. O
+ * cotovelo cai para fora e para baixo, como o de um piloto com os braços semi
+ * dobrados. Se o pulso estiver além do alcance, o braço apenas estica.
+ */
 function updateDriverArms(arms, wheel) {
   for (const arm of arms) {
-    armWrist
-      .copy(wristLocal(arm.side))
-      .multiply(wheel.scale)
-      .applyEuler(wheel.rotation)
-      .add(wheel.position);
-    // O cotovelo acompanha parte do movimento da mão: o antebraço não vira uma viga ao esterçar.
-    arm.elbow.copy(arm.base).lerp(armWrist, 0.25);
-    armDirection.copy(armWrist).sub(arm.elbow);
-    const length = armDirection.length();
-    arm.mesh.position.copy(arm.elbow).add(armWrist).multiplyScalar(0.5);
-    arm.mesh.quaternion.setFromUnitVectors(armUp, armDirection.normalize());
-    arm.mesh.scale.set(1, length, 1);
-    // Punho claro logo atrás da luva, alinhado ao antebraço.
-    arm.band.quaternion.copy(arm.mesh.quaternion);
-    arm.band.position.copy(armWrist).addScaledVector(armDirection, -0.035);
+    armWrist.copy(wristLocal(arm.side)).multiply(wheel.scale).applyEuler(wheel.rotation).add(wheel.position);
+    armAxis.copy(armWrist).sub(arm.shoulder);
+    const reach = Math.min(armAxis.length(), UPPER_ARM + FOREARM - 1e-4);
+    armAxis.normalize();
+    // Distância do ombro até o ponto médio do plano do cotovelo, e altura do cotovelo sobre o eixo.
+    const along = (reach * reach + UPPER_ARM * UPPER_ARM - FOREARM * FOREARM) / (2 * reach);
+    const height = Math.sqrt(Math.max(0, UPPER_ARM * UPPER_ARM - along * along));
+    armPole.set(arm.side * 0.55, -1, -0.25);
+    armPole.addScaledVector(armAxis, -armPole.dot(armAxis)).normalize();
+    arm.elbow.copy(arm.shoulder).addScaledVector(armAxis, along).addScaledVector(armPole, height);
+
+    placeLimb(arm.upper, arm.shoulder, arm.elbow);
+    placeLimb(arm.mesh, arm.elbow, armWrist);
+    arm.elbowMesh.position.copy(arm.elbow);
+    // Punho claro e faixa de cor ao longo do antebraço, rente à luva.
+    armDirection.copy(armWrist).sub(arm.elbow).normalize();
+    for (const [piece, back] of [[arm.band, 0.02], [arm.stripe, 0.068]]) {
+      piece.quaternion.copy(arm.mesh.quaternion);
+      piece.position.copy(armWrist).addScaledVector(armDirection, -back);
+    }
   }
 }
 
@@ -499,8 +608,9 @@ export function buildBetaCockpit(parent, carbon, paint) {
     side: THREE.DoubleSide,
   };
   const sideStripe = crestFractions();
-  const shellPaint = new THREE.MeshPhysicalMaterial({ ...paintOptions, color: "#ebebeb", map: makeLiveryTexture(teamColor, sideStripe) });
-  const nosePaint = new THREE.MeshPhysicalMaterial({ ...paintOptions, color: "#ebebeb", map: makeLiveryTexture(teamColor, [0.44, 0.56]) });
+  // Mesmo esquema do carro 3D: base clara com a faixa na cor do jogador.
+  const shellPaint = new THREE.MeshPhysicalMaterial({ ...paintOptions, color: "#ebebeb", map: makeLiveryTexture("#e2e3e7", sideStripe, teamColor) });
+  const nosePaint = new THREE.MeshPhysicalMaterial({ ...paintOptions, color: "#ebebeb", map: makeLiveryTexture("#e2e3e7", [0.44, 0.56], teamColor) });
   // Peças pequenas (tampas dos retrovisores) usam a cor lisa, sem a faixa.
   const plainPaint = new THREE.MeshPhysicalMaterial({ ...paintOptions, color: paint.color.clone().multiplyScalar(0.85) });
   const alcantara = makeMaterial("#111518", { roughness: 1, side: THREE.DoubleSide });
@@ -513,8 +623,6 @@ export function buildBetaCockpit(parent, carbon, paint) {
   const padding = new THREE.MeshStandardMaterial({ map: paddingMap, roughness: 0.85, side: THREE.DoubleSide });
   const aluminum = makeMaterial("#7a858d", { metalness: 0.92, roughness: 0.22 });
   const safetyFabric = fabricMaterial("#1c2128", "#252c34", { repeat: [4, 6], roughness: 0.92 });
-  const glove = fabricMaterial("#262b31", "#1d2226", { repeat: [1, 1], roughness: 0.66, dots: true });
-  const cuff = makeMaterial("#e9e5d8", { roughness: 0.75 });
   const haloCarbon = carbon.clone();
   haloCarbon.roughness = 0.34;
 
@@ -585,7 +693,7 @@ export function buildBetaCockpit(parent, carbon, paint) {
   }
 
   const data = buildSteeringWheel(parent, carbon, aluminum);
-  data.arms = buildDriverArms(parent, data.wheel, safetyFabric, glove, cuff);
+  data.arms = buildDriverArms(parent, data.wheel, safetyFabric, teamColor);
   updateDriverArms(data.arms, data.wheel);
   data.mirrors = mirrors;
   data.lastUpdate = -Infinity;
@@ -667,6 +775,12 @@ export function updateBetaCockpit(car, raceTime, clockTime, dt = 1 / 60) {
   data.wheel.position.y = WHEEL_BASE_Y - acceleration * 0.0003;
   updateDriverArms(data.arms, data.wheel);
 
+  // Luz de chuva traseira acompanha o freio (e a desaceleração forte).
+  const rainLight = car.group.userData.betaRainLight;
+  if (rainLight) {
+    const braking = state.keys.ArrowDown || state.keys.s || state.keys.S || (car.betaAcceleration || 0) < -14;
+    rainLight.emissiveIntensity = braking ? 7 : 0.6;
+  }
   const telemetry = cockpitTelemetry(car, raceTime);
   // O cálculo continua em km/h; só a exibição segue a unidade escolhida.
   const unit = speedUnit();

@@ -90,7 +90,7 @@ os dois vidros ficam ocultos para evitar feedback.
 **Pneus.** Pretos e lisos, sem inscrições. Os dianteiros são menores e mais
 estreitos que os traseiros (escala 0,78 × 0,86), como num F1 real.
 
-**Mãos e braços.** As luvas têm dorso, quatro dedos que contornam a pegada,
+**Mãos e braços (versão anterior, substituída abaixo).** As luvas têm dorso, quatro dedos que contornam a pegada,
 polegar e tecido procedural com pontos de silicone; o punho é claro e o
 antebraço afina em direção ao pulso e mergulha para baixo do volante, de modo
 que só um trecho curto aparece na tela. Os
@@ -184,3 +184,67 @@ autódromo, carro) e cede ao navegador entre elas para pintar o progresso.
 horário, tela, navegador e os últimos 3 erros (`src/betaDiagnostics.js`). Nada
 é enviado sozinho. A URL padrão é a de *issues* do repositório no GitHub;
 defina `VITE_FEEDBACK_URL` para usar outro formulário.
+
+## Mãos e braços
+
+Cada luva (`buildGlove` em `betaCockpit.js`) tem dorso perfurado com protetor
+dos nós dos dedos na cor da equipe, quatro dedos de comprimentos diferentes que
+contornam a borda externa da empunhadura (cada um com ponta e articulações),
+polegar sobre a borda interna e punho reforçado. O braço usa cinemática inversa
+de dois ossos (34 cm cada): o ombro é fixo, o pulso fica preso à luva, e o
+cotovelo cai para fora e para baixo. Se o pulso passar do alcance, o braço
+apenas estica. O antebraço tem punho claro e uma faixa na cor da equipe. A mão
+acompanha o volante; `wristLocal`, `GRIP_ANCHOR` e `HAND_SCALE` (em
+`betaWheel.js`) definem onde ela encosta na empunhadura.
+
+## Carro 3D
+
+A carroceria e as rodas vêm do modelo *F1 2022 {FREE!!}* (CC BY 4.0, créditos no
+menu, no README e em `public/assets/cars/CREDITS.md`), carregado por
+`src/betaCarModel.js`. O arquivo é baixado durante a barra de carregamento
+(~3,5 MB, otimizado de 9 MB) e, se não chegar, a carroceria procedural antiga
+continua valendo.
+
+- **Encaixe:** escala 0,958, deslocamento (y 0,093; z −0,849): eixos em z = 1,47 e
+  −1,54 (o jogo usa 1,45 e −1,52) e o pneu traseiro apoiado no chão.
+- **Pintura:** o preto da carroceria (monocoque, laterais, capô do motor, asas) vira o
+  material do jogador, então a cor escolhida continua valendo. O resto vira carbono
+  escuro. Os pneus ficam pretos e lisos: o anel amarelo do composto é removido.
+- **Rodas:** cada uma ganha um pivô no centro e gira em torno do eixo x. Os pneus
+  dianteiros são ampliados 12% e descem 3 cm para tocar o chão como os traseiros.
+- **Cockpit:** halo, painel, cabeça e volante do arquivo são removidos (o jogo tem os
+  seus). O cockpit do jogo desce 0,28 m e o olho avança 0,1 m (`COCKPIT_DROP`,
+  `COCKPIT_FORWARD`): neste carro o piloto senta bem mais baixo e à frente do que no
+  modelo antigo, como num F1 real. Na visão de dentro, o monocoque e o capô do motor
+  do arquivo ficam escondidos (cobririam braços e mãos); por fora continuam visíveis.
+- **Medir o modelo:** `Box3.setFromObject` usa a caixa girada e exagera. Para testes, use
+  `setFromObject(obj, true)`.
+
+## Esquema de cores do carro
+
+Para casar com a foto de referência (F1 2022 visto de cima), a carroceria do modelo
+usa uma base clara perolada com o destaque na cor do jogador, em vez de pintura única:
+bico e capô com a faixa central, halo inteiro, bordas das entradas de ar, laterais e
+filete da asa dianteira e pontas e centro da asa traseira. O destaque é uma máscara por
+vértice (`ACCENT_RULES` em `betaCarModel.js`) misturada no shader; assoalho, difusor e
+suspensão ficam em carbono escuro. Halo, painel e volante do modelo aparecem só por fora
+(`applyBetaCarView`); por dentro valem os do jogo. O número do carro é uma placa pequena
+na asa traseira, e a luz de chuva traseira acende forte ao frear.
+
+## Sem drift e sem turbo
+
+Na 2.0 o drift (Shift) e o turbo estão desligados: `player.js` ignora Shift e a largada
+perfeita não concede mais impulso. O botão de drift do toque some. O contra-relógio já
+não tem itens, então nenhum turbo de caixa existe.
+
+## Guia de pilotagem
+
+`betaGuide.js` pinta no asfalto uma linha fina e translúcida (1,3 m) à frente do carro, até
+280 m, no estilo da linha de corrida dos jogos de F1: sem paredes nem túnel, só uma linha
+suave que some com a distância. **Verde** = acelere, **amarelo** = alivie o pé,
+**vermelho** = freie. O alvo de velocidade de cada ponto vem da curvatura do traçado e da
+capacidade real de esterço do carro (a mesma `maxYawRate` de `player.js`), com frenagem de
+30 m/s² calculada de trás para a frente em duas voltas. A cor compara a velocidade atual com
+a permitida naquele ponto: acima, vermelho; perto do limite de uma curva, amarelo; senão,
+verde. A HUD repete o aviso em um selo pequeno (ACELERE, ALIVIE, FREIE). Pode ser desligado
+em Ajustes (`guide`).

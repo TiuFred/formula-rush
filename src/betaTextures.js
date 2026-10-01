@@ -128,11 +128,11 @@ export function makeAsphaltMaps(size = 512) {
  * linhas de painel e um leve desgaste nas bordas. `stripe` = intervalo de v
  * (0–1 ao longo do perfil) onde fica a faixa; u (0–1) corre ao longo do carro.
  */
-export function makeLiveryTexture(teamColor, stripe = [0.42, 0.58]) {
+export function makeLiveryTexture(baseColor, stripe = [0.42, 0.58], stripeColor = "#f4f4ee") {
   const width = 1024;
   const height = 256;
   const { canvas, ctx } = createContext(width, height);
-  ctx.fillStyle = teamColor;
+  ctx.fillStyle = baseColor;
   ctx.fillRect(0, 0, width, height);
 
   // Sombreado sutil do centro para as bordas (verniz mais denso no meio).
@@ -145,7 +145,7 @@ export function makeLiveryTexture(teamColor, stripe = [0.42, 0.58]) {
 
   const v0 = stripe[0] * height;
   const v1 = stripe[1] * height;
-  ctx.fillStyle = "#f4f4ee";
+  ctx.fillStyle = stripeColor;
   ctx.fillRect(0, v0, width, v1 - v0);
   ctx.fillStyle = "#171a1d";
   ctx.fillRect(0, v0 - 7, width, 3);

@@ -23,6 +23,12 @@ const CONTROLS = [
   ["T", "Tempos de volta"],
 ];
 
+const GUIDE_LEGEND = [
+  ["go", "VERDE", "acelere"],
+  ["lift", "AMARELO", "alivie o pé"],
+  ["brake", "VERMELHO", "freie"],
+];
+
 const TIPS = [
   "O DRS abre sozinho nas zonas marcadas e solta ao frear.",
   "Sair dos limites da pista invalida a volta (a HUD fica vermelha).",
@@ -36,6 +42,10 @@ const SEGMENTS = {
     ["sunset", "PÔR DO SOL"],
   ],
   units: Object.entries(SPEED_UNITS).map(([value, unit]) => [value, unit.label]),
+  guide: [
+    [true, "LIGADO"],
+    [false, "DESLIGADO"],
+  ],
 };
 
 let root = null;
@@ -59,8 +69,8 @@ function segmented(key, label) {
   for (const [value, text] of SEGMENTS[key]) {
     const button = el("button", "bm-seg", text);
     button.type = "button";
-    button.dataset.value = value;
-    button.addEventListener("click", () => updateSettings({ [key]: value }));
+    button.dataset.value = String(value);
+    button.addEventListener("click", () => updateSettings({ [key]: typeof value === "boolean" ? value : value }));
     group.append(button);
   }
   row.append(group);
@@ -117,6 +127,14 @@ function build() {
   const tips = el("ul", "bm-tips");
   for (const tip of TIPS) tips.append(el("li", "", tip));
   controls.append(tips);
+  const legend = el("div", "bm-guide");
+  legend.append(el("span", "bm-label", "GUIA NA PISTA"));
+  for (const [tone, name, meaning] of GUIDE_LEGEND) {
+    const item = el("span", `bm-guide-item ${tone}`);
+    item.append(el("i"), el("b", "", name), document.createTextNode(" " + meaning));
+    legend.append(item);
+  }
+  controls.append(legend);
 
   const settings = el("section", "bm-col");
   settings.append(el("h3", "", "AJUSTES"));
@@ -126,6 +144,7 @@ function build() {
     slider("fov", "CAMPO DE VISÃO", FOV_RANGE[0], FOV_RANGE[1], 1, (v) => v + "°"),
     slider("shake", "BALANÇO DA CÂMERA", 0, 100, 5, (v) => v + "%"),
     segmented("units", "VELOCIDADE"),
+    segmented("guide", "GUIA DE PILOTAGEM"),
   );
   const skip = el("label", "bm-check");
   const skipInput = el("input");
@@ -152,6 +171,18 @@ function build() {
     "bm-legal",
     "Formula Rush é um projeto de fãs, sem vínculo com a Formula 1, a FIA ou qualquer equipe. Nomes e marcas pertencem aos seus donos; o visual apenas se inspira nas transmissões de F1.",
   );
+  const credit = el("p", "bm-legal bm-credit");
+  const creditLink = el("a", "", "F1 2022 {FREE!!}");
+  creditLink.href = "https://sketchfab.com/3d-models/f1-2022-free-013c9e89d2244e37924031dfe4ccf4c3";
+  creditLink.target = "_blank";
+  creditLink.rel = "noopener noreferrer";
+  const licenseLink = el("a", "", "CC BY 4.0");
+  licenseLink.href = "https://creativecommons.org/licenses/by/4.0/";
+  licenseLink.target = "_blank";
+  licenseLink.rel = "noopener noreferrer";
+  credit.append("Modelo do carro: ", creditLink, " por 3dblenderlol, ", licenseLink, ". Reescalado, recolorido e adaptado ao cockpit do jogo.");
+  const legalBox = el("div", "bm-legal-box");
+  legalBox.append(legal, credit);
   const actions = el("div", "bm-actions");
   const feedback = el("a", "bm-link", "ENVIAR FEEDBACK");
   feedback.target = "_blank";
@@ -173,7 +204,7 @@ function build() {
   confirm.id = "bmConfirm";
   confirm.addEventListener("click", () => onConfirm?.());
   actions.append(feedback, confirm);
-  foot.append(legal, actions);
+  foot.append(legalBox, actions);
   panel.append(foot);
 
   root.append(panel);
@@ -184,7 +215,7 @@ function syncControls() {
   const settings = getSettings();
   root.querySelectorAll(".bm-segments").forEach((group) => {
     group.querySelectorAll(".bm-seg").forEach((button) => {
-      const active = button.dataset.value === settings[group.dataset.key];
+      const active = button.dataset.value === String(settings[group.dataset.key]);
       button.classList.toggle("on", active);
       button.setAttribute("aria-pressed", String(active));
     });
