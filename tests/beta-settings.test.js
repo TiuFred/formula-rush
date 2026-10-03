@@ -26,6 +26,17 @@ test("câmbio aceita só automático ou manual e começa no automático", () => 
   assert.equal(settings.normalizeSettings({ transmission: "cvt" }, base).transmission, "auto");
 });
 
+test("sessão da 2.0: modo, voltas e dificuldade só aceitam valores válidos", () => {
+  const base = settings.defaultSettings();
+  assert.equal(base.mode, "race");
+  assert.equal(settings.normalizeSettings({ mode: "timeTrial" }, base).mode, "timeTrial");
+  assert.equal(settings.normalizeSettings({ mode: "drift" }, base).mode, "race");
+  assert.equal(settings.normalizeSettings({ laps: 99 }, base).laps, 20);
+  assert.equal(settings.normalizeSettings({ laps: 0 }, base).laps, 1);
+  assert.equal(settings.normalizeSettings({ difficulty: "pro" }, base).difficulty, "pro");
+  assert.equal(settings.normalizeSettings({ difficulty: "lenda" }, base).difficulty, base.difficulty);
+});
+
 test("celular começa em qualidade média e desktop em alta", () => {
   assert.equal(settings.defaultSettings({ touch: true }).quality, "medium");
   assert.equal(settings.defaultSettings().quality, "high");

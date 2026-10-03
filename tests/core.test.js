@@ -12,6 +12,8 @@ import {
 import { driftLevel, pickItem } from "../src/items.js";
 import {
   isKnownCircuitId,
+  isLeaderboardId,
+  BETA_BOARD_ID,
   isPlausibleLapTime,
   normalizePlayerName,
   normalizePlayerNumber,
@@ -66,6 +68,10 @@ test("identidade e entradas de ranking são normalizadas", () => {
   assert.equal(isKnownCircuitId("miami"), true);
   assert.equal(isKnownCircuitId("yasMarina"), true);
   assert.equal(isKnownCircuitId("atalho"), false);
+  assert.equal(isKnownCircuitId(BETA_BOARD_ID), false);
+  assert.equal(isLeaderboardId(BETA_BOARD_ID), true);
+  assert.equal(isLeaderboardId("interlagos"), true);
+  assert.equal(isLeaderboardId("atalho"), false);
   assert.equal(isPlausibleLapTime(20), true);
   assert.equal(isPlausibleLapTime(19.999), false);
   assert.equal(isPlausibleLapTime(901), false);

@@ -24,6 +24,13 @@ export const FOV_RANGE = [60, 80];
 /** Câmbio da 2.0: automático (padrão) ou manual com H (reduz) e J (sobe). */
 export const TRANSMISSION_MODES = ["auto", "manual"];
 
+/** Sessões da 2.0: corrida contra um grid reduzido ou contra-relógio ranqueado. */
+export const SESSION_MODES = ["race", "timeTrial"];
+
+export const RACE_DIFFICULTIES = ["rookie", "sport", "pro"];
+
+export const RACE_LAPS_RANGE = [1, 20];
+
 export function defaultSettings({ touch = false } = {}) {
   return {
     quality: touch ? "medium" : "high",
@@ -34,6 +41,9 @@ export function defaultSettings({ touch = false } = {}) {
     transmission: "auto",
     guide: true,
     skipIntro: false,
+    mode: "race",
+    laps: 5,
+    difficulty: "sport",
   };
 }
 
@@ -52,6 +62,9 @@ export function normalizeSettings(raw, base = defaultSettings()) {
     transmission: TRANSMISSION_MODES.includes(source.transmission) ? source.transmission : base.transmission,
     guide: typeof source.guide === "boolean" ? source.guide : base.guide,
     skipIntro: typeof source.skipIntro === "boolean" ? source.skipIntro : base.skipIntro,
+    mode: SESSION_MODES.includes(source.mode) ? source.mode : base.mode,
+    laps: Math.round(clamp(number(source.laps, base.laps), RACE_LAPS_RANGE[0], RACE_LAPS_RANGE[1])),
+    difficulty: RACE_DIFFICULTIES.includes(source.difficulty) ? source.difficulty : base.difficulty,
   };
 }
 

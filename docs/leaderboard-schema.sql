@@ -14,7 +14,8 @@
 -- piore o tempo de outra pessoa e centraliza a regra "só grava se for
 -- recorde" num único lugar (o banco), em vez de confiar só no cliente.
 --
--- Hardening: a função aceita apenas os oito circuitos conhecidos, nomes não
+-- Hardening: a função aceita apenas os oito circuitos conhecidos (mais o
+-- ranking próprio da 2.0, "interlagos-2"), nomes não
 -- vazios, tempos entre 20 s e 15 min, remove caracteres de controle e não
 -- herda permissões públicas implícitas. A UI também trata nomes só como texto.
 --
@@ -62,7 +63,7 @@ as $$
 begin
   if trim(coalesce(p_circuit_id, '')) not in
     ('interlagos', 'monza', 'indianapolis', 'monaco', 'spa',
-     'redBullRing', 'miami', 'yasMarina') then
+     'redBullRing', 'miami', 'yasMarina', 'interlagos-2') then
     raise exception 'circuito inválido';
   end if;
 

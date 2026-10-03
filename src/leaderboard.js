@@ -7,7 +7,7 @@
 // navegador.
 
 import { getSupabaseClient } from "./supabaseClient.js";
-import { isKnownCircuitId, isPlausibleLapTime, normalizePlayerName } from "./validation.js";
+import { isLeaderboardId, isPlausibleLapTime, normalizePlayerName } from "./validation.js";
 
 const STORAGE_KEY = "formula-rush-leaderboard-v1";
 
@@ -30,7 +30,7 @@ function saveAllLocal(data) {
 
 /** Registra uma volta no ranking LOCAL deste navegador. Retorna `true` se bateu o recorde salvo. */
 function recordLapLocal(circuitId, playerName, lapTime) {
-  if (!isKnownCircuitId(circuitId) || !isPlausibleLapTime(lapTime)) return false;
+  if (!isLeaderboardId(circuitId) || !isPlausibleLapTime(lapTime)) return false;
   const name = normalizePlayerName(playerName);
   const all = loadAllLocal();
   const board = all[circuitId] || (all[circuitId] = {});
@@ -43,7 +43,7 @@ function recordLapLocal(circuitId, playerName, lapTime) {
 
 /** Retorna as entradas do ranking LOCAL do circuito `circuitId`, da mais rápida para a mais lenta. */
 function getLeaderboardLocal(circuitId) {
-  if (!isKnownCircuitId(circuitId)) return [];
+  if (!isLeaderboardId(circuitId)) return [];
   const board = loadAllLocal()[circuitId] || {};
   return Object.entries(board)
     .map(([name, entry]) => ({ name: normalizePlayerName(name), time: Number(entry?.time) }))
@@ -64,7 +64,7 @@ export async function recordLap(circuitId, playerName, lapTime) {
   const improvedLocally = recordLapLocal(circuitId, playerName, lapTime);
 
   const supabase = await getSupabaseClient();
-  if (supabase && isKnownCircuitId(circuitId) && isPlausibleLapTime(lapTime)) {
+  if (supabase && isLeaderboardId(circuitId) && isPlausibleLapTime(lapTime)) {
     try {
       const name = normalizePlayerName(playerName);
       const { error } = await supabase.rpc("submit_lap_time", {
@@ -87,7 +87,7 @@ export async function recordLap(circuitId, playerName, lapTime) {
  * @returns {Promise<{online: boolean, entries: {name: string, time: number}[]}>}
  */
 export async function getLeaderboard(circuitId) {
-  if (!isKnownCircuitId(circuitId)) return { online: false, entries: [] };
+  if (!isLeaderboardId(circuitId)) return { online: false, entries: [] };
   const supabase = await getSupabaseClient();
   if (supabase) {
     try {

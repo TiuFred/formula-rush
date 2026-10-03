@@ -11,6 +11,7 @@ import { checkLapCompletion, checkSectorCompletion, formatLapTime } from "./timi
 import { showNotice } from "./dom.js";
 import { syncCarVisual } from "./car.js";
 import { recordLap } from "./leaderboard.js";
+import { BETA_BOARD_ID } from "./validation.js";
 import { engineAudio } from "./audio.js";
 import { addMesh } from "./materials.js";
 
@@ -125,9 +126,12 @@ export function advanceLapTracking(car, prevProgress, dt, notify = false) {
 
   // Ranking local: só carros controlados por humanos entram no leaderboard
   // (bots não "contam" tempos). Registra sempre que uma nova melhor volta é
-  // batida, usando o nome configurado para aquele piloto.
-  if (car.isHuman && car.bestLap !== bestLapBefore && !state.graphicsBeta && !state.alwaysTurbo) {
-    recordLap(state.circuitId, car.name, car.bestLap);
+  // batida, usando o nome configurado para aquele piloto. Na 2.0 só o
+  // contra-relógio conta (é onde os limites de pista invalidam a volta), e
+  // num ranking próprio.
+  const ranked = state.graphicsBeta ? state.timeTrial : !state.alwaysTurbo;
+  if (car.isHuman && car.bestLap !== bestLapBefore && ranked) {
+    recordLap(state.graphicsBeta ? BETA_BOARD_ID : state.circuitId, car.name, car.bestLap);
   }
   syncCarVisual(car);
   if (car.completedLaps >= state.lapCountRace && !car.finish) finishRace(car);

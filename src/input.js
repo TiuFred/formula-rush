@@ -10,6 +10,20 @@ import { openTimesPanel, closeTimesPanel } from "./timing.js";
 import { queueGearShift } from "./betaPowertrain.js";
 import { getSettings, updateSettings } from "./betaSettings.js";
 
+/**
+ * Nome canônico da tecla em `state.keys`. Letras viram minúsculas: com Shift
+ * (ou Caps Lock) o keyup de "a" chega como "A", e sem isso `keys.a` ficava
+ * preso em true — o volante travava virado.
+ */
+function keyName(key) {
+  return key.length === 1 ? key.toLowerCase() : key;
+}
+
+/** Shift só existe na 1.0 (drift); na 2.0 a tecla é ignorada. */
+function ignoredKey(key) {
+  return key === "Shift" && state.graphicsBeta;
+}
+
 /** Solta todas as teclas (usado ao pausar/perder foco, para não "grudar" uma tecla). */
 export function resetKeys() {
   for (const key in state.keys) state.keys[key] = false;
@@ -74,7 +88,7 @@ function handleKeyDown(e) {
   }
 
   if (!e.repeat) {
-    state.keys[e.key] = true;
+    if (!ignoredKey(e.key)) state.keys[keyName(e.key)] = true;
     // Na contagem regressiva, ESPAÇO é a "embreagem" (ver resolveLaunch em
     // player.js, disparada no keyup) — não usa item aí (nem faria sentido,
     // ninguém tem item antes da corrida começar).
@@ -92,7 +106,7 @@ function handleKeyDown(e) {
 export function attachInputHandlers() {
   addEventListener("keydown", handleKeyDown);
   addEventListener("keyup", (e) => {
-    state.keys[e.key] = false;
+    state.keys[keyName(e.key)] = false;
     if (e.key === " " && state.gameState === "countdown") resolveLaunch();
   });
   addEventListener("blur", () => {

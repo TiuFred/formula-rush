@@ -806,8 +806,49 @@ footer .disclaimer {
 
 .bm-body[hidden],
 .bm-foot[hidden],
-.bm-loading[hidden] {
+.bm-loading[hidden],
+.bm-session[hidden],
+.bm-field[hidden] {
   display: none;
+}
+
+/* Sessão (modo, voltas, adversários): faixa inteira acima de controles e ajustes. */
+.bm-session {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.3fr 0.8fr 1.3fr;
+  gap: 0 clamp(14px, 2.4vw, 28px);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bm-session h3,
+.bm-note {
+  grid-column: 1 / -1;
+}
+
+.bm-note {
+  margin: 0 0 8px;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  color: #c9c9d3;
+}
+
+.bm-stepper {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 3px;
+}
+
+.bm-stepper .bm-seg:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.bm-laps {
+  text-align: center;
+  font: 800 20px "Barlow Condensed", Impact, sans-serif;
 }
 
 .bm-col h3 {
@@ -1034,7 +1075,8 @@ footer .disclaimer {
 }
 
 @media (max-width: 760px) {
-  .bm-body {
+  .bm-body,
+  .bm-session {
     grid-template-columns: 1fr;
   }
 

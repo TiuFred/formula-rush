@@ -13,6 +13,7 @@ import { updateBetaHud } from "./betaHud.js";
 import { installBetaSettings } from "./betaApply.js";
 import { closeBetaMenu, openBetaMenu, showBetaLoading } from "./betaMenu.js";
 import { getSettings } from "./betaSettings.js";
+import { BETA_BOARD_ID } from "./validation.js";
 import { preloadCarModel } from "./betaCarModel.js";
 import { applyBetaCarView } from "./betaCar.js";
 import { installErrorCollector } from "./betaDiagnostics.js";
@@ -43,6 +44,8 @@ let animationStarted = false;
 let championshipColorDraft = state.selectedColor;
 let championshipLapsDraft = state.lapCountSetting;
 let cameraBeforeBeta = 0;
+/** Ajustes da 1.0 que a 2.0 sobrescreve (voltas, dificuldade) e devolve ao sair. */
+let classicBeforeBeta = null;
 
 /** Largada estilo F1: 5 luzes vermelhas acendem uma a uma a cada
  * LIGHT_INTERVAL segundos e, com as 5 acesas, ficam paradas por um tempo
@@ -58,7 +61,7 @@ const LIGHTS_HOLD_MAX = 2.2;
 /** Inicia uma nova corrida a partir do menu (ou reinicia após o fim de uma). */
 function startRace() {
   if (!state.track) return; // pista ainda não carregou
-  updateLapCountUI(byId("lapCount").value);
+  updateLapCountUI(state.graphicsBeta ? getSettings().laps : byId("lapCount").value);
 
   // Classificação ativada: a largada vinda do botão "COMEÇAR CORRIDA" é na
   // verdade a sessão de 1 volta que define o grid — guarda o nº de voltas
@@ -134,8 +137,8 @@ function startRace() {
   setVisible("attackWarning", false);
   byId("raceStatus").textContent = state.qualifying
     ? "CLASSIFICAÇÃO · 1 VOLTA DEFINE O GRID"
-    : state.graphicsBeta
-      ? "FORMULA RUSH 2.0 BETA · VOLTAS NÃO RANQUEADAS"
+    : state.graphicsBeta && state.timeTrial
+      ? "CONTRA-RELÓGIO 2.0 · VOLTAS VÁLIDAS ENTRAM NO RANKING"
     : state.timeTrial
       ? "CONTRA-RELÓGIO · SEM LIMITE DE VOLTAS"
       : state.lapCountRace + " VOLTAS · CORRIDA ARCADE";
@@ -146,7 +149,7 @@ function startRace() {
   if (state.championship) {
     byId("circuitName").textContent += " · CAMPEONATO " + (state.championship.round + 1) + "/" + state.championship.calendar.length;
   } else if (state.graphicsBeta) {
-    byId("circuitName").textContent = "INTERLAGOS · 2.0 BETA";
+    byId("circuitName").textContent = "INTERLAGOS · 2.0 · " + (state.timeTrial ? "CONTRA-RELÓGIO" : "CORRIDA");
   }
   if (state.soundOn) syncEngineAudioEnabled(state.soundOn);
   resizeRenderer();
@@ -276,6 +279,13 @@ function goToConfigStep() {
   setVisible("aside");
 }
 
+/** Tela principal: mostra as opções da 2.0 (padrão) ou as da versão clássica 1.0. */
+function setLandingClassic(classic) {
+  setVisible("landingModern", !classic);
+  setVisible("landingClassic", classic);
+  byId(classic ? "goToConfig" : "startBeta").focus({ preventScroll: true });
+}
+
 /** Passo 1: volta da configuração para a tela de abertura (só faz sentido a partir do passo 2). */
 function backToLandingStep() {
   if (state.gameState === "championship-setup") {
@@ -296,24 +306,41 @@ function syncToggleVisual(id, on) {
   button.setAttribute("aria-pressed", on);
 }
 
+/** Devolve à 1.0 o que a 2.0 sobrescreveu ao largar. */
+function restoreClassicSettings() {
+  state.cameraMode = cameraBeforeBeta;
+  state.graphicsBeta = false;
+  state.timeTrial = false;
+  syncToggleVisual("timeTrial", false);
+  if (classicBeforeBeta) {
+    state.difficultyKey = classicBeforeBeta.difficulty;
+    updateLapCountUI(classicBeforeBeta.laps);
+    classicBeforeBeta = null;
+  }
+}
+
 /**
- * Atalho isolado da landing page: Interlagos 2.0 é sempre solo, sem itens,
- * sem classificação e sem leaderboard. A versão 1.0 permanece sendo a
- * entrada `interlagos` normal do configurador.
+ * Entrada principal da landing page: Interlagos 2.0, sem itens e sem
+ * classificação. O menu da 2.0 escolhe a sessão — corrida contra um grid
+ * reduzido (voltas e dificuldade) ou contra-relógio, cujas voltas válidas
+ * entram no ranking próprio da 2.0. A 1.0 continua no configurador.
  */
 async function startGraphicsBeta() {
   const button = byId("startBeta");
+  const session = getSettings();
   button.disabled = true;
   button.classList.add("loading");
   cameraBeforeBeta = state.cameraMode;
+  classicBeforeBeta ??= { difficulty: state.difficultyKey, laps: state.lapCountSetting };
   state.cameraMode = 1;
   state.graphicsBeta = true;
   state.championship = null;
-  state.timeTrial = true;
+  state.timeTrial = session.mode === "timeTrial";
+  state.difficultyKey = session.difficulty;
   state.qualifyingEnabled = false;
   state.qualifying = false;
   state.nightMode = false;
-  syncToggleVisual("timeTrial", true);
+  syncToggleVisual("timeTrial", state.timeTrial);
   syncToggleVisual("qualifying", false);
   syncToggleVisual("nightMode", false);
   byId("back").textContent = "VOLTAR AO MENU";
@@ -331,10 +358,7 @@ async function startGraphicsBeta() {
   button.disabled = false;
   button.classList.remove("loading");
   if (!loaded || !state.graphicsBeta) {
-    state.cameraMode = cameraBeforeBeta;
-    state.graphicsBeta = false;
-    state.timeTrial = false;
-    syncToggleVisual("timeTrial", false);
+    restoreClassicSettings();
     return;
   }
   if (state.racingLineMesh) state.racingLineMesh.visible = false;
@@ -357,12 +381,9 @@ async function returnToMenu() {
   state.championship = null;
 
   if (state.graphicsBeta) {
-    state.cameraMode = cameraBeforeBeta;
-    state.graphicsBeta = false;
-    state.timeTrial = false;
+    restoreClassicSettings();
     state.qualifyingEnabled = false;
     state.nightMode = false;
-    syncToggleVisual("timeTrial", false);
     syncToggleVisual("qualifying", false);
     syncToggleVisual("nightMode", false);
     state.gameState = "landing";
@@ -462,7 +483,7 @@ function wireLifecycleButtons() {
   byId("useItem").onclick = () => useItem();
   byId("viewTimes").onclick = byId("pausedTimes").onclick = byId("resultTimes").onclick = openTimesPanel;
   byId("closeTimes").onclick = closeTimesPanel;
-  byId("viewLeaderboard").onclick = openLeaderboardPanel;
+  byId("viewLeaderboard").onclick = () => openLeaderboardPanel();
   byId("closeLeaderboard").onclick = closeLeaderboardPanel;
   byId("viewReplay").onclick = startReplay;
   byId("skipReplay").onclick = stopReplay;
@@ -474,7 +495,10 @@ function wireLifecycleButtons() {
   }, { guardMenu: true });
 
   byId("goToConfig").onclick = goToConfigStep;
-  byId("landingLeaderboard").onclick = openLeaderboardPanel;
+  byId("landingLeaderboard").onclick = () => openLeaderboardPanel(BETA_BOARD_ID);
+  byId("classicLeaderboard").onclick = () => openLeaderboardPanel();
+  byId("showClassic").onclick = () => setLandingClassic(true);
+  byId("hideClassic").onclick = () => setLandingClassic(false);
   byId("backToLanding").onclick = backToLandingStep;
   byId("brandHome").onclick = backToLandingStep;
 }
@@ -563,6 +587,8 @@ function animate(now) {
   engineAudio.update(state.player, state.gameState === "race", state.player.wasDrifting);
   if (state.graphicsBeta && state.player) {
     applyBetaCarView(state.player.group, !["menu", "landing", "replay"].includes(state.gameState));
+    // Os bots são vistos sempre por fora (o modelo 3D pode chegar depois da largada).
+    for (const car of state.drivers) if (!car.isHuman) applyBetaCarView(car.group, false);
   }
   updateBetaGraphics(dt);
   updateBetaHud(dt);

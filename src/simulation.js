@@ -40,7 +40,8 @@ export function setupItemBoxes() {
   state.driftParticles = [];
   state.yellowFlags = [];
 
-  if (state.timeTrial || state.qualifying) return; // contra-relógio/classificação: sem itens
+  // Contra-relógio, classificação e a 2.0 inteira: sem itens.
+  if (state.timeTrial || state.qualifying || state.graphicsBeta) return;
 
   for (const s of ITEM_BOX_POSITIONS) {
     for (const lane of [-4, 0, 4]) {
@@ -232,10 +233,8 @@ export function showResults() {
   setVisible("countdown", false);
 
   const position = state.finishOrder.indexOf(state.player) + 1;
-  byId("resultTitle").textContent = state.graphicsBeta
-    ? "Formula Rush 2.0"
-    : state.timeTrial
-      ? "Contra-relógio concluído!"
+  byId("resultTitle").textContent = state.timeTrial
+    ? "Contra-relógio concluído!"
     : position === 1 ? "Você venceu!" : position + "º lugar";
   const circuitLabel = (CIRCUITS[state.circuitId]?.label ?? "Pista").toUpperCase();
   const lapsLabel = state.timeTrial
@@ -243,7 +242,7 @@ export function showResults() {
     : state.lapCountRace + (state.lapCountRace === 1 ? " VOLTA" : " VOLTAS");
   byId("resultInfo").textContent =
     circuitLabel + " · " + lapsLabel + " · " +
-    (state.graphicsBeta ? "BETA NÃO RANQUEADO" : state.alwaysTurbo ? "SEMPRE TURBO · NÃO RANQUEADO" : DIFFICULTIES[state.difficultyKey].label.toUpperCase()) + " · " +
+    (state.graphicsBeta && state.timeTrial ? "RANKING 2.0" : state.alwaysTurbo && !state.graphicsBeta ? "SEMPRE TURBO · NÃO RANQUEADO" : DIFFICULTIES[state.difficultyKey].label.toUpperCase()) + " · " +
     formatLapTime(state.player.finish) + " · MELHOR " + formatLapTime(state.player.bestLap);
 
   const standings = [

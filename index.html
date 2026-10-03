@@ -74,37 +74,60 @@
           </button>
         </div>
         <div id="start" class="start">
-          <div class="eyebrow">MONOPOSTOS. CAOS. VELOCIDADE.</div>
-          <h1>O grid é sério.<br />A corrida, <em>nem tanto.</em></h1>
+          <div class="eyebrow">FORMULA RUSH 2.0 · INTERLAGOS</div>
+          <h1>Do cockpit.<br />Volta a <em>volta.</em></h1>
           <p>
-            Domine as curvas. Carregue o drift.<br />Vire o jogo com o item
-            certo.
+            Câmbio de verdade, traçado real de Interlagos.<br />Encare o grid ou
+            caçe a volta perfeita.
           </p>
-          <button type="button" id="startBeta" class="beta-launch">
-            <span class="beta-launch-copy">
-              <small>NOVA EXPERIÊNCIA VISUAL</small>
-              <b>FORMULA RUSH 2.0</b>
-            </span>
-            <span class="beta-pill">BETA</span>
-            <span class="beta-arrow">↗</span>
-          </button>
-          <button id="goToConfig" class="primary">JOGAR <span>↗</span></button
-          ><button
-            type="button"
-            id="landingLeaderboard"
-            class="secondary landing-secondary"
-          >
-            RANKING ONLINE</button
-          ><button
-            type="button"
-            id="startChampionship"
-            class="secondary landing-secondary"
-          >
-            MODO CAMPEONATO
-          </button>
-          <div class="startmeta">
-            23 PILOTOS <span>•</span> 8 CIRCUITOS <span>•</span> VOCÊ CONTRA A
-            IA
+          <div id="landingModern" class="landing-group">
+            <button type="button" id="startBeta" class="beta-launch">
+              <span class="beta-launch-copy">
+                <small>CORRIDA · CONTRA-RELÓGIO</small>
+                <b>JOGAR FORMULA RUSH 2.0</b>
+              </span>
+              <span class="beta-pill">BETA</span>
+              <span class="beta-arrow">↗</span>
+            </button>
+            <button
+              type="button"
+              id="landingLeaderboard"
+              class="secondary landing-secondary"
+            >
+              RANKING 2.0 · CONTRA-RELÓGIO
+            </button>
+            <div class="startmeta">
+              10 PILOTOS <span>•</span> INTERLAGOS <span>•</span> VOLTAS VÁLIDAS
+              NO RANKING
+            </div>
+            <button type="button" id="showClassic" class="classic-link">
+              Jogar a versão clássica 1.0 ↗
+            </button>
+          </div>
+          <div id="landingClassic" class="landing-group hidden">
+            <div class="classic-tag">VERSÃO CLÁSSICA 1.0 · DRIFT E ITENS</div>
+            <button id="goToConfig" class="primary">
+              JOGAR 1.0 <span>↗</span></button
+            ><button
+              type="button"
+              id="classicLeaderboard"
+              class="secondary landing-secondary"
+            >
+              RANKING ONLINE</button
+            ><button
+              type="button"
+              id="startChampionship"
+              class="secondary landing-secondary"
+            >
+              MODO CAMPEONATO
+            </button>
+            <div class="startmeta">
+              23 PILOTOS <span>•</span> 8 CIRCUITOS <span>•</span> VOCÊ CONTRA A
+              IA
+            </div>
+            <button type="button" id="hideClassic" class="classic-link">
+              ← Voltar à 2.0
+            </button>
           </div>
         </div>
         <div id="countdown" class="countdown hidden">
@@ -647,8 +670,8 @@
       <span><i></i> PRONTO PARA ACELERAR</span>
       <div>
         <kbd>↑ ↓</kbd> ACELERAR / FREAR <kbd>← →</kbd> DIREÇÃO
-        <kbd>SHIFT</kbd> DRIFT <kbd>ESPAÇO</kbd> ITEM <kbd>C</kbd> CÂMERA
-        <kbd>R</kbd> REPOSICIONAR <kbd>P</kbd> PAUSAR <kbd>T</kbd> TEMPOS
+        <kbd>H J</kbd> MARCHAS <kbd>C</kbd> CÂMERA <kbd>R</kbd> REPOSICIONAR
+        <kbd>P</kbd> PAUSAR <kbd>T</kbd> TEMPOS
       </div>
       <span class="mobilehint">CONTROLES NA TELA DURANTE A CORRIDA</span>
       <small class="disclaimer"

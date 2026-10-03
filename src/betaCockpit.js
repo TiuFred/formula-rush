@@ -26,7 +26,7 @@ export function cockpitTelemetry(car, raceTime) {
     lap: Math.max(0, car.finish ? car.lastLap || 0 : raceTime - (car.lapStarted || 0)),
     status: car.currentLapValid === false
       ? "VOLTA INVALIDA"
-      : car.drsActive ? "DRS ATIVO" : "TIME TRIAL",
+      : car.drsActive ? "DRS ATIVO" : state.timeTrial ? "TIME TRIAL" : "CORRIDA",
   };
 }
 
@@ -650,7 +650,7 @@ export function updateBetaCockpit(car, raceTime, clockTime, dt = 1 / 60) {
   // Luz de chuva traseira acompanha o freio (e a desaceleração forte).
   const rainLight = car.group.userData.betaRainLight;
   if (rainLight) {
-    const braking = state.keys.ArrowDown || state.keys.s || state.keys.S || (car.betaAcceleration || 0) < -14;
+    const braking = state.keys.ArrowDown || state.keys.s || (car.betaAcceleration || 0) < -14;
     rainLight.emissiveIntensity = braking ? 7 : 0.6;
   }
   const telemetry = cockpitTelemetry(car, raceTime);

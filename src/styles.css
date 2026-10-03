@@ -329,7 +329,7 @@ h1 em {
 }
 
 body.beta-racing .game::after {
-  content: "2.0 BETA · NÃO RANQUEADO";
+  content: "2.0 BETA";
   position: absolute;
   z-index: 3;
   right: 26px;
@@ -799,6 +799,11 @@ kbd {
 
 .touch .driftkey {
   color: var(--lime);
+}
+
+/* A 2.0 não tem drift. */
+body.beta-racing .touch .driftkey {
+  display: none;
 }
 
 /* Botões de marcha: só aparecem na 2.0 com o câmbio manual (ver betaMenu/betaApply). */
@@ -2229,6 +2234,37 @@ body.racing #lapCount {
    cheia própria, só formulário — a seção .game inteira fica oculta
    (body.configuring), sem nenhum canvas/preview 3D. Passo 3 (a corrida) é
    tratado em "Corrida em tela cheia". */
+
+/* Tela principal: a 2.0 é o padrão; a 1.0 fica atrás de um link pequeno. */
+.landing-group {
+  display: grid;
+  justify-items: start;
+}
+
+.classic-link {
+  margin-top: 18px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: #9fb09f;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.classic-link:hover {
+  color: var(--lime);
+}
+
+.classic-tag {
+  margin-bottom: 12px;
+  color: #9fb09f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
 
 /* Botão secundário (RANKING ONLINE) no passo 1 — abaixo do CTA principal. */
 .landing-secondary {

@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { state } from "./state.js";
-import { TRACK_LENGTH, F1_DRIVERS_2026, DRIVER_COUNT } from "./constants.js";
+import { TRACK_LENGTH, F1_DRIVERS_2026, DRIVER_COUNT, BETA_DRIVER_COUNT } from "./constants.js";
 import { MATERIALS, makeMaterial, addMesh, addBox, disposeObject3D, makeTextPanel, redrawTextPanel } from "./materials.js";
 import { resetLapState } from "./timing.js";
 import { normalizePlayerName, normalizePlayerNumber } from "./validation.js";
@@ -277,7 +277,7 @@ export function setupGrid(gridOrder = null) {
   for (const car of state.drivers) disposeObject3D(car.group);
   state.finishOrder = [];
 
-  const count = state.timeTrial ? 1 : DRIVER_COUNT;
+  const count = state.timeTrial ? 1 : state.graphicsBeta ? BETA_DRIVER_COUNT : DRIVER_COUNT;
   const order = gridOrder ?? [...Array(count - 1).keys()].map((k) => k + 1).concat([0]);
 
   const cars = new Array(count);

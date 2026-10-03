@@ -1,8 +1,10 @@
 import {
   FOV_RANGE,
   QUALITY_PRESETS,
+  RACE_LAPS_RANGE,
   SPEED_UNITS,
   getSettings,
+  onSettingsChange,
   updateSettings,
 } from "./betaSettings.js";
 import { feedbackUrl } from "./betaDiagnostics.js";
@@ -35,11 +37,20 @@ const GUIDE_LEGEND = [
 const TIPS = [
   "O DRS abre sozinho nas zonas marcadas e solta ao frear.",
   "Câmbio manual: suba com J perto das luzes de troca; H reduz, mas é recusado se o motor passaria do limite.",
-  "Sair dos limites da pista invalida a volta (a HUD fica vermelha).",
+  "Sair dos limites da pista invalida a volta (a HUD fica vermelha). No contra-relógio, só voltas válidas entram no ranking 2.0.",
   "No celular, use os botões na tela. Gire o aparelho para ver mais pista.",
 ];
 
 const SEGMENTS = {
+  mode: [
+    ["race", "CORRIDA"],
+    ["timeTrial", "CONTRA-RELÓGIO"],
+  ],
+  difficulty: [
+    ["rookie", "ESTREANTE"],
+    ["sport", "COMPETIDOR"],
+    ["pro", "VETERANO"],
+  ],
   quality: Object.entries(QUALITY_PRESETS).map(([value, preset]) => [value, preset.label]),
   time: [
     ["day", "DIA"],
@@ -106,6 +117,35 @@ function slider(key, label, min, max, step, format) {
   return row;
 }
 
+/** Seletor − N + do número de voltas da corrida. */
+function lapStepper() {
+  const row = el("div", "bm-field");
+  row.dataset.raceOnly = "";
+  row.append(el("span", "bm-label", "VOLTAS"));
+  const wrap = el("div", "bm-stepper");
+  const step = (delta) => updateSettings({ laps: getSettings().laps + delta });
+  const less = el("button", "bm-seg", "−");
+  less.type = "button";
+  less.dataset.step = "-1";
+  less.setAttribute("aria-label", "Menos voltas");
+  less.addEventListener("click", () => step(-1));
+  const value = el("output", "bm-laps");
+  const more = el("button", "bm-seg", "+");
+  more.type = "button";
+  more.dataset.step = "1";
+  more.setAttribute("aria-label", "Mais voltas");
+  more.addEventListener("click", () => step(1));
+  wrap.append(less, value, more);
+  row.append(wrap);
+  return row;
+}
+
+/** Linha de subtítulo do menu: "INTERLAGOS · CORRIDA · 5 VOLTAS". */
+function sessionLabel(settings) {
+  if (settings.mode === "timeTrial") return "INTERLAGOS · CONTRA-RELÓGIO · RANKING 2.0";
+  return `INTERLAGOS · CORRIDA · ${settings.laps} ${settings.laps === 1 ? "VOLTA" : "VOLTAS"}`;
+}
+
 function build() {
   root = el("div", "bm");
   root.id = "betaMenu";
@@ -120,10 +160,18 @@ function build() {
   head.append(el("b", "bm-badge", "2.0 BETA"));
   const title = el("h2", "", "PREPARAÇÃO");
   title.id = "bmTitle";
-  head.append(title, el("span", "bm-sub", "INTERLAGOS · CONTRA-RELÓGIO"));
+  head.append(title, el("span", "bm-sub", ""));
   panel.append(head);
 
   const body = el("div", "bm-body");
+
+  const session = el("section", "bm-col bm-session");
+  session.append(el("h3", "", "SESSÃO"));
+  const difficulty = segmented("difficulty", "ADVERSÁRIOS");
+  difficulty.dataset.raceOnly = "";
+  session.append(segmented("mode", "MODO"), lapStepper(), difficulty);
+  const sessionNote = el("p", "bm-note");
+  session.append(sessionNote);
 
   const controls = el("section", "bm-col");
   controls.append(el("h3", "", "CONTROLES"));
@@ -163,7 +211,7 @@ function build() {
   skip.append(skipInput, el("span", "", "Não mostrar este menu antes de largar"));
   settings.append(skip);
 
-  body.append(controls, settings);
+  body.append(session, controls, settings);
   panel.append(body);
 
   const loading = el("div", "bm-loading");
@@ -218,6 +266,9 @@ function build() {
 
   root.append(panel);
   document.body.append(root);
+  onSettingsChange(() => {
+    if (!root.hidden) syncControls();
+  });
 }
 
 function syncControls() {
@@ -234,6 +285,17 @@ function syncControls() {
     input.nextElementSibling.textContent = settings[input.dataset.key] + (input.dataset.key === "fov" ? "°" : "%");
   });
   root.querySelector('input[type="checkbox"]').checked = settings.skipIntro;
+  root.querySelector(".bm-laps").textContent = String(settings.laps);
+  root.querySelector('[data-step="-1"]').disabled = settings.laps <= RACE_LAPS_RANGE[0];
+  root.querySelector('[data-step="1"]').disabled = settings.laps >= RACE_LAPS_RANGE[1];
+  const race = settings.mode === "race";
+  root.querySelectorAll("[data-race-only]").forEach((row) => (row.hidden = !race));
+  root.querySelector(".bm-note").textContent = race
+    ? "Você contra 9 pilotos da IA, largando do fundo do grid. Corridas não entram no ranking."
+    : "Sozinho na pista, sem limite de voltas. Cada volta válida (dentro dos limites) vale para o ranking 2.0.";
+  root.querySelector(".bm-sub").textContent = mode === "pause" ? "AJUSTES DURANTE A SESSÃO" : sessionLabel(settings);
+  // A sessão só se escolhe antes da largada.
+  root.querySelector(".bm-session").hidden = mode === "pause";
 }
 
 function trapKeys() {

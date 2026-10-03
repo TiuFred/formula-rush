@@ -103,9 +103,9 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   const onTrack = nearest.dist < nearest.halfWidth + .5;
   // 0 no centro da pista, 1 na borda/zebra ou fora: a câmera a bordo usa para trepidar.
   car.edgeRumble = Math.min(1, Math.max(0, (nearest.dist - nearest.halfWidth + .9) / 1.4));
-  const throttle = keys.ArrowUp || keys.w || keys.W;
-  const brake = keys.ArrowDown || keys.s || keys.S;
-  const steerInput = (keys.ArrowLeft || keys.a || keys.A ? 1 : 0) - (keys.ArrowRight || keys.d || keys.D ? 1 : 0);
+  const throttle = keys.ArrowUp || keys.w;
+  const brake = keys.ArrowDown || keys.s;
+  const steerInput = (keys.ArrowLeft || keys.a ? 1 : 0) - (keys.ArrowRight || keys.d ? 1 : 0);
 
   car.steer += (steerInput - car.steer) * (1 - Math.exp(-dt * (steerInput ? 10 : 14)));
   car.driftCooldown = Math.max(0, car.driftCooldown - dt);

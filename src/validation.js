@@ -11,6 +11,11 @@ export const CIRCUIT_IDS = Object.freeze([
   "yasMarina",
 ]);
 
+/** Ranking próprio da 2.0 (física diferente da 1.0, então não se misturam). */
+export const BETA_BOARD_ID = "interlagos-2";
+
+export const LEADERBOARD_IDS = Object.freeze([...CIRCUIT_IDS, BETA_BOARD_ID]);
+
 /**
  * Normaliza nomes sem interpretar HTML. Caracteres de controle são removidos,
  * espaços são compactados e o limite é aplicado por caractere Unicode.
@@ -34,6 +39,10 @@ export function normalizePlayerNumber(value, fallback = "07") {
 
 export function isKnownCircuitId(value) {
   return CIRCUIT_IDS.includes(value);
+}
+
+export function isLeaderboardId(value) {
+  return LEADERBOARD_IDS.includes(value);
 }
 
 /** Barreira de sanidade; não pretende substituir validação autoritativa. */

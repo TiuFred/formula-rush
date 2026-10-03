@@ -15,6 +15,8 @@ export function setTrackLength(v) { TRACK_LENGTH = v; }
 
 /** Número de pilotos em uma corrida normal (jogador + 22 bots). No contra-relógio, só 1. */
 export const DRIVER_COUNT = 23;
+/** Corrida da 2.0: jogador + 9 bots (os carros 3D da 2.0 pesam bem mais que os da 1.0). */
+export const BETA_DRIVER_COUNT = 10;
 
 /** Pontuação por posição no modo campeonato (ver main.js), sistema atual da F1: só o top 10 pontua. */
 export const CHAMPIONSHIP_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];

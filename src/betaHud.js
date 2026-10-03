@@ -27,7 +27,7 @@ let tracked = null;
 const SKELETON = `
   <div class="f1-tower">
     <div class="f1-tower-head"><b data-ref="circuit">INTERLAGOS</b><span data-ref="session">CONTRA-RELÓGIO</span></div>
-    <div class="f1-row you"><i class="f1-pos">1</i><i class="f1-team"></i><b class="f1-tla" data-ref="tla">VOC</b><span class="f1-val" data-ref="current">0:00.000</span></div>
+    <div class="f1-row you"><i class="f1-pos" data-ref="pos">1</i><i class="f1-team"></i><b class="f1-tla" data-ref="tla">VOC</b><span class="f1-val" data-ref="current">0:00.000</span></div>
     <div class="f1-row"><i class="f1-pos">—</i><i class="f1-team purple"></i><b class="f1-tla">MELHOR</b><span class="f1-val purple-text" data-ref="best">—</span></div>
     <div class="f1-row"><i class="f1-pos">—</i><i class="f1-team dim"></i><b class="f1-tla">ÚLTIMA</b><span class="f1-val" data-ref="last">—</span></div>
   </div>
@@ -153,6 +153,20 @@ function showBanner(player, previousBest) {
   tracked.bannerLeft = BANNER_SECONDS;
 }
 
+/** Posição do carro na corrida: quem terminou primeiro, depois quem andou mais. */
+function racePosition(car) {
+  let ahead = 0;
+  for (const other of state.drivers) {
+    if (other === car) continue;
+    if (car.finish != null) {
+      if (other.finish != null && other.finish < car.finish) ahead++;
+    } else if (other.finish != null || other.progress > car.progress) {
+      ahead++;
+    }
+  }
+  return ahead + 1;
+}
+
 /** Chamar uma vez por quadro. `dt` em segundos. */
 export function updateBetaHud(dt) {
   const visible = state.graphicsBeta && ["countdown", "race", "paused"].includes(state.gameState);
@@ -182,10 +196,20 @@ export function updateBetaHud(dt) {
   setText("last", broadcastTime(player.lastLap ?? null));
   const invalid = state.timeTrial && player.currentLapValid === false;
   setClass("current", "invalid", invalid);
+  setText("session", state.timeTrial ? "CONTRA-RELÓGIO" : "CORRIDA");
 
-  // Faixa de volta.
-  setText("lapno", "VOLTA " + (player.completedLaps + 1));
-  setText("valid", invalid ? "VOLTA INVALIDADA" : "VOLTA VÁLIDA");
+  // Faixa de volta. Na corrida mostra a posição; no contra-relógio, se a volta vale para o ranking.
+  const lapNo = Math.min(player.completedLaps + 1, state.lapCountRace);
+  if (state.timeTrial) {
+    setText("pos", "1");
+    setText("lapno", "VOLTA " + lapNo);
+    setText("valid", invalid ? "VOLTA INVALIDADA" : "VOLTA VÁLIDA");
+  } else {
+    const position = racePosition(player);
+    setText("pos", String(position));
+    setText("lapno", "VOLTA " + lapNo + "/" + state.lapCountRace);
+    setText("valid", "P" + position + " DE " + state.drivers.length);
+  }
   setClass("valid", "invalid", invalid);
 
   // Volta completada: aviso com tempo e diferença para a melhor anterior.
@@ -208,7 +232,7 @@ export function updateBetaHud(dt) {
   // Manual: o número pisca perto do limite de giro e treme quando a redução é recusada.
   setClass("gearBox", "limit", telemetry.manual && telemetry.shift > 0.92);
   setClass("gearBox", "denied", telemetry.denied);
-  const brakeTarget = state.keys.ArrowDown || state.keys.s || state.keys.S ? 1 : 0;
+  const brakeTarget = state.keys.ArrowDown || state.keys.s ? 1 : 0;
   const blend = 1 - Math.exp(-dt * 16);
   tracked.throttle += (telemetry.throttle - tracked.throttle) * blend;
   tracked.brake += (brakeTarget - tracked.brake) * blend;

@@ -15,6 +15,10 @@ import { drawTrackMap } from "./minimap.js";
 import { engineAudio, syncEngineAudioEnabled } from "./audio.js";
 import { setPlayerIdentity, setupGrid } from "./car.js";
 import { getLeaderboard } from "./leaderboard.js";
+import { BETA_BOARD_ID } from "./validation.js";
+
+/** Ranking exibido no painel agora (evita que uma busca atrasada sobrescreva outra). */
+let activeBoard = null;
 import { resizeRenderer, buildScene } from "./scene.js";
 import { disposeObject3D } from "./materials.js";
 
@@ -59,15 +63,16 @@ export function wireToggle(id, onToggle, initial = false) {
  * getLeaderboard em leaderboard.js. Mostra um estado de carregamento
  * enquanto a busca online está em andamento (pode levar um instante).
  */
-export async function renderLeaderboard() {
-  const circuitAtRequest = state.circuitId;
+export async function renderLeaderboard(boardId = state.circuitId) {
+  const circuitAtRequest = boardId;
+  activeBoard = boardId;
   byId("leaderboardStatus").textContent = "Carregando ranking…";
   byId("leaderboardStatus").classList.remove("online");
   byId("leaderboardRows").innerHTML = "";
   setVisible("leaderboardEmpty", false);
 
   const { online, entries } = await getLeaderboard(circuitAtRequest);
-  if (state.circuitId !== circuitAtRequest) return; // usuário trocou de circuito enquanto isso carregava
+  if (activeBoard !== circuitAtRequest) return; // usuário trocou de circuito enquanto isso carregava
 
   byId("leaderboardStatus").textContent = online
     ? "RANKING ONLINE · GLOBAL · TEMPOS NÃO VERIFICADOS"
@@ -87,10 +92,13 @@ export async function renderLeaderboard() {
   setVisible("leaderboardEmpty", entries.length === 0);
 }
 
-/** Abre o painel de ranking (sempre para o circuito ativo). */
-export function openLeaderboardPanel() {
+/** Abre o painel de ranking: do circuito ativo ou, com `boardId`, de um ranking específico (ex.: o da 2.0). */
+export function openLeaderboardPanel(boardId = state.graphicsBeta ? BETA_BOARD_ID : state.circuitId) {
+  byId("leaderboardTitle").textContent = boardId === BETA_BOARD_ID
+    ? "Interlagos 2.0 · contra-relógio"
+    : "Melhores voltas";
   setVisible("leaderboardPanel");
-  renderLeaderboard();
+  renderLeaderboard(boardId);
 }
 
 /** Fecha o painel de ranking local. */
