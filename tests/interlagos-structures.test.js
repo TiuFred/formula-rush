@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { applyCircuitProfile } from "../src/circuits.js";
 import { buildTrackModel, alignedFootprintClearanceAt } from "../src/track.js";
-import { planInterlagosLandmarks, planInterlagosStands } from "../src/interlagosStructures.js";
+import { createPitCanopyGeometry, planInterlagosLandmarks, planInterlagosStands } from "../src/interlagosStructures.js";
+import { planInterlagosVenue, interlagosVegetationBlocked } from "../src/interlagosVenue.js";
 
 function inside(p, polygon) {
   let result = false;
@@ -13,6 +14,39 @@ function inside(p, polygon) {
   }
   return result;
 }
+
+test("membrana dos boxes tem bordas curvas, normais para cima e dimensões finitas", () => {
+  const geometry = createPitCanopyGeometry();
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  assert.equal(box.min.x, -8);
+  assert.equal(box.max.x, 8);
+  assert.ok(box.min.y >= 6.7 && box.max.y <= 11.5);
+  const { position, normal } = geometry.attributes;
+  for (let i = 0; i < position.count; i++) {
+    assert.ok(Number.isFinite(position.getY(i)));
+    assert.ok(normal.getY(i) > 0, "membrana invertida");
+  }
+  geometry.dispose();
+});
+
+test("telões e áreas de circulação ficam fora do asfalto e árvores respeitam os setores", async () => {
+  const load = async file => JSON.parse(await readFile(new URL("../public/" + file, import.meta.url), "utf8"));
+  applyCircuitProfile("interlagos");
+  const track = buildTrackModel(await load("interlagos.geojson"), await load("elevation.json"));
+  const plan = planInterlagosVenue(track);
+  assert.ok(plan.filter(item => item.kind === "screen").length >= 2);
+  assert.ok(plan.filter(item => item.kind === "concourse").length >= 12);
+  for (const item of plan) {
+    assert.ok(alignedFootprintClearanceAt(track, item.s, item.lane, item.width, item.depth) >= 8);
+  }
+  assert.equal(interlagosVegetationBlocked(100, 40, 4309), true);
+  assert.equal(interlagosVegetationBlocked(100, -65, 4309), true);
+  assert.equal(interlagosVegetationBlocked(900, 45, 4309), true);
+  assert.equal(interlagosVegetationBlocked(4309 - 500, 35, 4309), true);
+  assert.equal(interlagosVegetationBlocked(900, 160, 4309), false);
+  assert.equal(interlagosVegetationBlocked(2500, -100, 4309), false);
+});
 
 test("setores de Interlagos ficam no exterior do circuito e coberturas não invadem o asfalto", async () => {
   const load = async file => JSON.parse(await readFile(new URL("../public/" + file, import.meta.url), "utf8"));

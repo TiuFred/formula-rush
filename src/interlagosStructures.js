@@ -5,6 +5,7 @@ import { alignedFootprintClearanceAt, cornerWideningAt, trackHalfWidthAt } from 
 import { createCrowdMeshes, pickShirtColor, SKIN_TONES, FLAG_VARIANTS } from "./crowd.js";
 import { ROTATION_IDS } from "./sponsors.js";
 import { INTERLAGOS_BRIDGE, INTERLAGOS_STANDS, INTERLAGOS_TOWER } from "./interlagosReal.js";
+import { detailSurface } from "./betaSurfaceMaterials.js";
 
 // Localização e cobertura: dados do OpenStreetMap e do mapa oficial do GP São
 // Paulo, reunidos em interlagosReal.js (fontes, método e limites de fidelidade
@@ -15,7 +16,7 @@ export { INTERLAGOS_STANDS };
 const SEAT_PALETTES = {
   A: ["#28587e", "#e8e1cf"],
   B: ["#d9c04a", "#1f7a4d"],
-  M: ["#28587e", "#f1c04b"],
+  M: ["#25608b", "#39769b"],
   D: ["#b02a30", "#e8e1cf"],
   H: ["#1f7a4d", "#e8e1cf"],
   R: ["#28587e", "#d9c04a"],
@@ -24,7 +25,7 @@ const SEAT_PALETTES = {
 };
 
 /** Fração das cadeiras ocupadas e fração de torcedores com bandeira. */
-const CROWD_DENSITY = 0.64;
+const CROWD_DENSITY = 0.88;
 const FLAG_SHARE = 0.045;
 
 const MARSHAL_POSTS = [[350, -1], [1010, 1], [1740, -1], [2380, 1], [3040, -1], [3730, 1]];
@@ -80,9 +81,11 @@ function beam(a, b, radius, material, parent) {
 /** `sponsors` (opcional): acumulador de placas; cada módulo ganha placas na grade frontal. */
 export function buildInterlagosStands(rng, sponsors = null) {
   const modules = planInterlagosStands(state.track);
-  const concrete = makeMaterial("#9e9f98", { roughness: .95 });
+  const concrete = detailSurface(makeMaterial("#9e9f98", { roughness: .95 }), "concrete");
   const steel = makeMaterial("#65716d", { metalness: .65, roughness: .48 });
   const roof = makeMaterial("#d5d5ca", { metalness: .25, roughness: .6 });
+  const safety = makeMaterial("#d3ba54", { roughness: .9 });
+  const dark = makeMaterial("#242b2d", { roughness: .75 });
   const seatMaterial = makeMaterial("#ffffff", { roughness: .75 });
   const count = modules.reduce((sum, m) => sum + m.rows * 22, 0);
   const seats = new THREE.InstancedMesh(new THREE.BoxGeometry(.46, .12, .49), seatMaterial, count);
@@ -119,6 +122,13 @@ export function buildInterlagosStands(rng, sponsors = null) {
       const x = front + 1 + row * .82;
       const y = 1.2 + row * .42;
       addBox(.84, .22, length, concrete, x, y, 0, root);
+      // Two half-height treads per seating row: usable stairs, with yellow nosings.
+      for (const z of [-8.1, .04]) {
+        addBox(.42, .21, .7, concrete, x - .21, y - .105, z, root);
+        addBox(.055, .025, .7, safety, x - .4, y + .012, z, root);
+        addBox(.055, .025, .7, safety, x, y + .222, z, root);
+        if (row % 3 === 0) beam([x, y, z + .42], [x, y + 1, z + .42], .027, steel, root);
+      }
       for (let col = 0; col < 22; col++) {
         if (col === 0 || col === 11) continue;
         const z = -8.1 + col * .74;
@@ -140,14 +150,17 @@ export function buildInterlagosStands(rng, sponsors = null) {
         const body = bearer ? bearers : fans;
         const slot = bearer ? b++ : p++;
         body.setMatrixAt(slot, dummy.matrix);
-        body.setColorAt(slot, color.set(pickShirtColor(rng())));
+        // Static occlusion under the canopy keeps distant crowds from becoming
+        // bright confetti when they fall outside the moving sun shadow map.
+        const shade = covered ? .42 + .2 * (1 - row / rows) : .72 + rng() * .14;
+        body.setColorAt(slot, color.set(pickShirtColor(rng())).multiplyScalar(shade));
         if (bearer) {
           flags.setMatrixAt(slot, dummy.matrix);
           flagVariant[slot] = Math.floor(rng() * FLAG_VARIANTS.length);
         }
         dummy.position.y += .4; dummy.updateMatrix();
         heads.setMatrixAt(h, dummy.matrix);
-        heads.setColorAt(h++, color.set(SKIN_TONES[Math.floor(rng() * SKIN_TONES.length)]));
+        heads.setColorAt(h++, color.set(SKIN_TONES[Math.floor(rng() * SKIN_TONES.length)]).multiplyScalar(shade));
       }
     }
     for (const z of [-8.6, 8.6]) {
@@ -156,6 +169,23 @@ export function buildInterlagosStands(rng, sponsors = null) {
         addBox(.32, top + 8, .32, concrete, x, (top - 8) / 2, z, root);
       }
       beam([front, 2.1, z], [depth / 2, height + 2, z], .055, steel, root);
+      // Triangulated rakers visible from the approaches to each sector.
+      beam([front + .7, .2, z], [depth / 2 - 1, height + 1.2, z], .09, steel, root);
+      for (let x = front + 3; x < depth / 2; x += 3.3) {
+        const top = 1.2 + (x - front - 1) * .42 / .82;
+        beam([x, -4, z], [x, top, z], .065, steel, root);
+      }
+    }
+    for (const z of [-7.68, .46]) {
+      beam([front + .6, 2.25, z], [front + 1 + (rows - 1) * .82, height + 1.8, z], .032, steel, root);
+    }
+    // Rear circulation deck and guardrail remain inside the checked footprint.
+    addBox(1.7, .2, length, concrete, depth / 2 - .85, height + .9, 0, root);
+    for (const y of [height + 1.45, height + 2]) {
+      beam([depth / 2 - .1, y, -8.7], [depth / 2 - .1, y, 8.7], .034, steel, root);
+    }
+    for (let z = -8.6; z <= 8.6; z += 2.15) {
+      beam([depth / 2 - .1, height + .9, z], [depth / 2 - .1, height + 2, z], .035, steel, root);
     }
     addBox(.12, 1.05, length, steel, front - .4, 1.4, 0, root);
     // Placas de patrocínio na grade frontal; o painel "SETOR" ocupa o centro do primeiro módulo.
@@ -169,6 +199,22 @@ export function buildInterlagosStands(rng, sponsors = null) {
       const roofY = height + 4.1;
       const canopy = addBox(depth + 2.5, .13, 18.05, roof, 0, roofY, 0, root);
       canopy.rotation.z = .045;
+      // Longitudinal front truss and roof purlins, visible in the official M photo.
+      for (const y of [roofY - .9, roofY - .1]) {
+        beam([front - .8, y, -8.9], [front - .8, y, 8.9], .06, steel, root);
+      }
+      for (let z = -8.8; z < 8.7; z += 1.1) {
+        beam([front - .8, roofY - .9, z], [front - .8, roofY - .1, z + .55], .033, steel, root);
+        beam([front - .8, roofY - .1, z + .55], [front - .8, roofY - .9, z + 1.1], .033, steel, root);
+      }
+      for (let x = front; x < depth / 2; x += 2.4) {
+        addBox(.07, .13, 17.9, steel, x, roofY - .17 + x * .045, 0, root);
+      }
+      addBox(.18, .42, 18.05, roof, front - 1.1, roofY, 0, root);
+      if (Math.round(s) % 3 === 0) {
+        beam([front, roofY - .2, 0], [front, roofY - 1.4, 0], .025, steel, root);
+        addBox(.5, .8, .55, dark, front, roofY - 1.8, 0, root);
+      }
       for (const z of [-8.6, 8.6]) {
         addBox(.22, roofY + 8, .22, steel, depth / 2, (roofY - 8) / 2, z, root);
         beam([front - 1, roofY - .8, z], [depth / 2, roofY - .8, z], .07, steel, root);
@@ -199,28 +245,47 @@ export function buildInterlagosStands(rng, sponsors = null) {
   flags.geometry.attributes.aFlag.needsUpdate = true;
 }
 
-/** Membranas brancas com mastros e cabos, baseadas nas fotos dos boxes. */
-export function addPitCanopy(s, lane, parent = state.scene) {
-  const frame = state.track.at(s, lane);
-  const root = new THREE.Group();
-  root.position.copy(frame.p);
-  root.rotation.y = frame.yaw;
-  parent.add(root);
-  const material = makeMaterial("#eeeade", { roughness: .72, side: THREE.DoubleSide });
-  const geometry = new THREE.PlaneGeometry(16, 19.8, 16, 16);
+/** Scalloped tensile roof: low corner anchors, curved front edge and rear peak.
+ * Dimensions are visual estimates from the official sector M photograph. */
+export function createPitCanopyGeometry() {
+  const geometry = new THREE.PlaneGeometry(16, 19.8, 20, 24);
   geometry.rotateX(-Math.PI / 2);
   const pos = geometry.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i) / 8, z = pos.getZ(i) / 9.9;
-    const peak = Math.pow(Math.max(0, 1 - Math.hypot(x, z) / 1.42), 1.6);
-    pos.setY(i, 8.2 + peak * 4 + .4 * x);
+    const arch = Math.sqrt(Math.max(0, 1 - z * z));
+    const cross = Math.max(0, 1 - x * x);
+    pos.setY(i, 6.8 + arch * 2.7 + cross * (1.1 + arch * .8));
   }
   geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** Membranas brancas com mastros e cabos, baseadas nas fotos dos boxes. */
+export function addPitCanopy(s, lane, parent = state.scene, materials = {}) {
+  const frame = state.track.at(s, lane);
+  const root = new THREE.Group();
+  root.position.copy(frame.p);
+  root.rotation.y = frame.yaw;
+  root.name = "interlagos-pit-tensile-roof";
+  parent.add(root);
+  const material = materials.fabric ?? makeMaterial("#eeeade", { roughness: .72, side: THREE.DoubleSide });
+  const geometry = createPitCanopyGeometry();
   addMesh(geometry, material, 0, 0, 0, root);
-  const cable = makeMaterial("#d4d6cd", { metalness: .6, roughness: .45 });
-  beam([0, 6.7, 0], [0, 14.4, 0], .1, cable, root);
+  const cable = materials.cable ?? makeMaterial("#d4d6cd", { metalness: .6, roughness: .45 });
+  beam([1, 6.7, 0], [2.4, 14.4, 0], .1, cable, root);
+  beam([3.8, 6.7, 0], [2.4, 14.4, 0], .09, cable, root);
   for (const x of [-8, 8]) {
-    for (const z of [-9.9, 9.9]) beam([0, 14.3, 0], [x, 8.2 + .4 * x / 8, z], .024, cable, root);
+    for (const z of [-9.9, 9.9]) {
+      beam([2.4, 14.3, 0], [x, 6.8, z], .024, cable, root);
+      beam([x, 4, z], [x, 6.8, z], .095, cable, root);
+    }
+    // Curved steel edge and fine seams follow the membrane instead of floating above it.
+    for (let i = 0; i < 24; i++) {
+      const za = -1 + i / 12, zb = -1 + (i + 1) / 12;
+      beam([x, 6.82 + 2.7 * Math.sqrt(Math.max(0, 1 - za * za)), za * 9.9],
+        [x, 6.82 + 2.7 * Math.sqrt(Math.max(0, 1 - zb * zb)), zb * 9.9], .035, cable, root);
+    }
   }
 }
 

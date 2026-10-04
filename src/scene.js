@@ -64,7 +64,7 @@ function buildRibbonMesh(leftOffsetFn, rightOffsetFn, material, yOffset = .02) {
       const offset = typeof fn === "function" ? fn(i * track.step) : fn;
       const p = frame.p.clone().addScaledVector(frame.right, offset);
       const yOff = Array.isArray(yOffset) ? yOffset[edgeIdx] : yOffset;
-      positions.push(p.x, p.y + yOff, p.z);
+      positions.push(p.x, p.y + (typeof yOff === "function" ? yOff(p) : yOff), p.z);
       uvs.push(offset / 5, (i * track.step) / 5);
       edges.push(edgeIdx);
     });
@@ -313,12 +313,30 @@ function buildTrackDecorations() {
 
   // Zebras de escape (run-off) em curvas específicas do circuito ativo.
   for (const [start, end, side] of ZEBRA_ZONES) {
+    if (state.graphicsBeta) continue;
     for (let s = start; s < end; s += 8) {
       const safeRunoff = state.track.tracksideOffsetAt(s, side) - trackHalfWidthAt(s);
       const width = safeRunoff - 3;
       if (width <= 0) continue;
       addAlignedBox(s, side * (trackHalfWidthAt(s) + 2 + width / 2), width, .08, 8.1, sandBase, -.12);
     }
+  }
+
+  if (state.graphicsBeta) {
+    // Painted asphalt aprons, following the actual edge rather than overlapping boxes.
+    const positions = [], colors = [];
+    for (const [start, end, side] of [[-620, 260, 1], [270, 710, -1], [1120, 1490, 1], [1850, 2130, 1], [3070, 3320, 1]]) {
+      for (let s = start; s < end; s += 2) {
+        const inner = x => side * (trackHalfWidthAt(x) + 1.2);
+        const outer = x => side * Math.min(trackHalfWidthAt(x) + 5.5, state.track.tracksideOffsetAt(x, side) - .4);
+        if ([s, s + 2].some(x => Math.abs(outer(x)) < Math.abs(inner(x)) + .3)) continue;
+        pushCurbQuad(positions, colors, s, s + 2, side > 0 ? inner : outer, side > 0 ? outer : inner,
+          new THREE.Color("#23968a"), -.06);
+      }
+    }
+    const aprons = buildVertexColoredMesh(positions, colors);
+    aprons.name = "interlagos-painted-runoff";
+    detailSurface(aprons.material, "paint");
   }
 
   // Placas de distância (100/150/200... até a curva) antes de curvas famosas.
@@ -1202,8 +1220,9 @@ export function buildScene() {
     buildRibbonMesh(edgeAt(-1, outer(-1)), edgeAt(-1, inner(-1)), groundMaterial, [-6, -.25]);
     buildRibbonMesh(edgeAt(1, inner(1)), edgeAt(1, outer(1)), groundMaterial, [-.25, -6]);
   } else {
-    buildRibbonMesh(outerEdge(-1, 15), outerEdge(-1), groundMaterial, [-11, -.2]);
-    buildRibbonMesh(outerEdge(1), outerEdge(1, 15), groundMaterial, [-.2, -11]);
+    const terrainJoin = state.graphicsBeta ? p => groundHeightAt(p.x, p.z) - p.y - .15 : -11;
+    buildRibbonMesh(outerEdge(-1, 15), outerEdge(-1), groundMaterial, [terrainJoin, -.2]);
+    buildRibbonMesh(outerEdge(1), outerEdge(1, 15), groundMaterial, [-.2, terrainJoin]);
   }
   buildRibbonMesh(outerEdge(-1), outerEdge(1), runoffMaterial, -.2);
   buildRibbonMesh((s) => -trackHalfWidthAt(s), trackHalfWidthAt, MATERIALS.road, .1);
@@ -1276,18 +1295,20 @@ export function buildScene() {
   }
 
   // Pórtico de largada (start gantry) com 5 luzes.
-  const gantryFrame = state.track.at(20);
-  const gantry = new THREE.Group();
-  gantry.position.copy(gantryFrame.p);
-  gantry.rotation.y = gantryFrame.yaw;
-  state.scene.add(gantry);
-  // Os postes acompanham a largura real da pista. O antigo ±10 m ficaria
-  // sobre a borda do asfalto de Indianápolis depois da ampliação.
-  const gantryPostOffset = Math.max(10, trackHalfWidthAt(20) + 2);
-  addBox(.7, 8, .7, MATERIALS.metal, -gantryPostOffset, 4, 0, gantry);
-  addBox(.7, 8, .7, MATERIALS.metal, gantryPostOffset, 4, 0, gantry);
-  addBox(gantryPostOffset * 2 + 1, 2, .7, MATERIALS.black, 0, 8, 0, gantry);
-  for (let i = 0; i < 5; i++) addBox(.6, .6, .8, MATERIALS.lime, -3 + i * 1.5, 8, 0, gantry);
+  if (!state.graphicsBeta) {
+    const gantryFrame = state.track.at(20);
+    const gantry = new THREE.Group();
+    gantry.position.copy(gantryFrame.p);
+    gantry.rotation.y = gantryFrame.yaw;
+    state.scene.add(gantry);
+    // Os postes acompanham a largura real da pista. O antigo ±10 m ficaria
+    // sobre a borda do asfalto de Indianápolis depois da ampliação.
+    const gantryPostOffset = Math.max(10, trackHalfWidthAt(20) + 2);
+    addBox(.7, 8, .7, MATERIALS.metal, -gantryPostOffset, 4, 0, gantry);
+    addBox(.7, 8, .7, MATERIALS.metal, gantryPostOffset, 4, 0, gantry);
+    addBox(gantryPostOffset * 2 + 1, 2, .7, MATERIALS.black, 0, 8, 0, gantry);
+    for (let i = 0; i < 5; i++) addBox(.6, .6, .8, MATERIALS.lime, -3 + i * 1.5, 8, 0, gantry);
+  }
 
   // PRNG determinístico (Park-Miller) para árvores, prédios e morros de fundo
   // — o cenário fica sempre idêntico entre execuções (não usa Math.random aqui).
@@ -1330,7 +1351,7 @@ export function buildScene() {
   // Na 2.0 os patrocinadores fictícios (sponsors.js) substituem as faixas genéricas.
   if (SCENERY.banners && !state.graphicsBeta) buildBanners(SCENERY.banners);
 
-  if (state.graphicsBeta) buildBetaTrackDetails(rng);
+  if (state.graphicsBeta) buildBetaTrackDetails(rng, groundHeightAt);
 
   // Fundo distante. Autódromo: "morros" de caixas atrás da largada. Rua:
   // paredões rochosos e altos (Mônaco é espremida contra a montanha).

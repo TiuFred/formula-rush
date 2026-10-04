@@ -4,6 +4,7 @@ import { state } from "./state.js";
 import { TRACK_LENGTH } from "./constants.js";
 import { asphaltClearanceAt, trackHalfWidthAt } from "./track.js";
 import { getSettings } from "./betaSettings.js";
+import { interlagosVegetationBlocked } from "./interlagosVenue.js";
 
 /**
  * Horários do dia da 2.0. O mesmo sol orienta o céu, os reflexos e as sombras do
@@ -200,6 +201,7 @@ export function buildBetaAtmosphere(
     if (
       s < 300 ||
       s > TRACK_LENGTH - 480 ||
+      interlagosVegetationBlocked(s, lane, TRACK_LENGTH) ||
       inWater(p.x, p.z) ||
       asphaltClearanceAt(state.track, p.x, p.z) < 30
     )
