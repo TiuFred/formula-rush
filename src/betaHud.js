@@ -29,6 +29,7 @@ const SKELETON = `
     <div class="f1-tower-head"><b data-ref="circuit">INTERLAGOS</b><span data-ref="session">CONTRA-RELÓGIO</span></div>
     <div class="f1-row you"><i class="f1-pos">1</i><i class="f1-team"></i><b class="f1-tla" data-ref="tla">VOC</b><span class="f1-val" data-ref="current">0:00.000</span></div>
     <div class="f1-row"><i class="f1-pos">—</i><i class="f1-team purple"></i><b class="f1-tla">MELHOR</b><span class="f1-val purple-text" data-ref="best">—</span></div>
+    <div class="f1-row"><i class="f1-pos">—</i><i class="f1-team gold"></i><b class="f1-tla">RECORDE</b><span class="f1-val gold-text" data-ref="record">—</span></div>
     <div class="f1-row"><i class="f1-pos">—</i><i class="f1-team dim"></i><b class="f1-tla">ÚLTIMA</b><span class="f1-val" data-ref="last">—</span></div>
   </div>
 
@@ -123,10 +124,10 @@ export function signedDelta(seconds, digits = 3) {
 }
 
 /** Atraso (+) ou adiantamento (−) estimado em relação à melhor volta, na distância já percorrida. */
-export function liveDelta(player, raceTime) {
-  if (!player.bestLap || player.finish) return null;
+export function liveDelta(player, raceTime, reference = player.bestLap) {
+  if (!reference || player.finish) return null;
   const lapFraction = ((((player.progress % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH) / TRACK_LENGTH);
-  return raceTime - player.lapStarted - player.bestLap * lapFraction;
+  return raceTime - player.lapStarted - reference * lapFraction;
 }
 
 /** Classe de cor de um setor: pendente, melhor pessoal (verde) ou mais lento (amarelo). */
@@ -146,7 +147,7 @@ function showBanner(player, previousBest) {
   const isBest = previousBest === null || player.lastLap < previousBest - 1e-6;
   setText("bannerTitle", "VOLTA " + lapNo + (player.lapValidity?.[lapNo - 1] === false ? " · INVALIDADA" : ""));
   setText("bannerTime", broadcastTime(player.lastLap));
-  const text = previousBest === null ? "PRIMEIRA VOLTA" : isBest ? "MELHOR VOLTA · " + signedDelta(player.lastLap - previousBest) : signedDelta(player.lastLap - previousBest);
+  const text = state.betaRecordBroken === lapNo ? "NOVO RECORDE PESSOAL" : previousBest === null ? "PRIMEIRA VOLTA" : isBest ? "MELHOR VOLTA · " + signedDelta(player.lastLap - previousBest) : signedDelta(player.lastLap - previousBest);
   setText("bannerDelta", text);
   setClass("banner", "best", isBest && previousBest !== null);
   setClass("banner", "slow", previousBest !== null && !isBest);
@@ -179,6 +180,7 @@ export function updateBetaHud(dt) {
   root.style.setProperty("--team", player.color || "#dcff59");
   setText("current", broadcastTime(player.finish ? player.lastLap : lapElapsed));
   setText("best", broadcastTime(player.bestLap ?? null));
+  setText("record", broadcastTime(state.betaRecord?.best ?? null));
   setText("last", broadcastTime(player.lastLap ?? null));
   const invalid = state.timeTrial && player.currentLapValid === false;
   setClass("current", "invalid", invalid);
@@ -208,7 +210,7 @@ export function updateBetaHud(dt) {
   // Manual: o número pisca perto do limite de giro e treme quando a redução é recusada.
   setClass("gearBox", "limit", telemetry.manual && telemetry.shift > 0.92);
   setClass("gearBox", "denied", telemetry.denied);
-  const brakeTarget = state.keys.ArrowDown || state.keys.s || state.keys.S ? 1 : 0;
+  const brakeTarget = state.keys.ArrowDown || state.keys.s || state.keys.S || state.keys.GamepadDown ? 1 : 0;
   const blend = 1 - Math.exp(-dt * 16);
   tracked.throttle += (telemetry.throttle - tracked.throttle) * blend;
   tracked.brake += (brakeTarget - tracked.brake) * blend;
@@ -239,7 +241,7 @@ export function updateBetaHud(dt) {
   }
 
   // Delta ao vivo contra a melhor volta.
-  const delta = liveDelta(player, raceTime);
+  const delta = liveDelta(player, raceTime, state.betaRecord?.best ?? player.bestLap);
   if (delta === null) {
     setText("deltaText", "—");
     setStyle("deltaFill", "--d", "0");

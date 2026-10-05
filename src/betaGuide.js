@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { state } from "./state.js";
 import { TRACK_LENGTH } from "./constants.js";
 import { wrapAngle } from "./mathUtils.js";
+import { maxYawRate } from "./handling.js";
 
 /**
  * Guia de pilotagem da 2.0: uma linha fina e translúcida pintada no asfalto à frente do carro
@@ -20,10 +21,7 @@ export const GUIDE = {
   margin: 0.88, // fração da velocidade máxima de curva que o guia pede
 };
 
-/** Taxa máxima de guinada (rad/s) do carro a `speed` m/s: espelha updatePlayerPhysics. */
-export function maxYawRate(speed) {
-  return (0.2 + 0.98 / (1 + speed / 48)) * Math.min(speed / 11, 1);
-}
+export { maxYawRate };
 
 /** Maior velocidade em que o carro ainda faz uma curva de curvatura `kappa` (1/m). */
 export function cornerSpeed(kappa, topSpeed = GUIDE.topSpeed) {

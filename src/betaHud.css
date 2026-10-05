@@ -114,6 +114,10 @@ body.beta-racing #driftFlash {
   background: var(--f1-purple);
 }
 
+.f1-team.gold {
+  background: #f2c230;
+}
+
 .f1-team.dim {
   background: #666673;
 }
@@ -132,6 +136,10 @@ body.beta-racing #driftFlash {
 
 .f1-val.purple-text {
   color: var(--f1-purple);
+}
+
+.f1-val.gold-text {
+  color: #f2c230;
 }
 
 .f1-val.invalid {

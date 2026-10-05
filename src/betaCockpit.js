@@ -650,7 +650,7 @@ export function updateBetaCockpit(car, raceTime, clockTime, dt = 1 / 60) {
   // Luz de chuva traseira acompanha o freio (e a desaceleração forte).
   const rainLight = car.group.userData.betaRainLight;
   if (rainLight) {
-    const braking = state.keys.ArrowDown || state.keys.s || state.keys.S || (car.betaAcceleration || 0) < -14;
+    const braking = state.keys.ArrowDown || state.keys.s || state.keys.S || state.keys.GamepadDown || (car.betaAcceleration || 0) < -14;
     rainLight.emissiveIntensity = braking ? 7 : 0.6;
   }
   const telemetry = cockpitTelemetry(car, raceTime);
@@ -688,7 +688,7 @@ let mirrorFrame = 0;
  * do piloto na normal do vidro, então o que aparece muda com a cabeça. Roda a
  * cada dois quadros e reaproveita o mapa de sombras já calculado.
  */
-export function renderBetaMirrors(renderer, scene, camera, car, dt = 0) {
+export function renderBetaMirrors(renderer, scene, camera, car, dt = 0, hidden = []) {
   const data = car.group.userData.betaCockpit;
   // Quadros lentos (dt alto) pulam os espelhos para não agravar a queda de FPS.
   if (!data?.mirrors || dt > 0.034 || mirrorFrame++ % qualityPreset().mirrorEvery) return;
@@ -698,8 +698,16 @@ export function renderBetaMirrors(renderer, scene, camera, car, dt = 0) {
   renderer.shadowMap.autoUpdate = false;
   const faces = data.mirrors.map((mirror) => mirror.userData.mirror.face);
   for (const face of faces) face.visible = false;
+  // Objetos que só fazem sentido à frente (o guia de pilotagem) não precisam ser desenhados no retrovisor.
+  const hiddenBefore = hidden.map((object) => object.visible);
+  for (const object of hidden) object.visible = false;
+  const far = qualityPreset().mirrorFar;
   for (const mirror of data.mirrors) {
     const { target, camera: mirrorCamera } = mirror.userData.mirror;
+    if (mirrorCamera.far !== far) {
+      mirrorCamera.far = far;
+      mirrorCamera.updateProjectionMatrix();
+    }
     mirrorCamera.position.set(0, 0, -0.06);
     mirror.localToWorld(mirrorCamera.position);
     mirror.getWorldQuaternion(mirrorQuat);
@@ -713,6 +721,9 @@ export function renderBetaMirrors(renderer, scene, camera, car, dt = 0) {
     renderer.render(scene, mirrorCamera);
   }
   for (const face of faces) face.visible = true;
+  hidden.forEach((object, i) => {
+    object.visible = hiddenBefore[i];
+  });
   renderer.setRenderTarget(previousTarget);
   renderer.shadowMap.autoUpdate = previousAutoUpdate;
 }

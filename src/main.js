@@ -9,14 +9,13 @@ import { CIRCUITS, applyCircuitProfile } from "./circuits.js";
 import { byId, setVisible, tickNotice, showNotice } from "./dom.js";
 import { buildTrackModel } from "./track.js";
 import { adaptResolution, buildScene, resizeRenderer, updateBetaGraphics } from "./scene.js";
-import { updateBetaHud } from "./betaHud.js";
+import { pollGamepad } from "./gamepad.js";
 import { installBetaSettings } from "./betaApply.js";
-import { closeBetaMenu, openBetaMenu, showBetaLoading } from "./betaMenu.js";
 import { getSettings } from "./betaSettings.js";
+import { BETA_CIRCUITS, enterBetaState, exitBetaState } from "./betaMode.js";
 import { preloadCarModel } from "./betaCarModel.js";
 import { applyBetaCarView } from "./betaCar.js";
 import { installErrorCollector } from "./betaDiagnostics.js";
-import "./betaHud.css";
 import { setupGrid, applyRenderInterpolation, setPlayerIdentity } from "./car.js";
 import { setupItemBoxes, advanceSimulation, endTimeTrial } from "./simulation.js";
 import { updateCamera } from "./camera.js";
@@ -42,7 +41,16 @@ let circuitLoadSequence = 0;
 let animationStarted = false;
 let championshipColorDraft = state.selectedColor;
 let championshipLapsDraft = state.lapCountSetting;
-let cameraBeforeBeta = 0;
+/** Estado da 1.0 guardado ao entrar na 2.0 (ver betaMode.js). */
+let stateBeforeBeta = null;
+
+/** Menu, HUD e fantasma da 2.0: baixados na primeira vez que o jogador entra no modo (ver betaUi.js). */
+let betaUi = null;
+let betaUiPromise = null;
+function loadBetaUi() {
+  betaUiPromise ??= import("./betaUi.js").then((ui) => (betaUi = ui));
+  return betaUiPromise;
+}
 
 /** Largada estilo F1: 5 luzes vermelhas acendem uma a uma a cada
  * LIGHT_INTERVAL segundos e, com as 5 acesas, ficam paradas por um tempo
@@ -301,44 +309,47 @@ function syncToggleVisual(id, on) {
  * sem classificação e sem leaderboard. A versão 1.0 permanece sendo a
  * entrada `interlagos` normal do configurador.
  */
-async function startGraphicsBeta() {
+async function startGraphicsBeta(circuitId = BETA_CIRCUITS[0]) {
   const button = byId("startBeta");
   button.disabled = true;
   button.classList.add("loading");
-  cameraBeforeBeta = state.cameraMode;
-  state.cameraMode = 1;
-  state.graphicsBeta = true;
-  state.championship = null;
-  state.timeTrial = true;
-  state.qualifyingEnabled = false;
-  state.qualifying = false;
-  state.nightMode = false;
+  stateBeforeBeta = enterBetaState(state);
   syncToggleVisual("timeTrial", true);
   syncToggleVisual("qualifying", false);
   syncToggleVisual("nightMode", false);
   byId("back").textContent = "VOLTAR AO MENU";
   byId("exit").textContent = "VOLTAR AO MENU";
 
-  loadProgress = showBetaLoading;
-  showBetaLoading(2, "INICIANDO");
   let loaded;
   try {
-    loaded = await loadCircuit("interlagos");
+    const ui = await loadBetaUi();
+    loadProgress = ui.showBetaLoading;
+    ui.showBetaLoading(2, "INICIANDO");
+    loaded = await loadCircuit(circuitId);
+  } catch (err) {
+    console.error(err);
+    loaded = false;
   } finally {
     loadProgress = null;
-    closeBetaMenu();
+    betaUi?.closeBetaMenu();
   }
   button.disabled = false;
   button.classList.remove("loading");
   if (!loaded || !state.graphicsBeta) {
-    state.cameraMode = cameraBeforeBeta;
-    state.graphicsBeta = false;
-    state.timeTrial = false;
-    syncToggleVisual("timeTrial", false);
+    leaveBeta();
     return;
   }
   if (state.racingLineMesh) state.racingLineMesh.visible = false;
   startRace();
+}
+
+/** Sai da 2.0 devolvendo ao estado da 1.0 o que a entrada alterou, e acerta os botões do configurador. */
+function leaveBeta() {
+  exitBetaState(state, stateBeforeBeta);
+  stateBeforeBeta = null;
+  syncToggleVisual("timeTrial", state.timeTrial);
+  syncToggleVisual("qualifying", state.qualifyingEnabled);
+  syncToggleVisual("nightMode", state.nightMode);
 }
 
 /** Volta à configuração de corrida (encerra a corrida atual sem completá-la, passo 3 -> passo 2). */
@@ -357,14 +368,7 @@ async function returnToMenu() {
   state.championship = null;
 
   if (state.graphicsBeta) {
-    state.cameraMode = cameraBeforeBeta;
-    state.graphicsBeta = false;
-    state.timeTrial = false;
-    state.qualifyingEnabled = false;
-    state.nightMode = false;
-    syncToggleVisual("timeTrial", false);
-    syncToggleVisual("qualifying", false);
-    syncToggleVisual("nightMode", false);
+    leaveBeta();
     state.gameState = "landing";
     state.timesPanelOpen = false;
     state.wasRacingBeforeTimes = false;
@@ -442,11 +446,15 @@ function wireLifecycleButtons() {
   };
   byId("nextRound").onclick = advanceChampionship;
   byId("startChampionship").onclick = openChampionshipSetup;
-  byId("startBeta").onclick = () => {
-    if (getSettings().skipIntro) startGraphicsBeta();
-    else openBetaMenu({ mode: "launch", confirm: startGraphicsBeta });
+  byId("startBeta").onclick = async () => {
+    if (getSettings().skipIntro) {
+      startGraphicsBeta();
+      return;
+    }
+    const { openBetaMenu } = await loadBetaUi();
+    openBetaMenu({ mode: "launch", confirm: () => startGraphicsBeta(), subtitle: CIRCUITS[BETA_CIRCUITS[0]].label.toUpperCase() + " · CONTRA-RELÓGIO" });
   };
-  byId("betaSettings").onclick = () => openBetaMenu({ mode: "pause" });
+  byId("betaSettings").onclick = () => betaUi?.openBetaMenu({ mode: "pause" });
   byId("backFromChampionship").onclick = closeChampionshipSetup;
   byId("championshipForm").onsubmit = startChampionship;
   byId("championshipLapCount").onchange = (event) => updateChampionshipLapCount(event.target.value);
@@ -560,12 +568,14 @@ function animate(now) {
     hudAccumulator = 0;
   }
 
-  engineAudio.update(state.player, state.gameState === "race", state.player.wasDrifting);
+  engineAudio.update(state.player, state.gameState === "race", state.player.wasDrifting, state.graphicsBeta);
   if (state.graphicsBeta && state.player) {
     applyBetaCarView(state.player.group, !["menu", "landing", "replay"].includes(state.gameState));
   }
+  pollGamepad();
   updateBetaGraphics(dt);
-  updateBetaHud(dt);
+  betaUi?.updateBetaGhost();
+  betaUi?.updateBetaHud(dt);
   if (state.composer) state.composer.render();
   else state.renderer.render(state.scene, state.camera);
 }

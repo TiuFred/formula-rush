@@ -90,12 +90,6 @@ os dois vidros ficam ocultos para evitar feedback.
 **Pneus.** Pretos e lisos, sem inscrições. Os dianteiros são menores e mais
 estreitos que os traseiros (escala 0,78 × 0,86), como num F1 real.
 
-**Mãos e braços (versão anterior, substituída abaixo).** As luvas têm dorso, quatro dedos que contornam a pegada,
-polegar e tecido procedural com pontos de silicone; o punho é claro e o
-antebraço afina em direção ao pulso e mergulha para baixo do volante, de modo
-que só um trecho curto aparece na tela. Os
-antebraços são reposicionados entre o cotovelo e o pulso a cada frame.
-
 **Volante.** `betaWheel.js` recria um volante de F1 moderno (inspirado no W11) do
 zero, a partir de medidas tiradas de uma imagem de referência; nenhuma malha ou
 textura de modelo de terceiros é usada. Chassi de carbono largo, display com
@@ -331,3 +325,43 @@ a permitida naquele ponto: acima, vermelho; perto do limite de uma curva, amarel
 verde. A HUD repete o aviso em um selo pequeno (ACELERE, ALIVIE, FREIE). Pode ser desligado
 em Ajustes (`guide`).
 >>>>>>> theirs
+
+## Recorde pessoal e fantasma
+
+`betaRecords.js` guarda no `localStorage` a melhor volta válida por circuito e horário
+(dia e pôr do sol têm recordes separados) junto com a trajetória: uma amostra a cada 0,1 s
+(`t, x, y, z, yaw`, arredondadas), no máximo 6000 amostras. Armazenamento bloqueado ou
+cheio só faz o recorde valer na sessão; dados corrompidos viram "sem recorde".
+
+`betaGhost.js` grava a volta atual e, ao fechar uma volta válida mais rápida que o recorde,
+salva a nova trajetória e avisa na HUD ("NOVO RECORDE PESSOAL"). O fantasma é um carro
+translúcido que larga junto e esmaece a menos de 14 m do jogador (some a 3 m) para nunca
+tapar o cockpit. Pode ser desligado em Ajustes (`ghost`). A HUD ganhou a linha RECORDE na
+torre de tempos e o delta ao vivo passa a comparar com o recorde guardado.
+
+## Entrada: gamepad
+
+`gamepad.js` lê o primeiro controle conectado (mapeamento "standard"). O analógico esquerdo
+esterça de forma contínua (zona morta de 12% e curva suave); RT/A aceleram, LT/B freiam,
+LB/RB trocam de marcha, X reposiciona e Start pausa. O teclado continua valendo e tem
+prioridade quando alguma seta está pressionada. A inclinação do celular (giroscópio) **não**
+foi implementada: o sinal dos eixos de `devicemotion` difere entre iOS e Android e não deu
+para validar em aparelhos reais.
+
+## Áudio do motor
+
+`betaAudio.js` deriva o som do mesmo powertrain que move o carro: a frequência acompanha o
+giro da marcha atual (cai a cada troca), o ganho acompanha o acelerador, o filtro abre com o
+pé embaixo e a troca corta o som com um estalo. Zebra e grama produzem uma trepidação grave
+(`edgeRumble` × velocidade) no mesmo canal de ruído usado pelo chiado de drift na 1.0.
+
+## Organização do código
+
+- `renderProfile.js` reúne os valores que diferem entre 1.0 e 2.0 (câmera, exposição,
+  luzes, segmentos do terreno), no lugar de `graphicsBeta ? a : b` espalhado.
+- `handling.js` guarda `maxYawRate`, usada pela física do jogador e pelo guia de pilotagem.
+- `betaMode.js` entra e sai do modo 2.0 de forma simétrica: `exitBetaState` devolve à 1.0
+  o que `enterBetaState` alterou (câmera, contra-relógio, classificação, noite, turbo).
+- `betaUi.js` (menu, HUD, fantasma e CSS) é carregado sob demanda no primeiro toque em
+  "Formula Rush 2.0".
+- Para incluir um circuito na 2.0, veja `docs/prompts/astra-indianapolis-2.0.md`.

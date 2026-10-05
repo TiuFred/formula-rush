@@ -7,9 +7,9 @@ const KEY = "formula-rush.beta.settings.v1";
 
 /** Cada preset define o que a GPU precisa fazer; os valores mais altos só entram em máquinas capazes. */
 export const QUALITY_PRESETS = {
-  low: { label: "BAIXO", pixelRatio: 1, msaa: 0, shadow: 1024, bloom: false, mirrorEvery: 3 },
-  medium: { label: "MÉDIO", pixelRatio: 1.5, msaa: 2, shadow: 2048, bloom: true, mirrorEvery: 2 },
-  high: { label: "ALTO", pixelRatio: 2, msaa: 4, shadow: 4096, bloom: true, mirrorEvery: 2 },
+  low: { label: "BAIXO", pixelRatio: 1, msaa: 0, shadow: 1024, bloom: false, mirrorEvery: 3, mirrorFar: 220 },
+  medium: { label: "MÉDIO", pixelRatio: 1.5, msaa: 2, shadow: 2048, bloom: true, mirrorEvery: 2, mirrorFar: 320 },
+  high: { label: "ALTO", pixelRatio: 2, msaa: 4, shadow: 4096, bloom: true, mirrorEvery: 2, mirrorFar: 450 },
 };
 
 export const SPEED_UNITS = {
@@ -33,6 +33,7 @@ export function defaultSettings({ touch = false } = {}) {
     time: "day",
     transmission: "auto",
     guide: true,
+    ghost: true,
     skipIntro: false,
   };
 }
@@ -51,6 +52,7 @@ export function normalizeSettings(raw, base = defaultSettings()) {
     time: TIMES_OF_DAY.includes(source.time) ? source.time : base.time,
     transmission: TRANSMISSION_MODES.includes(source.transmission) ? source.transmission : base.transmission,
     guide: typeof source.guide === "boolean" ? source.guide : base.guide,
+    ghost: typeof source.ghost === "boolean" ? source.ghost : base.ghost,
     skipIntro: typeof source.skipIntro === "boolean" ? source.skipIntro : base.skipIntro,
   };
 }

@@ -175,18 +175,19 @@ formula-rush/
 
 ## Controles
 
-| Ação                                 | Teclado              | Toque                |
-| ------------------------------------ | -------------------- | -------------------- |
-| Acelerar / Frear                     | `↑` `↓` (ou `W` `S`) | botões na tela       |
-| Direção                              | `←` `→` (ou `A` `D`) | botões na tela       |
-| Drift                                | `Shift`              | botão "DRIFT"        |
-| Usar item                            | `Espaço`             | toque no item no HUD |
-| Subir / reduzir marcha (2.0, manual) | `J` / `H`            | botões `+` / `−`     |
-| Câmbio automático ↔ manual (2.0)     | `G`                  | menu de ajustes      |
-| Trocar câmera                        | `C`                  | botão "CÂMERA"       |
-| Reposicionar na pista                | `R`                  | botão "↺"            |
-| Pausar                               | `P` / `Esc`          | botão "Ⅱ"            |
-| Tempos de volta                      | `T`                  | botão "VER TEMPOS"   |
+| Ação                                 | Teclado                        | Toque                |
+| ------------------------------------ | ------------------------------ | -------------------- |
+| Acelerar / Frear                     | `↑` `↓` (ou `W` `S`)           | botões na tela       |
+| Direção                              | `←` `→` (ou `A` `D`)           | botões na tela       |
+| Drift                                | `Shift`                        | botão "DRIFT"        |
+| Usar item                            | `Espaço`                       | toque no item no HUD |
+| Subir / reduzir marcha (2.0, manual) | `J` / `H`                      | botões `+` / `−`     |
+| Câmbio automático ↔ manual (2.0)     | `G`                            | menu de ajustes      |
+| Gamepad (2.0)                        | analógico, RT/LT, LB/RB, Start | —                    |
+| Trocar câmera                        | `C`                            | botão "CÂMERA"       |
+| Reposicionar na pista                | `R`                            | botão "↺"            |
+| Pausar                               | `P` / `Esc`                    | botão "Ⅱ"            |
+| Tempos de volta                      | `T`                            | botão "VER TEMPOS"   |
 
 ## Contra-relógio e limites de pista
 

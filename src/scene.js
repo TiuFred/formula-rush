@@ -12,6 +12,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { createBetaGradePass, updateBetaGrade } from "./betaPostFx.js";
 import { chunkInstancedMeshes } from "./instanceChunks.js";
 import { createBetaGuide } from "./betaGuide.js";
+import { sceneProfile } from "./renderProfile.js";
 import { makeAsphaltMaps } from "./betaTextures.js";
 import { createAdaptiveResolution } from "./adaptiveResolution.js";
 import { prefersReducedMotion } from "./accessibility.js";
@@ -961,8 +962,8 @@ export function updateBetaGraphics(dt = 0) {
   if (!state.graphicsBeta || !state.betaSun || !state.player) return;
   updateCrowd(state.clockTime, state.player.group.position);
   updateBetaCockpit(state.player, state.raceTime, state.clockTime, dt);
-  renderBetaMirrors(state.renderer, state.scene, state.camera, state.player, dt);
   const guide = state.betaGuide;
+  renderBetaMirrors(state.renderer, state.scene, state.camera, state.player, dt, guide ? [guide.mesh] : []);
   if (guide) {
     const driving = state.gameState === "race" && !state.player.finish && getSettings().guide;
     guide.mesh.visible = driving;
@@ -1027,7 +1028,8 @@ export function buildScene() {
   guardWebGLContext(byId("race"));
   state.renderer.outputColorSpace = THREE.SRGBColorSpace;
   state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  state.renderer.toneMappingExposure = state.graphicsBeta ? .9 : night ? .95 : 1.15;
+  const look = sceneProfile();
+  state.renderer.toneMappingExposure = look.exposure(night);
   state.renderer.shadowMap.enabled = state.graphicsBeta;
   state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   if (state.graphicsBeta) setupBetaEnvironment();
@@ -1035,10 +1037,10 @@ export function buildScene() {
   // De noite, o "sol" vira luar (bem mais fraco e frio) — a pista em si é
   // iluminada por holofotes emissivos (ver buildFloodlights abaixo), não
   // por luzes dinâmicas de verdade (custaria caro com 23 carros na cena).
-  const hemisphere = new THREE.HemisphereLight("#d7f0ff", state.graphicsBeta ? "#5a6650" : "#556c39", state.graphicsBeta ? .62 : night ? .55 : 2.6);
+  const hemisphere = new THREE.HemisphereLight("#d7f0ff", look.hemisphereGround, look.hemisphereIntensity(night));
   state.scene.add(hemisphere);
   state.betaHemi = state.graphicsBeta ? hemisphere : null;
-  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : state.graphicsBeta ? "#fff0d1" : "#fff2d1", state.graphicsBeta ? 2.85 : night ? .4 : 2.5);
+  const sun = new THREE.DirectionalLight(night ? "#9db8ff" : look.sunColor, look.sunIntensity(night));
   sun.position.set(-300, 700, 100);
   state.scene.add(sun);
   state.scene.add(sun.target);
@@ -1108,7 +1110,7 @@ export function buildScene() {
   // Terreno: grande plano cujo relevo segue (com suavização por distância
   // inversa) a elevação de amostras da pista, formando um "vale" ao redor
   // dela (terreno ~5m abaixo do nível médio da pista).
-  const terrainSegments = state.graphicsBeta ? 132 : 74;
+  const terrainSegments = sceneProfile().terrainSegments;
   const ground = new THREE.PlaneGeometry(2100 * scale, 2100 * scale, terrainSegments, terrainSegments);
   ground.rotateX(-Math.PI / 2);
   const groundPos = ground.attributes.position;

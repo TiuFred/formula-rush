@@ -20,6 +20,7 @@ import { showNotice } from "./dom.js";
 import { addMesh } from "./materials.js";
 import { playerTurboSettings } from "./turbo.js";
 import { updateBetaPowertrain } from "./betaPowertrain.js";
+import { maxYawRate } from "./handling.js";
 import { getSettings } from "./betaSettings.js";
 
 /** Faísca visual de drift (cor conforme o nível de miniturbo carregado). */
@@ -103,9 +104,11 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   const onTrack = nearest.dist < nearest.halfWidth + .5;
   // 0 no centro da pista, 1 na borda/zebra ou fora: a câmera a bordo usa para trepidar.
   car.edgeRumble = Math.min(1, Math.max(0, (nearest.dist - nearest.halfWidth + .9) / 1.4));
-  const throttle = keys.ArrowUp || keys.w || keys.W;
-  const brake = keys.ArrowDown || keys.s || keys.S;
-  const steerInput = (keys.ArrowLeft || keys.a || keys.A ? 1 : 0) - (keys.ArrowRight || keys.d || keys.D ? 1 : 0);
+  const throttle = keys.ArrowUp || keys.w || keys.W || keys.GamepadUp;
+  const brake = keys.ArrowDown || keys.s || keys.S || keys.GamepadDown;
+  const digitalSteer = (keys.ArrowLeft || keys.a || keys.A ? 1 : 0) - (keys.ArrowRight || keys.d || keys.D ? 1 : 0);
+  // Gamepad: direção analógica contínua (só no jogador 1); o teclado tem prioridade se estiver em uso.
+  const steerInput = digitalSteer || (keys === state.keys && state.analogSteer) || 0;
 
   car.steer += (steerInput - car.steer) * (1 - Math.exp(-dt * (steerInput ? 10 : 14)));
   car.driftCooldown = Math.max(0, car.driftCooldown - dt);
@@ -162,7 +165,7 @@ export function updatePlayerPhysics(car, dt, keys = state.keys) {
   car.slip += (targetSlip - car.slip) * (1 - Math.exp(-dt * (isDrifting ? 6 : 9)));
 
   const grip = DIFFICULTIES[state.difficultyKey].grip;
-  const turnRate = (.2 + .98 / (1 + car.speed / 48)) * Math.min(car.speed / 11, 1);
+  const turnRate = maxYawRate(car.speed);
   car.yaw += car.steer * turnRate * (isDrifting ? 1.24 : 1) * dt * (car.stun > 0 ? .25 : 1);
 
   // Assistência de direção: realinha suavemente com a direção da pista.

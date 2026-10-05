@@ -107,6 +107,12 @@ export const state = {
   betaGuide: null,
   /** Luz solar móvel do modo 2.0, mantida perto do jogador para sombras nítidas. */
   betaSun: null,
+  /** Recorde pessoal da 2.0 neste circuito e horário (`{best, ghost}` ou null); ver betaGhost.js. */
+  betaRecord: null,
+  /** Nº da volta (1-based) em que o recorde foi batido nesta sessão, para a HUD anunciar. */
+  betaRecordBroken: 0,
+  /** Direção analógica (−1 direita … +1 esquerda) de gamepad; null = só teclado. */
+  analogSteer: null,
   /** Mapa de iluminação procedural usado nos reflexos do modo 2.0. */
   betaEnvironment: null,
 

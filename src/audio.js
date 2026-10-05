@@ -1,9 +1,9 @@
 // Áudio procedural via WebAudio API: som de motor (sintetizado, sem samples
 // de arquivo), efeitos sonoros curtos (cue) e bipes de contagem regressiva.
-// Extraído 1:1 da classe original do bundle; a 2.0 só troca a fonte do giro (ver update).
+// Extraído 1:1 da classe original do bundle; a 2.0 tem caminho próprio (updateBeta),
+// ligado ao powertrain por betaAudio.js.
 
-import { state } from "./state.js";
-import { betaPowertrainTelemetry } from "./betaPowertrain.js";
+import { betaEngineVoice, betaTireVoice } from "./betaAudio.js";
 
 export class EngineAudio {
   constructor() {
@@ -37,6 +37,7 @@ export class EngineAudio {
       const engineFilter = ctx.createBiquadFilter();
       engineFilter.type = "lowpass";
       engineFilter.frequency.value = 1500;
+      this.engineFilter = engineFilter;
       this.engine.connect(engineFilter).connect(this.master);
 
       this.voices = [1, 2.01, 3.02].map((ratio) => {
@@ -62,6 +63,7 @@ export class EngineAudio {
       tireFilter.type = "bandpass";
       tireFilter.frequency.value = 1500;
       tireFilter.Q.value = 2;
+      this.tireFilter = tireFilter;
       this.tires = ctx.createGain();
       this.tires.gain.value = 0;
       noiseSource.connect(tireFilter).connect(this.tires).connect(this.master);
@@ -116,19 +118,21 @@ export class EngineAudio {
   }
 
   /** Atualiza o som do motor a cada frame com base no estado do carro do jogador. */
-  update(car, engineOn, isDrifting) {
+  update(car, engineOn, isDrifting, beta = false) {
     if (!this.ready) return;
     const ctx = this.ctx;
     const running = this.enabled && engineOn;
-    // Na 2.0 o som segue a marcha e o giro do câmbio (manual ou automático).
-    const beta = state.graphicsBeta ? betaPowertrainTelemetry(car) : null;
-    const gear = beta ? beta.gear : Math.max(1, Math.min(8, Math.floor(car.speed * 3.6 / 43) + 1));
+    if (beta) {
+      this.updateBeta(car, running);
+      return;
+    }
+    const gear = Math.max(1, Math.min(8, Math.floor(car.speed * 3.6 / 43) + 1));
     if (gear !== this.gear && running) {
       this.nextShift = ctx.currentTime + .07;
       this.gear = gear;
       this.tone(110, .04, "triangle", .12);
     }
-    const baseFreq = beta ? 118 + beta.rpm * 118 : 120 + (car.speed * 3.6 - (gear - 1) * 43) * 2.6;
+    const baseFreq = 120 + (car.speed * 3.6 - (gear - 1) * 43) * 2.6;
     for (const voice of this.voices) {
       voice.o.frequency.setTargetAtTime(baseFreq * voice.ratio, ctx.currentTime, .06);
     }
@@ -136,7 +140,25 @@ export class EngineAudio {
       running ? (ctx.currentTime < this.nextShift ? .015 : .055 + car.speed * .001) : 0,
       ctx.currentTime, .05
     );
+    this.engineFilter.frequency.setTargetAtTime(1500, ctx.currentTime, .1);
+    this.tireFilter.frequency.setTargetAtTime(1500, ctx.currentTime, .1);
     this.tires.gain.setTargetAtTime(running && isDrifting ? .13 : 0, ctx.currentTime, .05);
+  }
+
+  /** Motor e pneus da 2.0: rotação, corte de troca e trepidação vêm do powertrain (betaAudio.js). */
+  updateBeta(car, running) {
+    const ctx = this.ctx;
+    const voice = betaEngineVoice(car);
+    if (voice.shifting && !this.betaShifting && running) this.tone(70, .05, "triangle", .1); // estalo da troca
+    this.betaShifting = voice.shifting;
+    for (const osc of this.voices) {
+      osc.o.frequency.setTargetAtTime(voice.freq * osc.ratio, ctx.currentTime, voice.shifting ? .02 : .05);
+    }
+    this.engineFilter.frequency.setTargetAtTime(voice.cutoff, ctx.currentTime, .08);
+    this.engine.gain.setTargetAtTime(running ? voice.gain : 0, ctx.currentTime, .04);
+    const tires = betaTireVoice(car);
+    this.tireFilter.frequency.setTargetAtTime(tires.cutoff, ctx.currentTime, .05);
+    this.tires.gain.setTargetAtTime(running ? tires.gain : 0, ctx.currentTime, .05);
   }
 }
 

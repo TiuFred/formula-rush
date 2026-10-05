@@ -17,6 +17,7 @@ const CONTROLS = [
   ["↑  W", "Acelerar"],
   ["↓  S", "Frear"],
   ["←  →   A  D", "Esterçar"],
+  ["GAMEPAD", "Analógico esterça · RT/LT pedais · LB/RB marchas · Start pausa"],
   ["J", "Subir marcha (câmbio manual)"],
   ["H", "Reduzir marcha (câmbio manual)"],
   ["G", "Alternar câmbio automático / manual"],
@@ -51,6 +52,10 @@ const SEGMENTS = {
     ["manual", "MANUAL"],
   ],
   guide: [
+    [true, "LIGADO"],
+    [false, "DESLIGADO"],
+  ],
+  ghost: [
     [true, "LIGADO"],
     [false, "DESLIGADO"],
   ],
@@ -120,7 +125,9 @@ function build() {
   head.append(el("b", "bm-badge", "2.0 BETA"));
   const title = el("h2", "", "PREPARAÇÃO");
   title.id = "bmTitle";
-  head.append(title, el("span", "bm-sub", "INTERLAGOS · CONTRA-RELÓGIO"));
+  const sub = el("span", "bm-sub", "INTERLAGOS · CONTRA-RELÓGIO");
+  sub.id = "bmSub";
+  head.append(title, sub);
   panel.append(head);
 
   const body = el("div", "bm-body");
@@ -154,6 +161,7 @@ function build() {
     slider("shake", "BALANÇO DA CÂMERA", 0, 100, 5, (v) => v + "%"),
     segmented("units", "VELOCIDADE"),
     segmented("guide", "GUIA DE PILOTAGEM"),
+    segmented("ghost", "FANTASMA DO RECORDE"),
   );
   const skip = el("label", "bm-check");
   const skipInput = el("input");
@@ -258,7 +266,7 @@ function trapKeys() {
  * Abre o menu. `launch` mostra "LARGAR" (chama `confirm`); `pause` mostra
  * "VOLTAR" e fecha por conta própria (chama `close`).
  */
-export function openBetaMenu({ mode: nextMode = "launch", confirm, close } = {}) {
+export function openBetaMenu({ mode: nextMode = "launch", confirm, close, subtitle } = {}) {
   if (!root) build();
   mode = nextMode;
   onConfirm = () => {
@@ -266,6 +274,7 @@ export function openBetaMenu({ mode: nextMode = "launch", confirm, close } = {})
     else confirm?.();
   };
   onClose = close ?? null;
+  if (subtitle) root.querySelector("#bmSub").textContent = subtitle;
   root.querySelector("#bmTitle").textContent = mode === "pause" ? "AJUSTES" : "PREPARAÇÃO";
   root.querySelector("#bmConfirm").textContent = mode === "pause" ? "VOLTAR" : "LARGAR";
   root.querySelector(".bm-loading").hidden = true;
