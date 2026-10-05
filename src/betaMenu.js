@@ -4,7 +4,10 @@ import {
   SPEED_UNITS,
   getSettings,
   updateSettings,
+  onSettingsChange,
 } from "./betaSettings.js";
+import { BETA_CIRCUITS } from "./betaMode.js";
+import { CIRCUITS } from "./circuits.js";
 import { feedbackUrl } from "./betaDiagnostics.js";
 
 /**
@@ -41,6 +44,7 @@ const TIPS = [
 ];
 
 const SEGMENTS = {
+  circuit: BETA_CIRCUITS.map((id) => [id, CIRCUITS[id].label.toUpperCase()]),
   quality: Object.entries(QUALITY_PRESETS).map(([value, preset]) => [value, preset.label]),
   time: [
     ["day", "DIA"],
@@ -154,6 +158,7 @@ function build() {
   const settings = el("section", "bm-col");
   settings.append(el("h3", "", "AJUSTES"));
   settings.append(
+    segmented("circuit", "PISTA"),
     segmented("quality", "QUALIDADE"),
     segmented("time", "HORÁRIO"),
     segmented("transmission", "CÂMBIO"),
@@ -226,10 +231,12 @@ function build() {
 
   root.append(panel);
   document.body.append(root);
+  onSettingsChange(() => syncControls());
 }
 
 function syncControls() {
   const settings = getSettings();
+  if (mode === "launch") root.querySelector("#bmSub").textContent = CIRCUITS[settings.circuit].label.toUpperCase() + " · CONTRA-RELÓGIO";
   root.querySelectorAll(".bm-segments").forEach((group) => {
     group.querySelectorAll(".bm-seg").forEach((button) => {
       const active = button.dataset.value === String(settings[group.dataset.key]);
@@ -280,6 +287,8 @@ export function openBetaMenu({ mode: nextMode = "launch", confirm, close, subtit
   root.querySelector(".bm-loading").hidden = true;
   root.querySelector(".bm-body").hidden = false;
   root.querySelector(".bm-foot").hidden = false;
+  // Trocar a pista só na preparação; ajustes da pausa não reiniciam a sessão.
+  root.querySelector('[data-key="circuit"]').parentElement.hidden = mode === "pause";
   syncControls();
   root.hidden = false;
   detachKeys?.();

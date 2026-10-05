@@ -309,8 +309,10 @@ function syncToggleVisual(id, on) {
  * sem classificação e sem leaderboard. A versão 1.0 permanece sendo a
  * entrada `interlagos` normal do configurador.
  */
-async function startGraphicsBeta(circuitId = BETA_CIRCUITS[0]) {
+async function startGraphicsBeta(circuitId = getSettings().circuit) {
+  if (!BETA_CIRCUITS.includes(circuitId)) circuitId = BETA_CIRCUITS[0];
   const button = byId("startBeta");
+  if (button.disabled) return;
   button.disabled = true;
   button.classList.add("loading");
   stateBeforeBeta = enterBetaState(state);
@@ -323,8 +325,10 @@ async function startGraphicsBeta(circuitId = BETA_CIRCUITS[0]) {
   let loaded;
   try {
     const ui = await loadBetaUi();
-    loadProgress = ui.showBetaLoading;
-    ui.showBetaLoading(2, "INICIANDO");
+    // Mesmo com a introdução desativada, exibe a pista e o progresso real.
+    ui.openBetaMenu({ subtitle: CIRCUITS[circuitId].label.toUpperCase() + " · CONTRA-RELÓGIO" });
+    loadProgress = (percent, label) => ui.showBetaLoading(percent, CIRCUITS[circuitId].label.toUpperCase() + " · " + label);
+    loadProgress(2, "INICIANDO");
     loaded = await loadCircuit(circuitId);
   } catch (err) {
     console.error(err);
@@ -452,9 +456,9 @@ function wireLifecycleButtons() {
       return;
     }
     const { openBetaMenu } = await loadBetaUi();
-    openBetaMenu({ mode: "launch", confirm: () => startGraphicsBeta(), subtitle: CIRCUITS[BETA_CIRCUITS[0]].label.toUpperCase() + " · CONTRA-RELÓGIO" });
+    openBetaMenu({ mode: "launch", confirm: () => startGraphicsBeta(getSettings().circuit) });
   };
-  byId("betaSettings").onclick = () => betaUi?.openBetaMenu({ mode: "pause" });
+  byId("betaSettings").onclick = () => betaUi?.openBetaMenu({ mode: "pause", subtitle: CIRCUITS[state.circuitId].label.toUpperCase() + " · CONTRA-RELÓGIO" });
   byId("backFromChampionship").onclick = closeChampionshipSetup;
   byId("championshipForm").onsubmit = startChampionship;
   byId("championshipLapCount").onchange = (event) => updateChampionshipLapCount(event.target.value);

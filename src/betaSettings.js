@@ -3,6 +3,8 @@
  * do DOM (exceto `localStorage`, sempre dentro de try/catch), para ser testável.
  */
 
+import { BETA_CIRCUITS } from "./betaMode.js";
+
 const KEY = "formula-rush.beta.settings.v1";
 
 /** Cada preset define o que a GPU precisa fazer; os valores mais altos só entram em máquinas capazes. */
@@ -26,6 +28,7 @@ export const TRANSMISSION_MODES = ["auto", "manual"];
 
 export function defaultSettings({ touch = false } = {}) {
   return {
+    circuit: "interlagos",
     quality: touch ? "medium" : "high",
     fov: 68,
     shake: 100,
@@ -45,6 +48,7 @@ export function normalizeSettings(raw, base = defaultSettings()) {
   const source = raw && typeof raw === "object" ? raw : {};
   const number = (value, fallback) => (Number.isFinite(Number(value)) && value !== null && value !== "" ? Number(value) : fallback);
   return {
+    circuit: BETA_CIRCUITS.includes(source.circuit) ? source.circuit : "interlagos",
     quality: source.quality in QUALITY_PRESETS ? source.quality : base.quality,
     fov: Math.round(clamp(number(source.fov, base.fov), FOV_RANGE[0], FOV_RANGE[1])),
     shake: Math.round(clamp(number(source.shake, base.shake), 0, 100)),

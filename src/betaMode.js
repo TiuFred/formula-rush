@@ -5,7 +5,7 @@
  */
 
 /** Circuitos disponíveis na 2.0. Para incluir um, ver docs/prompts/astra-indianapolis-2.0.md. */
-export const BETA_CIRCUITS = ["interlagos"];
+export const BETA_CIRCUITS = ["interlagos", "indianapolis"];
 
 /** Campos que a 2.0 sobrescreve e a 1.0 precisa recuperar ao sair. */
 const SAVED_FIELDS = ["cameraMode", "timeTrial", "qualifyingEnabled", "qualifying", "nightMode", "alwaysTurbo"];
