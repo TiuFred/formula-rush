@@ -40,11 +40,13 @@ export const SPONSORS = [
   { id: "raybeam", name: "RAYBEAM", sector: "óculos" },
   { id: "formula-rush", name: "FORMULA RUSH", sector: "casa", kind: "house" },
   { id: "interlagos", name: "INTERLAGOS", sector: "casa", kind: "house" },
+  // A placa da casa ocupa a mesma célula: o atlas de Interlagos permanece idêntico.
+  { id: "indianapolis", name: "INDIANÁPOLIS", sector: "casa", kind: "house", slot: 19 },
 ];
 
-export const SPONSOR_INDEX = Object.fromEntries(SPONSORS.map((sponsor, index) => [sponsor.id, index]));
+export const SPONSOR_INDEX = Object.fromEntries(SPONSORS.map((sponsor, index) => [sponsor.id, sponsor.slot ?? index]));
 export const ROTATION_IDS = SPONSORS.filter((sponsor) => sponsor.kind !== "house").map((sponsor) => sponsor.id);
-export const ATLAS_ROWS = Math.ceil(SPONSORS.length / ATLAS_COLS);
+export const ATLAS_ROWS = Math.ceil((Math.max(...Object.values(SPONSOR_INDEX)) + 1) / ATLAS_COLS);
 
 /** PRNG determinístico pequeno (mulberry32): o cenário não muda entre execuções. */
 export function seededRandom(seed) {
@@ -507,6 +509,18 @@ const PAINTERS = {
     fit(ctx, "INTERLAGOS", 150, 58, 480, { size: 92, weight: 900, color: "#f4ecdb", spacing: 6 });
     fit(ctx, "SÃO PAULO · BRASIL", 152, 104, 400, { size: 26, weight: 600, color: "#d5fc51", spacing: 6 });
   },
+  indianapolis(ctx) {
+    ctx.fillStyle = "#172e48";
+    ctx.fillRect(0, 0, CELL.w, CELL.h);
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 4; col++) {
+        ctx.fillStyle = (row + col) % 2 ? "#ac5740" : "#d68960";
+        ctx.fillRect(28 + col * 25 + (row % 2) * 10, 24 + row * 21, 23, 18);
+      }
+    }
+    fit(ctx, "INDIANÁPOLIS", 155, 54, 550, { size: 82, weight: 900, spacing: 3 });
+    fit(ctx, "FORMULA RUSH · OVAL 2,5 MILHAS", 157, 101, 540, { size: 26, color: "#e4c7a6", spacing: 3 });
+  },
 };
 
 /** Moldura comum: filete escuro, brilho de LED no topo e o filete lima do jogo embaixo. */
@@ -524,8 +538,9 @@ function finish(ctx) {
   ctx.fillRect(8, CELL.h - 11, CELL.w - 16, 3);
 }
 
-function paintAtlas(ctx) {
-  SPONSORS.forEach((sponsor, index) => {
+function paintAtlas(ctx, house) {
+  SPONSORS.filter((sponsor) => !["interlagos", "indianapolis"].includes(sponsor.id) || sponsor.id === house).forEach((sponsor) => {
+    const index = SPONSOR_INDEX[sponsor.id];
     ctx.save();
     ctx.translate((index % ATLAS_COLS) * CELL.w, Math.floor(index / ATLAS_COLS) * CELL.h);
     ctx.beginPath();
@@ -538,19 +553,19 @@ function paintAtlas(ctx) {
 }
 
 /** Cria a textura do atlas. As fontes do jogo (Barlow) são carregadas de forma assíncrona: redesenha quando chegarem. */
-export function makeSponsorAtlas(maxAnisotropy = 4) {
+export function makeSponsorAtlas(maxAnisotropy = 4, house = "interlagos") {
   const canvas = document.createElement("canvas");
   canvas.width = CELL.w * ATLAS_COLS;
   canvas.height = CELL.h * ATLAS_ROWS;
   const ctx = canvas.getContext("2d");
-  paintAtlas(ctx);
+  paintAtlas(ctx, house);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(8, maxAnisotropy);
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   document.fonts?.load(`800 64px "Barlow Condensed"`).then(() => {
-    paintAtlas(ctx);
+    paintAtlas(ctx, house);
     texture.needsUpdate = true;
   }).catch(() => {});
   return texture;

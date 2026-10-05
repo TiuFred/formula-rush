@@ -11,6 +11,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { createBetaGradePass, updateBetaGrade } from "./betaPostFx.js";
 import { chunkInstancedMeshes } from "./instanceChunks.js";
+import { buildIndianapolisGolf } from "./indianapolisStructures.js";
 import { createBetaGuide } from "./betaGuide.js";
 import { sceneProfile } from "./renderProfile.js";
 import { makeAsphaltMaps } from "./betaTextures.js";
@@ -1137,7 +1138,7 @@ export function buildScene() {
       weightSum += weight;
     }
     let average = weightedY / weightSum - groundDrop;
-    if (state.graphicsBeta) {
+    if (state.graphicsBeta && !speedway) {
       const reliefMask = THREE.MathUtils.smoothstep(nearestDistance, 24, 175);
       const broadRelief = Math.sin(x * .0107 + z * .0041) * 2.8
         + Math.sin(z * .0163 - x * .0037) * 1.65
@@ -1241,7 +1242,7 @@ export function buildScene() {
   if (night) buildFloodlights();
 
   // Grid quadriculado (xadrez) próximo à linha de largada.
-  for (let col = 0; col < 2; col++) {
+  for (let col = 0; col < (state.graphicsBeta && speedway ? 0 : 2); col++) {
     for (let row = 0; row < 14; row++) {
       addAlignedBox(col * .9, row - 6.5, 1, .02, .9, (col + row) % 2 ? MATERIALS.black : MATERIALS.white, .15);
     }
@@ -1298,6 +1299,7 @@ export function buildScene() {
 
   if (state.graphicsBeta) {
     buildBetaAtmosphere(groundHeightAt, rng, inWater);
+    if (speedway) buildIndianapolisGolf(groundHeightAt);
   } else if (street) {
     buildCityBlocks(rng, groundHeightAt, inWater, waterY);
   } else if (forest) {

@@ -8,12 +8,11 @@ import { addBox, makeMaterial, makeTextPanel } from "./materials.js";
 import { alignedFootprintClearanceAt } from "./track.js";
 export { setupBetaEnvironment, buildBetaAtmosphere } from "./betaNature.js";
 import { buildInterlagosStands, buildInterlagosLandmarks, addPitCanopy } from "./interlagosStructures.js";
+import { BETA_SCENERY } from "./betaScenery.js";
+import { buildIndianapolisDetails } from "./indianapolisStructures.js";
 import {
   INTERLAGOS_BRIDGE,
-  INTERLAGOS_CONTINUOUS_SPONSOR_ZONES,
-  INTERLAGOS_HOARDING_STATIONS,
   INTERLAGOS_PITS,
-  INTERLAGOS_STANDS,
 } from "./interlagosReal.js";
 import {
   BOARD,
@@ -67,8 +66,8 @@ function outsideOfCornerAt(s, window = 60) {
  * Boxes (onde a câmera de TV mais mostra); em blocos densos no lado de fora das
  * curvas, e esparsas no resto.
  */
-function sponsorDensity(s, side) {
-  if (INTERLAGOS_CONTINUOUS_SPONSOR_ZONES.some((zone) => inStationRange(s, zone, TRACK_LENGTH))) return "continuous";
+function sponsorDensity(s, side, config) {
+  if (config.continuousSponsorZones.some((zone) => inStationRange(s, zone, TRACK_LENGTH))) return "continuous";
   return outsideOfCornerAt(s + 20) === side ? "dense" : "sparse";
 }
 
@@ -85,18 +84,18 @@ function addStripBoard(sponsors, { points, side, bottom, height, brand }) {
 }
 
 /** Painéis grandes atrás do muro nas frenagens, do lado de fora das curvas, sobre dois postes. */
-function addHoardings(sponsors, postMaterial) {
+function addHoardings(sponsors, postMaterial, config) {
   // Placas de distância ficam só à direita; os nomes das curvas podem estar dos dois lados.
   const distanceBoards = DISTANCE_BOARD_STATIONS.flatMap((s0) => [s0 - 150, s0 - 100, s0 - 50]);
   const nameSigns = CORNER_NAME_SIGNS.map(([s]) => s);
   const near = (list, s, margin) => list.some((o) => Math.abs(o - s) < HOARDING.length / 2 + margin);
-  const plan = planHoardings(INTERLAGOS_HOARDING_STATIONS, {
+  const plan = planHoardings(config.hoardingStations, {
     outsideSide: (s) => outsideOfCornerAt(s + 90, 90),
     wallOffsetAt: state.track.wallOffsetAt,
     blocked: (s, side) =>
       (side > 0 && near(distanceBoards, s, 3)) ||
       near(nameSigns, s, 6) ||
-      INTERLAGOS_STANDS.some((stand) => s > stand.start - 12 && s < stand.end + 12),
+      config.stands.some((stand) => s > stand.start - 12 && s < stand.end + 12),
   });
   for (const { s, side, offsets, brand } of plan) {
     const half = HOARDING.length / 2;
@@ -112,9 +111,9 @@ function addHoardings(sponsors, postMaterial) {
 }
 
 /** Placas coladas ao muro: seguem a curva do muro em `BOARD.segments` trechos. */
-function addWallBoards(sponsors) {
+function addWallBoards(sponsors, config) {
   const { length, segments, height } = BOARD;
-  const plan = planWallSponsors(TRACK_LENGTH, state.track.wallOffsetAt, { density: sponsorDensity });
+  const plan = planWallSponsors(TRACK_LENGTH, state.track.wallOffsetAt, { density: (s, side) => sponsorDensity(s, side, config) });
   for (const { s, side, offsets, brand } of plan) {
     // 4 cm à frente do muro (lado da pista) para não brigar com a profundidade dele.
     const points = offsets.map((offset, k) => state.track.at(s + (length * k) / segments, side * (offset - .04)));
@@ -141,9 +140,7 @@ function mergeFencePanels(panels, material) {
   for (const part of parts) part.dispose();
 }
 
-/** Detalhes de autódromo: alambrado, marcas de frenagem, público e câmeras. */
-export function buildBetaTrackDetails(rng) {
-  const sponsors = new SponsorBoards();
+function buildInterlagosPits(sponsors) {
   let pitBoard = 0;
   const pitAligned = (s, lane, ...args) => addAligned(s, -lane, ...args);
   const concrete = makeMaterial("#babcb7", { roughness: .92 });
@@ -198,6 +195,14 @@ export function buildBetaTrackDetails(rng) {
     state.scene.add(sign);
   }
 
+}
+
+/** Detalhes comuns, configurados por circuito, sem mudar a ordem visual de Interlagos. */
+export function buildBetaTrackDetails(rng) {
+  const config = BETA_SCENERY[state.circuitId];
+  if (!config) throw new Error("Cenário 2.0 não configurado: " + state.circuitId);
+  const sponsors = new SponsorBoards();
+  if (state.circuitId === "interlagos") buildInterlagosPits(sponsors);
   const fence = new THREE.MeshStandardMaterial({
     map: makeFenceTexture(),
     transparent: true,
@@ -211,21 +216,21 @@ export function buildBetaTrackDetails(rng) {
   // são fundidos numa só malha: com textura o mesclador geral os deixaria como
   // centenas de chamadas de desenho.
   const fencePanels = [];
-  const fenceFrom = Math.min(-700, ...INTERLAGOS_STANDS.map((stand) => stand.start - 20));
-  const fenceTo = Math.max(470, ...INTERLAGOS_STANDS.map((stand) => stand.end + 20));
-  for (let s = fenceFrom; s <= fenceTo; s += 18) {
-    for (const side of [-1, 1]) {
-      const offset = state.track.tracksideOffsetAt(s, side, .55);
-      const lane = side * offset;
-      if (alignedFootprintClearanceAt(state.track, s, lane, .035, 18.15) <= .05) continue;
-      fencePanels.push(addAligned(s, lane, .035, 4.8, 18.15, fence, .05));
-      addAligned(s, side * offset, .09, 5.1, .12, post, .05);
+  for (const { from, to, sides } of config.fences) {
+    for (let s = from; s <= to; s += 18) {
+      for (const side of sides) {
+        const offset = state.track.tracksideOffsetAt(s, side, .55);
+        const lane = side * offset;
+        if (alignedFootprintClearanceAt(state.track, s, lane, .035, 18.15) <= .05) continue;
+        fencePanels.push(addAligned(s, lane, .035, 4.8, 18.15, fence, .05));
+        addAligned(s, side * offset, .09, 5.1, .12, post, .05);
+      }
     }
   }
   mergeFencePanels(fencePanels, fence);
 
   const rubber = makeMaterial("#111315", { roughness: .8, transparent: true, opacity: .52, depthWrite: false });
-  for (const brakingZone of [255, 1085, 2215, 2920, 3655]) {
+  for (const brakingZone of config.brakingStations) {
     for (let i = 0; i < 15; i++) {
       const s = brakingZone - 100 + i * 6.2;
       const direction = state.track.at(s + 50).yaw - state.track.at(s + 15).yaw;
@@ -236,14 +241,18 @@ export function buildBetaTrackDetails(rng) {
     }
   }
 
-  buildInterlagosStands(rng, sponsors);
-  buildInterlagosLandmarks(sponsors);
-  addWallBoards(sponsors);
-  addHoardings(sponsors, post);
-  state.scene.add(sponsors.build(makeSponsorAtlas(state.renderer?.capabilities.getMaxAnisotropy() ?? 4)));
+  if (state.circuitId === "interlagos") {
+    buildInterlagosStands(rng, sponsors);
+    buildInterlagosLandmarks(sponsors);
+  } else {
+    buildIndianapolisDetails(rng, sponsors);
+  }
+  addWallBoards(sponsors, config);
+  addHoardings(sponsors, post, config);
+  state.scene.add(sponsors.build(makeSponsorAtlas(state.renderer?.capabilities.getMaxAnisotropy() ?? 4, config.house)));
 
   const cameraMaterial = makeMaterial("#22282b", { metalness: .65, roughness: .3 });
-  for (const s of [420, 1340, 2460, 3480]) {
+  for (const s of config.cameraStations) {
     const side = Math.floor(s / 1000) % 2 ? -1 : 1;
     const lane = side * state.track.tracksideOffsetAt(s, side, 2.2);
     addAligned(s, lane, .15, 4.3, .15, post);

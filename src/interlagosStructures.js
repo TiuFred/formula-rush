@@ -79,7 +79,11 @@ function beam(a, b, radius, material, parent) {
 
 /** `sponsors` (opcional): acumulador de placas; cada módulo ganha placas na grade frontal. */
 export function buildInterlagosStands(rng, sponsors = null) {
-  const modules = planInterlagosStands(state.track);
+  buildDetailedStands(planInterlagosStands(state.track), rng, sponsors);
+}
+
+/** Construtor compartilhado; o plano define lado, filas e projeção de cada módulo. */
+export function buildDetailedStands(modules, rng, sponsors = null, circuit = "interlagos") {
   const concrete = makeMaterial("#9e9f98", { roughness: .95 });
   const steel = makeMaterial("#65716d", { metalness: .65, roughness: .48 });
   const roof = makeMaterial("#d5d5ca", { metalness: .25, roughness: .6 });
@@ -104,9 +108,11 @@ export function buildInterlagosStands(rng, sponsors = null) {
     const { s, lane, depth, rows, covered, id, length } = module;
     const frame = state.track.at(s, lane);
     const root = new THREE.Group();
-    root.name = `interlagos-sector-${id}`;
+    root.name = `${circuit}-sector-${id}`;
     root.position.copy(frame.p);
-    root.rotation.y = frame.yaw + Math.PI;
+    // No oval, o banking acaba no muro: as bancadas ficam niveladas nessa cota.
+    if (circuit === "indianapolis") root.position.y = state.track.at(s, Math.sign(lane) * (trackHalfWidthAt(s) + 2)).p.y;
+    root.rotation.y = frame.yaw + (lane > 0 ? Math.PI : 0);
     root.userData.standFootprint = { s, lane, width: depth + 3, depth: 18 };
     state.scene.add(root);
     root.updateMatrixWorld(true);

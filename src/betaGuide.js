@@ -186,7 +186,7 @@ export function createBetaGuide() {
           const v = i * 2 + side;
           const lateral = side ? half : -half;
           positions[v * 3] = frame.p.x + frame.right.x * lateral;
-          positions[v * 3 + 1] = frame.p.y + 0.12;
+          positions[v * 3 + 1] = frame.p.y + frame.right.y * lateral + 0.12;
           positions[v * 3 + 2] = frame.p.z + frame.right.z * lateral;
           _color.copy(ACTION_COLORS[action]);
           colors[v * 4] = _color.r;
