@@ -32,6 +32,8 @@ export function finishRace(car) {
  */
 export function computeDrsActive(car) {
   if (car.finish || !drsZoneAt(car.s)) return false;
+  // A 2.0 é solo: abre automaticamente na zona e fecha com o pedal de freio.
+  if (state.graphicsBeta) return !(state.keys.ArrowDown || state.keys.s || state.keys.S || state.keys.GamepadDown);
   // `other.group.visible`: na classificação os bots continuam correndo a
   // própria volta por trás dos panos (ver main.js/startRace), mas ficam
   // ocultos — não podem contar como "carro da frente" pra um DRS que o

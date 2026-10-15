@@ -4,18 +4,20 @@
 import { alignedFootprintClearanceAt, trackHalfWidthAt } from "./track.js";
 
 export const INDIANAPOLIS_STANDS = [
-  { id: "PRINCIPAL", start: 0, end: 918, rows: 18, covered: true },
-  { id: "T1", start: 972, end: 1422, rows: 8, covered: false },
-  { id: "NORTE", start: 1422, end: 1602, rows: 6, covered: false },
-  { id: "T2", start: 1602, end: 2016, rows: 8, covered: false },
-  { id: "OPOSTA", start: 2016, end: 3006, rows: 6, covered: false },
-  { id: "T3", start: 3006, end: 3420, rows: 8, covered: false },
-  { id: "SUL", start: 3420, end: 3618, rows: 6, covered: false },
-  { id: "T4", start: 3618, end: 4023, rows: 8, covered: false },
-  { id: "INTERNA", start: 144, end: 900, rows: 16, covered: true, side: -1, setback: 53 },
+  { id: "PRINCIPAL", start: 0, end: 918, rows: 16, covered: true },
+  { id: "T1", start: 972, end: 1422, rows: 6, covered: false },
+  { id: "NORTE", start: 1422, end: 1602, rows: 4, covered: false },
+  { id: "T2", start: 1602, end: 2016, rows: 6, covered: false },
+  { id: "OPOSTA", start: 2016, end: 3006, rows: 4, covered: false },
+  { id: "T3", start: 3006, end: 3420, rows: 6, covered: false },
+  { id: "SUL", start: 3420, end: 3618, rows: 4, covered: false },
+  { id: "T4", start: 3618, end: 4023, rows: 6, covered: false },
+  { id: "INTERNA", start: 144, end: 900, rows: 12, covered: true, side: -1, setback: 53 },
 ];
 
 export const INDIANAPOLIS_SCENERY = {
+  // Blocos menores limitam as bancadas processadas pelos espelhos (far=320 m).
+  instanceCellSize: 180,
   stands: INDIANAPOLIS_STANDS,
   brakingStations: [],
   cameraStations: [240, 1240, 2400, 3250],

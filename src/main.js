@@ -154,7 +154,7 @@ function startRace() {
   if (state.championship) {
     byId("circuitName").textContent += " · CAMPEONATO " + (state.championship.round + 1) + "/" + state.championship.calendar.length;
   } else if (state.graphicsBeta) {
-    byId("circuitName").textContent = "INTERLAGOS · 2.0 BETA";
+    byId("circuitName").textContent = CIRCUITS[state.circuitId].label.toUpperCase() + " · 2.0 BETA";
   }
   if (state.soundOn) syncEngineAudioEnabled(state.soundOn);
   resizeRenderer();

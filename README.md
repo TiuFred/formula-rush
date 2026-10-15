@@ -75,6 +75,13 @@ npx vercel --prod      # ou apenas dê push na main, se a integração com o Git
 
 ### Qualidade gráfica (2.0)
 
+- O menu **PISTA** oferece **Interlagos** e **Indianápolis (oval de 2,5 milhas)**.
+  A escolha fica salva, inclusive com “Não mostrar este menu”. Cada circuito e
+  horário guarda seu próprio recorde e fantasma.
+- Indianápolis tem bancadas detalhadas com público, alambrado, Pagoda, boxes,
+  passarela, faixa de tijolos e greens no infield. O oval e a elevação são os
+  mesmos da versão clássica. Referências, limites de fidelidade e instruções
+  para o próximo circuito em [docs/indianapolis-2.0.md](docs/indianapolis-2.0.md).
 - Renderiza até 2× o pixel ratio (telas retina), com MSAA 4× quando a GPU
   suporta, anisotropia máxima nas texturas e sombras de 4096 px no desktop
   (2048 em telas de toque). A resolução adaptativa recua se o quadro ficar lento.

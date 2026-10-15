@@ -4,6 +4,7 @@ import { INDIANAPOLIS_SCENERY } from "./indianapolisScenery.js";
 
 export const BETA_SCENERY = {
   interlagos: {
+    instanceCellSize: 360,
     stands: INTERLAGOS_STANDS,
     brakingStations: [255, 1085, 2215, 2920, 3655],
     cameraStations: [420, 1340, 2460, 3480],

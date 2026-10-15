@@ -180,7 +180,6 @@ horário, tela, navegador e os últimos 3 erros (`src/betaDiagnostics.js`). Nada
 é enviado sozinho. A URL padrão é a de *issues* do repositório no GitHub;
 defina `VITE_FEEDBACK_URL` para usar outro formulário.
 
-<<<<<<< ours
 ## Público animado e patrocinadores
 
 **Público** (`src/crowd.js`). Cada torcedor é uma instância de uma malha
@@ -324,7 +323,6 @@ capacidade real de esterço do carro (a mesma `maxYawRate` de `player.js`), com 
 a permitida naquele ponto: acima, vermelho; perto do limite de uma curva, amarelo; senão,
 verde. A HUD repete o aviso em um selo pequeno (ACELERE, ALIVIE, FREIE). Pode ser desligado
 em Ajustes (`guide`).
->>>>>>> theirs
 
 ## Recorde pessoal e fantasma
 
@@ -364,4 +362,5 @@ pé embaixo e a troca corta o som com um estalo. Zebra e grama produzem uma trep
   o que `enterBetaState` alterou (câmera, contra-relógio, classificação, noite, turbo).
 - `betaUi.js` (menu, HUD, fantasma e CSS) é carregado sob demanda no primeiro toque em
   "Formula Rush 2.0".
-- Para incluir um circuito na 2.0, veja `docs/prompts/astra-indianapolis-2.0.md`.
+- A 2.0 permite escolher Interlagos ou Indianápolis. Para incluir outro circuito,
+  veja [Indianápolis 2.0](indianapolis-2.0.md).

@@ -12,6 +12,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { createBetaGradePass, updateBetaGrade } from "./betaPostFx.js";
 import { chunkInstancedMeshes } from "./instanceChunks.js";
 import { buildIndianapolisGolf } from "./indianapolisStructures.js";
+import { BETA_SCENERY } from "./betaScenery.js";
 import { createBetaGuide } from "./betaGuide.js";
 import { sceneProfile } from "./renderProfile.js";
 import { makeAsphaltMaps } from "./betaTextures.js";
@@ -1379,7 +1380,8 @@ export function buildScene() {
 
   buildTrackDecorations();
   mergeStaticMeshesByMaterial();
-  chunkInstancedMeshes(state.scene, { cellSize: 360 * worldScale() });
+  const instanceCellSize = state.graphicsBeta ? BETA_SCENERY[state.circuitId].instanceCellSize : 360;
+  chunkInstancedMeshes(state.scene, { cellSize: instanceCellSize * worldScale() });
   buildRacingLineMesh();
   state.betaGuide = state.graphicsBeta ? createBetaGuide() : null;
 
